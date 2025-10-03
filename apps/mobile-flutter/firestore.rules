@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // UserType enum indices (see lib/models/clinic_models.dart)
+    // petOwner=0, vet=1, clinicAdmin=2, appOwner=3
+    function isAppOwner() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 3;
+    }
+
+    function isClinicMember(clinicId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid));
+    }
+
+    // ClinicRole enum indices (admin=0, vet=1)
+    function isClinicAdmin(clinicId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid)).data.role == 0;
+    }
+
+    // Users and their subcollections
+    match /users/{userId} {
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Allow reading own user doc by uid OR by matching email (for temp_admin profiles)
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        (
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email
+        )
+      );
+      allow update, delete: if isSignedIn() && request.auth.uid == userId;
+
+      match /events/{eventId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /clinicHistory/{historyId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      // User's pets subcollection
+      match /pets/{petId} {
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
+      }
+    }
+
+    // Clinics and members
+    match /clinics/{clinicId} {
+      // Allow discovery of active clinics to signed-in users
+      allow read: if isSignedIn() && resource.data.isActive == true;
+
+      // Create clinic: app owner OR the creator sets themselves as admin
+      allow create: if isSignedIn() && (
+        isAppOwner() || request.resource.data.adminId == request.auth.uid
+      );
+
+      // Update/delete clinic: clinic admin or app owner
+      allow update, delete: if isClinicAdmin(clinicId) || isAppOwner();
+
+      match /members/{memberId} {
+        // Visible to clinic members and app owner
+        allow read: if isClinicMember(clinicId) || isAppOwner();
+        // Manageable by clinic admins and app owner
+        allow create, update, delete: if isClinicAdmin(clinicId) || isAppOwner();
+      }
+    }
+
+    // Chat rooms and messages (1:1: petOwnerId <-> vetId)
+    match /chatRooms/{chatRoomId} {
+      // Create: requester must be one of the participants
+      allow create: if isSignedIn() && (
+        request.resource.data.petOwnerId == request.auth.uid ||
+        request.resource.data.vetId == request.auth.uid
+      );
+
+      // Read/update/delete: only participants may access the room
+      allow read, update, delete: if isSignedIn() && (
+        resource.data.petOwnerId == request.auth.uid ||
+        resource.data.vetId == request.auth.uid
+      );
+
+      match /messages/{messageId} {
+        allow create, read, update, delete: if isSignedIn() && (
+          get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.petOwnerId == request.auth.uid ||
+          get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.vetId == request.auth.uid
+        );
+      }
+    }
+  }
+}
