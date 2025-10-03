@@ -4,6 +4,7 @@ import '../providers/user_provider.dart';
 
 import '../theme/app_theme.dart';
 import 'vet_management_page.dart';
+import '../main.dart' show ProfilePage;
 
 class ClinicAdminDashboard extends StatefulWidget {
   const ClinicAdminDashboard({super.key});
@@ -35,6 +36,28 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
               IconButton(
                 onPressed: () => _showClinicInfo(context, userProvider),
                 icon: const Icon(Icons.info_outline),
+              ),
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilePage(),
+                    ),
+                  );
+                },
+                icon: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.white24,
+                  child: Text(
+                    _getUserInitial(userProvider),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                tooltip: 'Profile',
               ),
             ],
           ),
@@ -172,7 +195,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.2,
+      childAspectRatio: 1.05,
       children: actionCards,
     );
   }
@@ -185,7 +208,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       _buildActionCard(
         icon: Icons.people,
         title: 'Manage Vets',
-        subtitle: 'Add, edit, or remove vets',
+        subtitle: 'Invite and manage vets',
         color: AppTheme.primaryGreen,
         onTap: () {
           Navigator.push(
@@ -202,7 +225,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       _buildActionCard(
         icon: Icons.analytics,
         title: 'Clinic Reports',
-        subtitle: 'View clinic analytics',
+        subtitle: 'Track analytics',
         color: AppTheme.warningAmber,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -213,7 +236,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       _buildActionCard(
         icon: Icons.people_outline,
         title: 'Pet Owners',
-        subtitle: 'View connected pet owners',
+        subtitle: 'Connected owners',
         color: AppTheme.accentCoral,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -224,7 +247,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       _buildActionCard(
         icon: Icons.settings,
         title: 'Clinic Settings',
-        subtitle: 'Manage clinic information',
+        subtitle: 'Clinic details',
         color: AppTheme.primaryBlue,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -250,7 +273,8 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
@@ -268,13 +292,15 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
                   fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
                 subtitle,
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
-                maxLines: 2,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -282,6 +308,20 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         ),
       ),
     );
+  }
+
+  String _getUserInitial(UserProvider userProvider) {
+    final displayName = userProvider.currentUser?.displayName;
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName.substring(0, 1).toUpperCase();
+    }
+
+    final email = userProvider.currentUser?.email;
+    if (email != null && email.isNotEmpty) {
+      return email.substring(0, 1).toUpperCase();
+    }
+
+    return 'C';
   }
 
   void _showClinicInfo(BuildContext context, UserProvider userProvider) {

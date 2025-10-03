@@ -13,6 +13,7 @@ import '../../repositories/event_repository.dart';
 import '../../pages/onboarding_pages.dart';
 import '../../main.dart'; // For MyHomePage
 import '../../pages/admin_dashboard.dart'; // For App Owner Dashboard
+import '../../pages/clinic_admin_dashboard.dart'; // For Clinic Admin Dashboard
 import 'email_verification_page.dart';
 import 'auth_page.dart';
 
@@ -129,10 +130,15 @@ class AuthWrapper extends StatelessWidget {
                         if (userProvider.isAppOwner) {
                           // App owners get the special admin dashboard
                           return const AdminDashboard();
-                        } else {
-                          // Regular users (pet owners, vets, clinic admins) get the normal app
-                          return const MyHomePage(title: 'Peton');
                         }
+
+                        if (userProvider.isClinicAdmin) {
+                          // Clinic admins manage their clinic and vets
+                          return const ClinicAdminDashboard();
+                        }
+
+                        // Pet owners and vets use the main app experience
+                        return const MyHomePage(title: 'Peton');
                       },
                     ),
                   );

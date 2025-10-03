@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../models/clinic_models.dart';
 import '../providers/user_provider.dart';
@@ -90,14 +91,104 @@ class _VetManagementPageState extends State<VetManagementPage> {
       );
     }
 
-    return ListView.separated(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: vets.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final vet = vets[index];
-        return _buildVetCard(vet, userProvider);
-      },
+      children: [
+        // Vets list
+        ...List.generate(vets.length, (index) {
+          final vet = vets[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildVetCard(vet, userProvider),
+          );
+        }),
+
+        const SizedBox(height: 24),
+        // Pending invites section
+        _buildInvitesSection(userProvider),
+      ],
+    );
+  }
+
+  Widget _buildInvitesSection(UserProvider userProvider) {
+    final clinicId = userProvider.connectedClinic?.id;
+    if (clinicId == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.mail_outline, color: AppTheme.primaryBlue),
+            const SizedBox(width: 8),
+            Text(
+              'Pending Invites',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('clinics')
+              .doc(clinicId)
+              .collection('invites')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder:
+              (
+                context,
+                AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+              ) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('Error loading invites: ${snapshot.error}'),
+                  );
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No pending invites',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: docs.map((doc) {
+                    final data = doc.data();
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.mark_email_unread),
+                        title: Text(data['email'] ?? ''),
+                        subtitle: Text(
+                          'Status: ${data['status'] ?? 'pending'}',
+                        ),
+                        trailing: Text(
+                          (data['role'] ?? 'vet').toString(),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+        ),
+      ],
     );
   }
 
@@ -333,27 +424,23 @@ class _VetManagementPageState extends State<VetManagementPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Note: In a real implementation, you would:
-      // 1. Check if the email corresponds to an existing user
-      // 2. Send an invitation if the user doesn't exist
-      // 3. Add them to the clinic with the specified permissions
+      final success = await userProvider.inviteVetByEmail(email, permissions);
 
-      // For now, we'll show a success message
-      if (mounted) {
+      if (!mounted) return;
+
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Invitation sent to $email'),
+            content: Text(
+              'Invitation recorded for $email. Ask them to sign up with this email to access the clinic.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
+        final errorMessage = userProvider.error ?? 'Failed to invite vet.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add vet: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       }
     } finally {

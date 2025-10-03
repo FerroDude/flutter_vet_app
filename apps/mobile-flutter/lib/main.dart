@@ -2816,122 +2816,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  /// Shows dialog to fix clinic admin linking
-  void _showFixClinicAdminDialog(BuildContext context) {
-    final emailController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Fix Clinic Admin Linking'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'If you signed up with a clinic admin email but got a regular user profile, '
-              'enter the email address to fix the linking:',
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                hintText: 'e.g., thisissarahbuckley@gmail.com',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailController.text.trim();
-              if (email.isNotEmpty) {
-                Navigator.pop(context);
-
-                // Show loading dialog
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const AlertDialog(
-                    content: Row(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(width: 16),
-                        Text('Fixing clinic admin linking...'),
-                      ],
-                    ),
-                  ),
-                );
-
-                try {
-                  // Get UserProvider from context
-                  final userProvider = Provider.of<UserProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final success = await userProvider.fixClinicAdminLinking(
-                    email,
-                  );
-
-                  // Close loading dialog first
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-
-                  // Show feedback with proper context checking
-                  if (context.mounted) {
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            '✅ Successfully linked to clinic! Please logout and login again.',
-                          ),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 5),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            '❌ No clinic admin profile found for this email. Make sure the clinic was created first.',
-                          ),
-                          backgroundColor: Colors.orange,
-                          duration: Duration(seconds: 5),
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  // Close loading dialog first
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-
-                  // Show error feedback
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('❌ Error: $e'),
-                        backgroundColor: Colors.red,
-                        duration: Duration(seconds: 5),
-                      ),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Fix Linking'),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Shows dialog to change user password
   void _showChangePasswordDialog(BuildContext context, User? user) {
@@ -3253,16 +3137,6 @@ class ProfilePage extends StatelessWidget {
                         ),
                       );
                     },
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: Icon(Icons.build, color: Colors.orange),
-                    title: const Text('Fix Clinic Admin'),
-                    subtitle: const Text(
-                      'Link to clinic if you signed up with admin email',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showFixClinicAdminDialog(context),
                   ),
                 ],
               ),

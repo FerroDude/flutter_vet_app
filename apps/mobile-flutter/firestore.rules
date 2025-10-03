@@ -23,18 +23,70 @@ service cloud.firestore {
         get(/databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid)).data.role == 0;
     }
 
+    function isTempUser(userId) {
+      return userId.matches('^temp_(admin|vet)_.+');
+    }
+
     // Users and their subcollections
     match /users/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      // Allow reading own user doc by uid OR by matching email (for temp_admin profiles)
+      allow create: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAppOwner() ||
+        (
+          isTempUser(userId) &&
+          request.resource.data.connectedClinicId != null &&
+          isClinicAdmin(request.resource.data.connectedClinicId) &&
+          request.resource.data.keys().hasOnly([
+            'email',
+            'displayName',
+            'userType',
+            'connectedClinicId',
+            'clinicRole',
+            'phone',
+            'address',
+            'hasSkippedClinicSelection',
+            'createdAt',
+            'updatedAt',
+            'isActive'
+          ])
+        )
+      );
+
+      // Read rules: owner of doc, app owner, or matching email (temp profile linking)
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
+        isAppOwner() ||
         (
           exists(/databases/$(database)/documents/users/$(userId)) &&
           get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email
         )
       );
-      allow update, delete: if isSignedIn() && request.auth.uid == userId;
+
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAppOwner() ||
+        (
+          request.resource.data.keys().hasOnly([
+            'email',
+            'userType',
+            'clinicRole',
+            'connectedClinicId',
+            'updatedAt'
+          ]) &&
+          (
+            (resource.data.connectedClinicId != null &&
+              isClinicAdmin(resource.data.connectedClinicId)) ||
+            (request.resource.data.connectedClinicId != null &&
+              isClinicAdmin(request.resource.data.connectedClinicId))
+          ) &&
+          (
+            (resource.data.userType != null && resource.data.userType == 1) ||
+            (request.resource.data.userType != null && request.resource.data.userType == 1)
+          )
+        )
+      );
+
+      allow delete: if isSignedIn() && (request.auth.uid == userId || isAppOwner());
 
       match /events/{eventId} {
         allow read, write: if isSignedIn() && request.auth.uid == userId;
@@ -52,8 +104,12 @@ service cloud.firestore {
 
     // Clinics and members
     match /clinics/{clinicId} {
-      // Allow discovery of active clinics to signed-in users
-      allow read: if isSignedIn() && resource.data.isActive == true;
+      // Allow discovery of active clinics to signed-in users; broader access for admins/app owner
+      allow read: if (
+        (isSignedIn() && resource.data.isActive == true) ||
+        isClinicAdmin(clinicId) ||
+        isAppOwner()
+      );
 
       // Create clinic: app owner OR the creator sets themselves as admin
       allow create: if isSignedIn() && (
@@ -64,10 +120,21 @@ service cloud.firestore {
       allow update, delete: if isClinicAdmin(clinicId) || isAppOwner();
 
       match /members/{memberId} {
-        // Visible to clinic members and app owner
-        allow read: if isClinicMember(clinicId) || isAppOwner();
-        // Manageable by clinic admins and app owner
-        allow create, update, delete: if isClinicAdmin(clinicId) || isAppOwner();
+        allow read: if isAppOwner() || resource.data.isActive == true || isClinicMember(clinicId);
+        allow create: if isAppOwner() || isClinicAdmin(clinicId);
+        allow update: if isAppOwner() || (isClinicAdmin(clinicId) && (
+            (resource.data.isActive == true &&
+              request.resource.data.keys().hasOnly(['isActive', 'lastActive', 'permissions']))
+          )
+        );
+        allow delete: if isAppOwner();
+      }
+
+      match /invites/{inviteId} {
+        allow read: if isAppOwner() || isClinicAdmin(clinicId);
+        allow create: if isAppOwner() || isClinicAdmin(clinicId);
+        allow update: if isAppOwner() || (isClinicAdmin(clinicId) && isClinicMember(clinicId));
+        allow delete: if isAppOwner() || isClinicAdmin(clinicId);
       }
     }
 

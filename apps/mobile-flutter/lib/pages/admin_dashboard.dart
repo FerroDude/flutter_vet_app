@@ -35,10 +35,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('App Owner Dashboard'),
-            backgroundColor: AppTheme.primaryBlue,
             foregroundColor: Colors.white,
             elevation: 0,
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryBlue,
+                    AppTheme.primaryBlue.withOpacity(0.85),
+                  ],
+                ),
+              ),
+            ),
             actions: [
+              IconButton(
+                onPressed: () => _showAllClinicsDialog(context),
+                icon: const Icon(Icons.search),
+                tooltip: 'Search Clinics',
+              ),
               IconButton(
                 onPressed: () => _showAppSettings(context),
                 icon: const Icon(Icons.settings),
@@ -102,63 +118,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Enhanced System Overview Card
-            _buildEnhancedOverviewCard(),
+            _buildEnhancedOverviewCard(userProvider),
 
             const SizedBox(height: 32),
 
-            // Quick Actions Section
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Quick Actions
+            Row(
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.flash_on, color: AppTheme.primaryBlue, size: 28),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Actions',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryBlue,
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Admin management buttons
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () =>
-                          _showFixClinicAdminDialog(context, userProvider),
-                      icon: const Icon(Icons.build),
-                      label: const Text('Fix Admin'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.orange,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _showCheckClinicDialog(context),
-                      icon: const Icon(Icons.search),
-                      label: const Text('Check Clinic'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _showAdminManagementDialog(context),
-                      icon: const Icon(Icons.admin_panel_settings),
-                      label: const Text('Admin Tools'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.purple,
-                      ),
-                    ),
-                  ],
+                Icon(Icons.flash_on, color: AppTheme.primaryBlue, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'Quick Actions',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryBlue,
+                  ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             _buildImprovedQuickActions(context, userProvider),
 
@@ -206,7 +185,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
             const SizedBox(height: 20),
 
-            _buildQuickStats(),
+            _buildQuickStats(userProvider),
 
             const SizedBox(height: 24),
           ],
@@ -258,7 +237,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
 
             // Clinic Statistics
-            _buildDetailedClinicStats(),
+            _buildDetailedClinicStats(userProvider),
 
             const SizedBox(height: 24),
 
@@ -326,16 +305,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 child: const VetManagementPage(),
               ),
             ),
-          );
-        },
-      ),
-      _buildActionCard(
-        icon: Icons.settings,
-        title: 'Settings',
-        color: AppTheme.accentCoral,
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('App settings coming soon')),
           );
         },
       ),
@@ -427,38 +396,53 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
-      color: isDark ? Colors.grey[900] : Colors.grey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-          width: 1,
+      elevation: 4,
+      shadowColor: color.withOpacity(0.25),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color.withOpacity(0.10), color.withOpacity(0.05)],
+          ),
+          border: Border.all(
+            color: (isDark ? Colors.grey[700]! : Colors.grey[200]!).withOpacity(
+              0.9,
+            ),
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 8),
             Text(
               value,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 1),
+            const SizedBox(height: 4),
             Text(
               title,
               style: TextStyle(
                 color: isDark ? Colors.grey[300] : Colors.grey[600],
-                fontSize: 10,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -471,8 +455,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // Enhanced App Owner overview card with blue theme
-  Widget _buildEnhancedOverviewCard() {
+  Widget _buildEnhancedOverviewCard(UserProvider userProvider) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final clinicsQuery = _clinicsQuery(userProvider, includeInactive: true);
 
     return Card(
       elevation: 8,
@@ -547,23 +532,52 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 28),
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('clinics')
-                  .snapshots(),
+              stream: clinicsQuery.snapshots(),
               builder: (context, snapshot) {
-                final totalClinics = snapshot.data?.docs.length ?? 0;
-                final activeClinics =
-                    snapshot.data?.docs
-                        .where((doc) => doc.get('isActive') == true)
-                        .length ??
-                    0;
+                if (snapshot.hasError) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildEnhancedOverviewStat(
+                          'Total Clinics',
+                          '!',
+                          Icons.business,
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: _buildEnhancedOverviewStat(
+                          'Active Clinics',
+                          '!',
+                          Icons.check_circle,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+                final isLoading =
+                    snapshot.connectionState == ConnectionState.waiting &&
+                    docs.isEmpty;
+
+                final totalClinics = docs.length;
+                final activeClinics = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['isActive'] == true;
+                }).length;
+
+                final totalLabel = isLoading ? '...' : totalClinics.toString();
+                final activeLabel = isLoading
+                    ? '...'
+                    : activeClinics.toString();
 
                 return Row(
                   children: [
                     Expanded(
                       child: _buildEnhancedOverviewStat(
                         'Total Clinics',
-                        totalClinics.toString(),
+                        totalLabel,
                         Icons.business,
                       ),
                     ),
@@ -571,7 +585,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Expanded(
                       child: _buildEnhancedOverviewStat(
                         'Active Clinics',
-                        activeClinics.toString(),
+                        activeLabel,
                         Icons.check_circle,
                       ),
                     ),
@@ -1572,23 +1586,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildQuickStats(UserProvider userProvider) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, userSnapshot) {
         return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('clinics').snapshots(),
+          stream: _clinicsQuery(
+            userProvider,
+            includeInactive: true,
+          ).snapshots(),
           builder: (context, clinicSnapshot) {
             final totalUsers = userSnapshot.data?.docs.length ?? 0;
-            final activeClinics =
-                clinicSnapshot.data?.docs
-                    .where(
-                      (doc) =>
-                          (doc.data() as Map<String, dynamic>)['isActive'] ==
-                          true,
-                    )
-                    .length ??
-                0;
+            final clinicDocs = clinicSnapshot.data?.docs ?? [];
+            final activeClinics = clinicDocs
+                .where(
+                  (doc) =>
+                      (doc.data() as Map<String, dynamic>)['isActive'] == true,
+                )
+                .length;
 
             return Row(
               children: [
@@ -1679,12 +1694,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildDetailedClinicStats() {
+  Widget _buildDetailedClinicStats(UserProvider userProvider) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('clinics').snapshots(),
+      stream: _clinicsQuery(userProvider, includeInactive: true).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Unable to load clinic statistics.'),
+            ),
+          );
         }
 
         final clinics = snapshot.data?.docs ?? [];
@@ -1758,6 +1787,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       },
     );
+  }
+
+  Query<Map<String, dynamic>> _clinicsQuery(
+    UserProvider userProvider, {
+    bool includeInactive = false,
+  }) {
+    final base = FirebaseFirestore.instance.collection('clinics');
+    if (includeInactive && userProvider.isAppOwner) {
+      return base;
+    }
+    return base.where('isActive', isEqualTo: true);
   }
 
   Widget _buildDetailedUserStats() {
