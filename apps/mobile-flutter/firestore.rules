@@ -8,8 +8,10 @@ service cloud.firestore {
     // UserType enum indices (see lib/models/clinic_models.dart)
     // petOwner=0, vet=1, clinicAdmin=2, appOwner=3
     function isAppOwner() {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 3;
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 3 ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.globalType == 'appOwner'
+      );
     }
 
     function isClinicMember(clinicId) {
@@ -24,7 +26,21 @@ service cloud.firestore {
     }
 
     function isTempUser(userId) {
-      return userId.matches('^temp_(admin|vet)_.+');
+      return userId.matches('^_?temp_(admin|account|vet)_.+');
+    }
+
+    function isClinicAdminPlaceholder(adminId) {
+      return adminId.matches('^_?temp_(admin|account|vet)_.+');
+    }
+
+    function profileIsClinicAdmin(clinicId) {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isSignedIn() &&
+        profile != null &&
+        profile.data.connectedClinicId == clinicId &&
+        profile.data.userType == 2 &&
+        profile.data.clinicRole == 0 &&
+        profile.data.isActive != false;
     }
 
     // Users and their subcollections
@@ -35,7 +51,8 @@ service cloud.firestore {
         (
           isTempUser(userId) &&
           request.resource.data.connectedClinicId != null &&
-          isClinicAdmin(request.resource.data.connectedClinicId) &&
+          (isClinicAdmin(request.resource.data.connectedClinicId) || 
+           profileIsClinicAdmin(request.resource.data.connectedClinicId)) &&
           request.resource.data.keys().hasOnly([
             'email',
             'displayName',
@@ -52,13 +69,25 @@ service cloud.firestore {
         )
       );
 
-      // Read rules: owner of doc, app owner, or matching email (temp profile linking)
+      // Read rules: owner of doc, app owner, matching email, temp profiles,
+      // or clinic admins reading profiles of members in their clinic
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
         isAppOwner() ||
+        // Allow by matching email, case-insensitive
+        resource.data.email.matches('(?i)^' + request.auth.token.email + '\\$') ||
+        // Allow signed-in users to read temporary placeholder profiles to
+        // support first-time linking flows where email casing may differ.
+        isTempUser(userId) ||
         (
-          exists(/databases/$(database)/documents/users/$(userId)) &&
-          get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email
+          resource.data.connectedClinicId != null &&
+          (isClinicAdmin(resource.data.connectedClinicId) || profileIsClinicAdmin(resource.data.connectedClinicId))
+        ) ||
+        // Vets and clinic members can read PET OWNER profiles within their clinic
+        (
+          resource.data.userType == 0 &&
+          resource.data.connectedClinicId != null &&
+          isClinicMember(resource.data.connectedClinicId)
         )
       );
 
@@ -75,30 +104,95 @@ service cloud.firestore {
           ]) &&
           (
             (resource.data.connectedClinicId != null &&
-              isClinicAdmin(resource.data.connectedClinicId)) ||
+              (isClinicAdmin(resource.data.connectedClinicId) ||
+               profileIsClinicAdmin(resource.data.connectedClinicId))) ||
             (request.resource.data.connectedClinicId != null &&
-              isClinicAdmin(request.resource.data.connectedClinicId))
+              (isClinicAdmin(request.resource.data.connectedClinicId) ||
+               profileIsClinicAdmin(request.resource.data.connectedClinicId)))
           ) &&
           (
             (resource.data.userType != null && resource.data.userType == 1) ||
             (request.resource.data.userType != null && request.resource.data.userType == 1)
           )
         )
+        || (
+          // Allow clinic admin to unlink a user from their clinic
+          request.resource.data.keys().hasOnly([
+            'connectedClinicId', 'clinicRole', 'updatedAt'
+          ]) &&
+          resource.data.connectedClinicId != null &&
+          (isClinicAdmin(resource.data.connectedClinicId) ||
+           profileIsClinicAdmin(resource.data.connectedClinicId))
+        )
       );
 
-      allow delete: if isSignedIn() && (request.auth.uid == userId || isAppOwner());
+      allow delete: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAppOwner() ||
+        // Allow invited user to delete their own temp placeholder (case-insensitive email)
+        (isTempUser(userId) &&
+          resource.data.email.matches('(?i)^' + request.auth.token.email + '\\$')) ||
+        // Allow clinic members to delete temp users from their clinic
+        (isTempUser(userId) &&
+          resource.data.connectedClinicId != null &&
+          (isClinicMember(resource.data.connectedClinicId) || 
+           profileIsClinicAdmin(resource.data.connectedClinicId)))
+      );
 
       match /events/{eventId} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if isSignedIn() && (
+          request.auth.uid == userId ||
+          (isTempUser(userId) &&
+            get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email)
+        );
       }
 
       match /clinicHistory/{historyId} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if isSignedIn() && (
+          request.auth.uid == userId ||
+          (isTempUser(userId) &&
+            get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email)
+        );
       }
 
       // User's pets subcollection
       match /pets/{petId} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId ||
+          // Clinic members (vets/admins) can read pets if the owner is a pet owner in their clinic
+          (
+            get(/databases/$(database)/documents/users/$(userId)).data.userType == 0 &&
+            isClinicMember(get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId)
+          ) ||
+          (isTempUser(userId) &&
+            get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email)
+        );
+
+        allow write: if isSignedIn() && (
+          // Only the owner can write their own pets or the temp self case
+          request.auth.uid == userId ||
+          (isTempUser(userId) &&
+            get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email)
+        );
+
+        // Pet symptoms subcollection
+        match /symptoms/{symptomId} {
+          allow read: if isSignedIn() && (
+            request.auth.uid == userId ||
+            isAppOwner() ||
+            // Clinic members of the owner's clinic (for vets)
+            (
+              get(/databases/$(database)/documents/users/$(userId)).data.userType == 0 &&
+              get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId != null &&
+              isClinicMember(get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId)
+            )
+          );
+
+          // Only the owner or app owner can write symptoms
+          allow create, update, delete: if isSignedIn() && (
+            request.auth.uid == userId || isAppOwner()
+          );
+        }
       }
     }
 
@@ -108,6 +202,7 @@ service cloud.firestore {
       allow read: if (
         (isSignedIn() && resource.data.isActive == true) ||
         isClinicAdmin(clinicId) ||
+        profileIsClinicAdmin(clinicId) ||
         isAppOwner()
       );
 
@@ -116,25 +211,52 @@ service cloud.firestore {
         isAppOwner() || request.resource.data.adminId == request.auth.uid
       );
 
-      // Update/delete clinic: clinic admin or app owner
-      allow update, delete: if isClinicAdmin(clinicId) || isAppOwner();
+      // Update clinic: clinic admin, app owner, or linking admin
+      allow update: if isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId) || isAppOwner() || (
+        isClinicAdminPlaceholder(resource.data.adminId) &&
+        request.resource.data.adminId == request.auth.uid
+      );
+
+      // Delete clinic: clinic admin or app owner
+      allow delete: if isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId) || isAppOwner();
 
       match /members/{memberId} {
-        allow read: if isAppOwner() || resource.data.isActive == true || isClinicMember(clinicId);
-        allow create: if isAppOwner() || isClinicAdmin(clinicId);
-        allow update: if isAppOwner() || (isClinicAdmin(clinicId) && (
-            (resource.data.isActive == true &&
-              request.resource.data.keys().hasOnly(['isActive', 'lastActive', 'permissions']))
-          )
+        allow read: if isAppOwner() || 
+          resource.data.isActive == true || 
+          isClinicMember(clinicId) ||
+          profileIsClinicAdmin(clinicId) ||
+          // Allow reading temp members if the temp user's email matches signed-in user's email
+          (isSignedIn() && 
+           isClinicAdminPlaceholder(memberId) &&
+           exists(/databases/$(database)/documents/users/$(memberId)) &&
+           get(/databases/$(database)/documents/users/$(memberId)).data.email.matches('(?i)^' + request.auth.token.email + '\\$'));
+        
+        allow create: if isAppOwner() || isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId) || (
+          request.auth.uid == memberId && request.resource.data.userId == request.auth.uid
         );
-        allow delete: if isAppOwner();
+        
+        // Allow admins to toggle isActive or permissions even if already inactive
+        allow update: if isAppOwner() || ((isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId)) &&
+          request.resource.data.keys().hasOnly(['isActive', 'lastActive', 'permissions'])
+        );
+        
+        // Allow deleting member docs:
+        // - App owners can delete any
+        // - Clinic admins can delete any member
+        // - Real clinic members can delete temp members (cleanup during linking)
+        allow delete: if isAppOwner() || 
+          (isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId)) ||
+          (isSignedIn() && 
+           isClinicAdminPlaceholder(memberId) &&
+           isClinicMember(clinicId));
       }
 
       match /invites/{inviteId} {
-        allow read: if isAppOwner() || isClinicAdmin(clinicId);
-        allow create: if isAppOwner() || isClinicAdmin(clinicId);
-        allow update: if isAppOwner() || (isClinicAdmin(clinicId) && isClinicMember(clinicId));
-        allow delete: if isAppOwner() || isClinicAdmin(clinicId);
+        allow read: if isAppOwner() || isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId) ||
+          (isSignedIn() && resource.data.email.matches('(?i)^' + request.auth.token.email + '\\$'));
+        allow create: if isAppOwner() || isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId);
+        allow update: if isAppOwner() || isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId);
+        allow delete: if isAppOwner() || isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId);
       }
     }
 
@@ -159,5 +281,17 @@ service cloud.firestore {
         );
       }
     }
+
+    // Collection group query rules for invites
+    match /{path=**}/invites/{inviteId} {
+      // Allow reading invites that match the signed-in user's email (case-insensitive)
+      allow read: if isSignedIn() && (
+        isAppOwner() ||
+        resource.data.email.matches('(?i)^' + request.auth.token.email + '\\$')
+      );
+    }
   }
 }
+
+
+

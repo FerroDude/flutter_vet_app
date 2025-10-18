@@ -13,20 +13,23 @@ import 'theme/theme_manager.dart';
 import 'models/notification_service.dart';
 import 'services/clinic_service.dart';
 import 'pages/chat_page.dart';
+import 'pages/pets_page.dart';
 import 'widgets/appointments_page.dart';
 import 'widgets/simple_event_forms.dart';
 import 'providers/event_provider.dart';
 import 'providers/user_provider.dart';
 import 'services/cache_service.dart';
 import 'services/chat_service.dart';
-import 'app.dart';
-import 'core/auth/auth_wrapper.dart';
+import 'pages/add_symptom_sheet.dart';
+import 'pages/pet_symptoms_page.dart';
+// import 'services/pet_service.dart';
+// Removed profile-specific symptom imports
 
-import 'shared/widgets/list_placeholder.dart';
 import 'core/auth/auth_wrapper.dart';
 import 'widgets/theme_toggle_widget.dart';
 
-// navigatorKey moved to app.dart
+// Global navigator key for app-wide navigation
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,15 +43,47 @@ void main() async {
   await notificationService.initialize();
 
   runApp(
-    MyApp(
-      cacheService: cacheService,
-      notificationService: notificationService,
-      home: const AuthWrapper(),
-    ),
+    MyApp(cacheService: cacheService, notificationService: notificationService),
   );
 }
 
-// MyApp moved to app.dart
+class MyApp extends StatelessWidget {
+  const MyApp({
+    super.key,
+    required this.cacheService,
+    required this.notificationService,
+  });
+
+  final CacheService cacheService;
+  final NotificationService notificationService;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ThemeManager()),
+        Provider<CacheService>.value(value: cacheService),
+        Provider<NotificationService>.value(value: notificationService),
+        Provider<ClinicService>(create: (context) => ClinicService()),
+        Provider<ChatService>(create: (context) => ChatService()),
+        // EventProvider, UserProvider, and ChatProvider will be created with user context in AuthWrapper
+      ],
+      child: Consumer<ThemeManager>(
+        builder: (context, themeManager, child) {
+          return MaterialApp(
+            title: 'VetPlus',
+            navigatorKey: navigatorKey,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeManager.themeMode,
+            home: const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
+      ),
+    );
+  }
+}
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -106,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.pets), label: 'Pets'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
-            label: 'Appointments',
+            label: 'Calendar',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
         ],
@@ -348,17 +383,24 @@ class _DashboardPageState extends State<DashboardPage> {
             },
             icon: const Icon(Icons.settings, color: Colors.white),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-            icon: CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              radius: 16,
-              child: const Icon(Icons.person, color: Colors.white, size: 16),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, _) => IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangeNotifierProvider.value(
+                      value: userProvider,
+                      child: ProfilePage(injectedUserProvider: userProvider),
+                    ),
+                  ),
+                );
+              },
+              icon: CircleAvatar(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                radius: 16,
+                child: const Icon(Icons.person, color: Colors.white, size: 16),
+              ),
             ),
           ),
         ],
@@ -523,7 +565,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                     ),
                                     const SizedBox(height: 2),
                                     // Enhanced subtitle for appointments
-                                    if (isAppointment && e is AppointmentEvent)
+                                    if (isAppointment)
                                       Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -540,29 +582,23 @@ class _DashboardPageState extends State<DashboardPage> {
                                                   fontWeight: FontWeight.w500,
                                                 ),
                                           ),
-                                          if ((e as AppointmentEvent).vetName !=
-                                                  null ||
-                                              (e as AppointmentEvent)
-                                                      .appointmentType !=
-                                                  null) ...[
+                                          if ((e).vetName != null ||
+                                              (e).appointmentType != null) ...[
                                             const SizedBox(height: 2),
                                             Row(
                                               children: [
-                                                if ((e as AppointmentEvent)
-                                                        .appointmentType !=
+                                                if ((e).appointmentType !=
                                                     null) ...[
                                                   Icon(
                                                     _getAppointmentTypeIcon(
-                                                      (e as AppointmentEvent)
-                                                          .appointmentType!,
+                                                      (e).appointmentType!,
                                                     ),
                                                     size: 11,
                                                     color: color,
                                                   ),
                                                   const SizedBox(width: 3),
                                                   Text(
-                                                    (e as AppointmentEvent)
-                                                        .appointmentType!,
+                                                    (e).appointmentType!,
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       color: color,
@@ -571,25 +607,18 @@ class _DashboardPageState extends State<DashboardPage> {
                                                     ),
                                                   ),
                                                 ],
-                                                if ((e as AppointmentEvent)
-                                                            .location !=
-                                                        null &&
-                                                    (e as AppointmentEvent)
-                                                            .appointmentType !=
-                                                        null)
+                                                if ((e).location != null &&
+                                                    (e).appointmentType != null)
                                                   const Text(
                                                     ' • ',
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                     ),
                                                   ),
-                                                if ((e as AppointmentEvent)
-                                                        .location !=
-                                                    null)
+                                                if ((e).location != null)
                                                   Flexible(
                                                     child: Text(
-                                                      (e as AppointmentEvent)
-                                                          .location!,
+                                                      (e).location!,
                                                       style: const TextStyle(
                                                         fontSize: 11,
                                                         color: AppTheme
@@ -676,11 +705,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                     size: 16,
                                   ),
                                 )
-                              else if (isAppointment &&
-                                  (e as AppointmentEvent).petId != null)
-                                _DashboardPetBadge(
-                                  petId: (e as AppointmentEvent).petId!,
-                                ),
+                              else if (isAppointment && (e).petId != null)
+                                _DashboardPetBadge(petId: (e).petId!),
                             ],
                           ),
                         ),
@@ -833,25 +859,164 @@ class _DashboardPageState extends State<DashboardPage> {
 
             // Today's items (merged in todaysEvents above)
 
+            // Find next upcoming event for "Next up" pill
+            CalendarEvent? nextEvent;
+            final allFutureEvents = [...todaysEvents, ...upcomingEvents]
+              ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+            for (final event in allFutureEvents) {
+              if (event.dateTime.isAfter(now)) {
+                nextEvent = event;
+                break;
+              }
+            }
+
             return ListView(
               children: [
-                // Welcome section with better typography
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dashboard',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryBlue,
-                          ),
+                // Personalized greeting
+                Consumer<UserProvider>(
+                  builder: (context, userProvider, _) {
+                    final currentUser = userProvider.currentUser;
+                    final displayName =
+                        currentUser?.displayName ??
+                        (currentUser != null
+                            ? currentUser.email.split('@').first
+                            : null) ??
+                        'Pet Owner';
+                    final hour = DateTime.now().hour;
+                    String greeting;
+                    if (hour < 12) {
+                      greeting = 'Good Morning';
+                    } else if (hour < 18) {
+                      greeting = 'Good Afternoon';
+                    } else {
+                      greeting = 'Good Evening';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$greeting, $displayName',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryBlue,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('EEEE, MMMM d').format(now),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // "Next up" pill
+                if (nextEvent != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryBlue.withValues(alpha: 0.1),
+                          AppTheme.primaryGreen.withValues(alpha: 0.05),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Your pet care overview',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textSecondary,
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            nextEvent is AppointmentEvent
+                                ? Icons.event
+                                : Icons.medication,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Next up',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AppTheme.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                nextEvent.title,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateFormat(
+                            nextEvent.dateTime.day == now.day
+                                ? 'h:mm a'
+                                : 'MMM d, h:mm a',
+                          ).format(nextEvent.dateTime),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: AppTheme.primaryBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Highlights strip
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DashboardHighlight(
+                        icon: Icons.event,
+                        label: 'This Week',
+                        value: upcomingEvents.length.toString(),
+                        color: AppTheme.primaryBlue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DashboardHighlight(
+                        icon: Icons.medication,
+                        label: 'Meds Today',
+                        value: todaysMeds.length.toString(),
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DashboardHighlight(
+                        icon: Icons.chat,
+                        label: 'Unread',
+                        value: '0',
+                        color: AppTheme.accentCoral,
                       ),
                     ),
                   ],
@@ -912,6 +1077,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                   final ep = context.read<EventProvider>();
                                   showDialog(
                                     context: context,
+                                    barrierDismissible: false,
+                                    useSafeArea: true,
                                     builder: (dialogContext) =>
                                         ChangeNotifierProvider.value(
                                           value: ep,
@@ -956,6 +1123,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                   final ep = context.read<EventProvider>();
                                   showDialog(
                                     context: context,
+                                    barrierDismissible: false,
+                                    useSafeArea: true,
                                     builder: (dialogContext) =>
                                         ChangeNotifierProvider.value(
                                           value: ep,
@@ -969,6 +1138,81 @@ class _DashboardPageState extends State<DashboardPage> {
                                 label: const Text('Add Medication'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primaryGreen,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.orange.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  // Get first pet or let user choose
+                                  final user =
+                                      FirebaseAuth.instance.currentUser;
+                                  if (user == null) return;
+                                  final petsSnap = await FirebaseFirestore
+                                      .instance
+                                      .collection('users')
+                                      .doc(user.uid)
+                                      .collection('pets')
+                                      .limit(1)
+                                      .get();
+                                  if (petsSnap.docs.isEmpty) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Please add a pet first',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+                                  final petId = petsSnap.docs.first.id;
+                                  if (context.mounted) {
+                                    await showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      builder: (_) => Padding(
+                                        padding: EdgeInsets.only(
+                                          bottom: MediaQuery.of(
+                                            context,
+                                          ).viewInsets.bottom,
+                                        ),
+                                        child: AddSymptomSheet(petId: petId),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.monitor_heart, size: 18),
+                                label: const Text('Add Symptom'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1219,120 +1463,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// Pets Page - Simplified
-class PetsPage extends StatelessWidget {
-  const PetsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Pets'),
-        backgroundColor: AppTheme.primaryBlue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-            icon: const Icon(Icons.settings, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-            icon: CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              radius: 16,
-              child: const Icon(Icons.person, color: Colors.white, size: 16),
-            ),
-          ),
-        ],
-      ),
-      body: const PetsPageContent(),
-    );
-  }
-}
-
-class PetsPageContent extends StatelessWidget {
-  const PetsPageContent({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      return const Center(child: Text('Please log in to view your pets'));
-    }
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('pets')
-          .orderBy('order')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const ListPlaceholder(
-            icon: Icons.pets_outlined,
-            text: 'No pets yet',
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final pet = docs[index].data();
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryBlue,
-                  child: Text(
-                    (pet['name'] as String? ?? 'P')[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                title: Text(pet['name'] as String? ?? 'Unknown'),
-                subtitle: Text(
-                  '${pet['species'] as String? ?? 'Unknown'} • ${pet['breed'] as String? ?? 'Unknown'}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          PetDetailsPage(petRef: docs[index].reference),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
+// Pets Page - Now in separate file (pages/pets_page.dart)
 
 // Pet Form Page - Simplified
 class PetFormPage extends StatefulWidget {
@@ -1599,7 +1730,7 @@ class _PetFormPageState extends State<PetFormPage> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _gender,
+                      initialValue: _gender,
                       decoration: const InputDecoration(
                         labelText: 'Gender',
                         border: OutlineInputBorder(),
@@ -1997,6 +2128,8 @@ class PetDetailsPage extends StatelessWidget {
                                       .read<EventProvider>();
                                   showDialog(
                                     context: context,
+                                    barrierDismissible: false,
+                                    useSafeArea: true,
                                     builder: (dialogContext) =>
                                         ChangeNotifierProvider.value(
                                           value: eventProvider,
@@ -2018,25 +2151,24 @@ class PetDetailsPage extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () {
-                                  final eventProvider = context
-                                      .read<EventProvider>();
-                                  showDialog(
+                                onPressed: () async {
+                                  await showModalBottomSheet(
                                     context: context,
-                                    builder: (dialogContext) =>
-                                        ChangeNotifierProvider.value(
-                                          value: eventProvider,
-                                          child: SimpleMedicationForm(
-                                            selectedDate: DateTime.now(),
-                                            petId: petRef.id,
-                                          ),
-                                        ),
+                                    isScrollControlled: true,
+                                    builder: (_) => Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: MediaQuery.of(
+                                          context,
+                                        ).viewInsets.bottom,
+                                      ),
+                                      child: AddSymptomSheet(petId: petRef.id),
+                                    ),
                                   );
                                 },
-                                icon: const Icon(Icons.medication),
-                                label: const Text('Add Medication'),
+                                icon: const Icon(Icons.monitor_heart),
+                                label: const Text('Add Symptom'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: Colors.orange,
                                   foregroundColor: Colors.white,
                                 ),
                               ),
@@ -2050,7 +2182,7 @@ class PetDetailsPage extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Pet's Events Section
+                // Pet's Events & Symptoms Section
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -2064,6 +2196,28 @@ class PetDetailsPage extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryBlue,
                               ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        PetSymptomsPage(petId: petRef.id),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.monitor_heart),
+                              label: const Text('View Symptoms'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         Consumer<EventProvider>(
@@ -2234,6 +2388,54 @@ class PetDetailsPage extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(fontWeight: FontWeight.w400),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Dashboard Highlight component
+class _DashboardHighlight extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _DashboardHighlight({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
             ),
           ),
         ],
@@ -2618,12 +2820,12 @@ class SettingsPage extends StatelessWidget {
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('About PetOn'),
+                        title: const Text('About VetPlus'),
                         content: const Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('PetOn - Your Pet\'s Health Companion'),
+                            Text('VetPlus - Your Pet\'s Health Companion'),
                             SizedBox(height: 12),
                             Text('Version: 1.0.0'),
                             SizedBox(height: 8),
@@ -2667,12 +2869,34 @@ class SettingsPage extends StatelessWidget {
 
 // Profile Page - Enhanced
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, required this.injectedUserProvider});
+
+  final UserProvider injectedUserProvider;
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: AppTheme.primaryBlue,
+      ),
+    );
+  }
 
   /// Shows dialog to edit user profile information
-  void _showEditProfileDialog(BuildContext context, User? user) {
-    final nameController = TextEditingController(text: user?.displayName ?? '');
-    final emailController = TextEditingController(text: user?.email ?? '');
+  void _showEditProfileDialog(
+    BuildContext context,
+    User? authUser,
+    UserProvider userProvider,
+  ) {
+    final profile = userProvider.currentUser;
+
+    final nameController = TextEditingController(
+      text: profile?.displayName ?? authUser?.displayName ?? '',
+    );
+    final emailController = TextEditingController(
+      text: profile?.email ?? authUser?.email ?? '',
+    );
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
 
@@ -2719,7 +2943,7 @@ class ProfilePage extends StatelessWidget {
                     return null;
                   },
                 ),
-                if (emailController.text != user?.email)
+                if (authUser != null && emailController.text != authUser.email)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
@@ -2748,28 +2972,38 @@ class ProfilePage extends StatelessWidget {
                           final currentUser = FirebaseAuth.instance.currentUser;
                           if (currentUser != null) {
                             // Update display name
-                            if (nameController.text.trim() !=
-                                currentUser.displayName) {
-                              await currentUser.updateDisplayName(
-                                nameController.text.trim(),
-                              );
+                            final newName = nameController.text.trim();
+                            if (newName.isNotEmpty) {
+                              final profileUpdated = await userProvider
+                                  .updateProfile(displayName: newName);
+
+                              if (profileUpdated &&
+                                  currentUser.displayName != newName) {
+                                await currentUser.updateDisplayName(newName);
+                              }
                             }
 
                             // Update email if changed
-                            if (emailController.text.trim() !=
-                                currentUser.email) {
-                              await currentUser.verifyBeforeUpdateEmail(
-                                emailController.text.trim(),
-                              );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Verification email sent to your new email address',
-                                    ),
-                                    backgroundColor: Colors.blue,
-                                  ),
+                            final newEmail = emailController.text.trim();
+                            if (newEmail.isNotEmpty &&
+                                currentUser.email != newEmail) {
+                              final emailUpdated = await userProvider
+                                  .updateProfile(email: newEmail);
+
+                              if (emailUpdated) {
+                                await currentUser.verifyBeforeUpdateEmail(
+                                  newEmail,
                                 );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Verification email sent to your new email address',
+                                      ),
+                                      backgroundColor: Colors.blue,
+                                    ),
+                                  );
+                                }
                               }
                             }
 
@@ -2816,6 +3050,120 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  /// Shows dialog to fix clinic admin linking
+  void _showFixClinicAdminDialog(
+    BuildContext context,
+    UserProvider userProvider,
+  ) {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Fix Clinic Admin Linking'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'If you signed up with a clinic admin email but got a regular user profile, '
+              'enter the email address to fix the linking:',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email Address',
+                hintText: 'e.g., thisissarahbuckley@gmail.com',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isNotEmpty) {
+                Navigator.pop(context);
+
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const AlertDialog(
+                    content: Row(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 16),
+                        Text('Fixing clinic admin linking...'),
+                      ],
+                    ),
+                  ),
+                );
+
+                try {
+                  final success = await userProvider.fixClinicAdminLinking(
+                    email,
+                  );
+
+                  // Close loading dialog first
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+
+                  // Show feedback with proper context checking
+                  if (context.mounted) {
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '✅ Successfully linked to clinic! Please logout and login again.',
+                          ),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 5),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '❌ No clinic admin profile found for this email. Make sure the clinic was created first.',
+                          ),
+                          backgroundColor: Colors.orange,
+                          duration: Duration(seconds: 5),
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  // Close loading dialog first
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+
+                  // Show error feedback
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Error: $e'),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Fix Linking'),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// Shows dialog to change user password
   void _showChangePasswordDialog(BuildContext context, User? user) {
@@ -3012,7 +3360,9 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final userProvider = injectedUserProvider;
+    final userProfile = userProvider.currentUser;
+    final authUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -3030,77 +3380,83 @@ class ProfilePage extends StatelessWidget {
               elevation: 2,
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
+                child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 40,
+                      radius: 34,
                       backgroundColor: AppTheme.primaryBlue,
                       child: Text(
-                        (user?.displayName?.isNotEmpty == true)
-                            ? user!.displayName![0].toUpperCase()
-                            : 'U',
+                        (userProfile?.displayName.isNotEmpty == true)
+                            ? userProfile!.displayName
+                                  .substring(0, 1)
+                                  .toUpperCase()
+                            : (authUser?.email?.substring(0, 1).toUpperCase() ??
+                                  'U'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      user?.displayName ?? 'User',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      user?.email ?? '',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          user?.emailVerified == true
-                              ? Icons.verified
-                              : Icons.warning,
-                          color: user?.emailVerified == true
-                              ? Colors.green
-                              : Colors.orange,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          user?.emailVerified == true
-                              ? 'Email verified'
-                              : 'Email not verified',
-                          style: TextStyle(
-                            color: user?.emailVerified == true
-                                ? Colors.green
-                                : Colors.orange,
-                            fontSize: 12,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            userProfile?.displayName ??
+                                authUser?.displayName ??
+                                'User',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            userProfile?.email ?? authUser?.email ?? '',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.grey[700]),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                authUser?.emailVerified == true
+                                    ? Icons.verified
+                                    : Icons.warning,
+                                color: authUser?.emailVerified == true
+                                    ? Colors.green
+                                    : Colors.orange,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                authUser?.emailVerified == true
+                                    ? 'Email verified'
+                                    : 'Email not verified',
+                                style: TextStyle(
+                                  color: authUser?.emailVerified == true
+                                      ? Colors.green
+                                      : Colors.orange,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
 
+            const SizedBox(height: 16),
             const SizedBox(height: 24),
 
-            // Account Settings Section
-            Text(
-              'Account Settings',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryBlue,
-              ),
-            ),
+            // Account & Security
+            _buildSectionHeader(context, 'Account & Security'),
             const SizedBox(height: 8),
             Card(
               elevation: 1,
@@ -3111,7 +3467,8 @@ class ProfilePage extends StatelessWidget {
                     title: const Text('Edit Profile'),
                     subtitle: const Text('Update your personal information'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showEditProfileDialog(context, user),
+                    onTap: () =>
+                        _showEditProfileDialog(context, authUser, userProvider),
                   ),
                   const Divider(height: 1),
                   ListTile(
@@ -3119,37 +3476,30 @@ class ProfilePage extends StatelessWidget {
                     title: const Text('Change Password'),
                     subtitle: const Text('Update your account password'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _showChangePasswordDialog(context, user),
+                    onTap: () => _showChangePasswordDialog(context, authUser),
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: Icon(
-                      Icons.notifications,
-                      color: AppTheme.primaryBlue,
+                    leading: Icon(Icons.build, color: Colors.orange),
+                    title: const Text('Fix Clinic Admin'),
+                    subtitle: const Text(
+                      'Link to clinic if you signed up with admin email',
                     ),
-                    title: const Text('Notifications'),
-                    subtitle: const Text('Manage notification settings'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Notifications - Coming soon!'),
-                        ),
-                      );
-                    },
+                    onTap: () =>
+                        _showFixClinicAdminDialog(context, userProvider),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
-            // Sign Out Button
+            // Sign out
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  // Show confirmation dialog
                   final shouldSignOut = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -3167,7 +3517,6 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   );
-
                   if (shouldSignOut == true) {
                     await FirebaseAuth.instance.signOut();
                     if (context.mounted) {
@@ -3187,8 +3536,6 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
             ),
-
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -3210,7 +3557,7 @@ class _AppointmentsPageWrapperState extends State<AppointmentsPageWrapper> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Appointments'),
+        title: const Text('Calendar'),
         backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         actions: [
@@ -3223,17 +3570,22 @@ class _AppointmentsPageWrapperState extends State<AppointmentsPageWrapper> {
             },
             icon: const Icon(Icons.settings, color: Colors.white),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-            icon: CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              radius: 16,
-              child: const Icon(Icons.person, color: Colors.white, size: 16),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, _) => IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ProfilePage(injectedUserProvider: userProvider),
+                  ),
+                );
+              },
+              icon: CircleAvatar(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                radius: 16,
+                child: const Icon(Icons.person, color: Colors.white, size: 16),
+              ),
             ),
           ),
         ],

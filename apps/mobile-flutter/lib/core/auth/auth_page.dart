@@ -48,7 +48,7 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'PetOn',
+                    'VetPlus',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

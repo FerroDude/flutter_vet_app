@@ -9,12 +9,15 @@ import '../../services/chat_service.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/vet_provider.dart';
 import '../../repositories/event_repository.dart';
 import '../../pages/onboarding_pages.dart';
 import '../../main.dart'; // For MyHomePage
 import '../../pages/admin_dashboard.dart'; // For App Owner Dashboard
 import '../../pages/clinic_admin_dashboard.dart'; // For Clinic Admin Dashboard
+import '../../pages/vet_home_page.dart';
 import 'email_verification_page.dart';
+import 'display_name_setup_page.dart';
 import 'auth_page.dart';
 
 class AuthWrapper extends StatelessWidget {
@@ -23,7 +26,7 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: FirebaseAuth.instance.userChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -72,6 +75,10 @@ class AuthWrapper extends StatelessWidget {
                       ChangeNotifierProvider(
                         create: (context) => ChatProvider(chatService),
                       ),
+                      // VetProvider (scoped to authenticated tree)
+                      ChangeNotifierProvider(
+                        create: (context) => VetProvider(clinicService),
+                      ),
                     ],
                     child: Consumer<UserProvider>(
                       builder: (context, userProvider, child) {
@@ -112,9 +119,24 @@ class AuthWrapper extends StatelessWidget {
                           );
                         }
 
+                        // Check if user must change password (app-level gate)
                         // Check if user needs onboarding
                         if (userProvider.currentUser == null) {
                           return const ClinicOnboardingPage();
+                        }
+
+                        // Display name is provided during admin creation; skip prompt
+
+                        // Ensure clinic admins are connected to their clinic
+                        // and trigger a refresh when linking just completed
+                        userProvider.ensureAdminConnectedToClinic();
+                        if (userProvider.isClinicAdmin &&
+                            userProvider.connectedClinic == null &&
+                            userProvider.currentUser?.connectedClinicId !=
+                                null) {
+                          // Connected clinicId is set but model not yet loaded
+                          // Force a light refresh to fetch clinic
+                          userProvider.refresh();
                         }
 
                         // Check if user needs clinic connection (for pet owners)
@@ -137,8 +159,18 @@ class AuthWrapper extends StatelessWidget {
                           return const ClinicAdminDashboard();
                         }
 
+                        if (userProvider.isVet) {
+                          // Check if vet needs to set display name
+                          if (userProvider.currentUser?.displayName.isEmpty ??
+                              true) {
+                            return const DisplayNameSetupPage();
+                          }
+                          // Simple vet home (placeholder) – show clinic info and work areas
+                          return const VetHomePage();
+                        }
+
                         // Pet owners and vets use the main app experience
-                        return const MyHomePage(title: 'Peton');
+                        return const MyHomePage(title: 'VetPlus');
                       },
                     ),
                   );

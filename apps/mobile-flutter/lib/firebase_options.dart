@@ -57,19 +57,20 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCvldSwcAV7P5Y4m1uQWODskAKiCkvgOyU',
-    appId: '1:637846106040:android:e543186dee3003a456694d',
-    messagingSenderId: '637846106040',
-    projectId: 'pet-on-app',
-    storageBucket: 'pet-on-app.firebasestorage.app',
+    apiKey: 'AIzaSyAnzcE-Bqq58osNlhrZbzO5ToCNvQEhK_8',
+    appId: '1:997739068545:android:8f303666a136fbd80d2180',
+    messagingSenderId: '997739068545',
+    projectId: 'vetplus-digital',
+    storageBucket: 'vetplus-digital.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBeH1Uru8q28qScQgj7TOJklWRyIuhVn6M',
-    appId: '1:637846106040:ios:20147f1f7200e9dd56694d',
-    messagingSenderId: '637846106040',
-    projectId: 'pet-on-app',
-    storageBucket: 'pet-on-app.firebasestorage.app',
-    iosBundleId: 'on.pet.peton',
+    apiKey: 'AIzaSyD0Qt56fY11HH1ykX5hvzbG100TX3ks-HM',
+    appId: '1:997739068545:ios:789777ba53ded1110d2180',
+    messagingSenderId: '997739068545',
+    projectId: 'vetplus-digital',
+    storageBucket: 'vetplus-digital.firebasestorage.app',
+    iosBundleId: 'pt.vetplus',
   );
+
 }

@@ -1,4 +1,4 @@
-# Peton Design System
+# VetPlus Design System
 
 This design system provides a consistent visual language for both the Flutter mobile app and React web application.
 

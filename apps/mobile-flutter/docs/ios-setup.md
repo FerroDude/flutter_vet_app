@@ -1,4 +1,4 @@
-### iOS setup guide (run Peton on iOS)
+### iOS setup guide (run VetPlus on iOS)
 
 This checklist is for when you have access to a Mac. It assumes the Flutter app lives at `apps/mobile-flutter/`.
 

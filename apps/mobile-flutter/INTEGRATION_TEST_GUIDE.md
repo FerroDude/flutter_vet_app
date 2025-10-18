@@ -1,4 +1,4 @@
-# Integration Test Guide — Peton Mobile
+# Integration Test Guide — VetPlus Mobile
 
 Scope reflects the current implementation (Flutter + Firebase) in `apps/mobile-flutter`.
 
@@ -9,6 +9,7 @@ Scope reflects the current implementation (Flutter + Firebase) in `apps/mobile-f
 - Firestore created with rules from `apps/mobile-flutter/firestore.rules`.
 
 Test Accounts:
+
 - Pet Owner: `petowner@test.com` / `password123`
 - Clinic Admin: `admin@vetclinic.com` / `password123`
 - Vet: `vet@vetclinic.com` / `password123`
@@ -61,4 +62,3 @@ Notes: Attachments, presence, and multi‑participant chats are not implemented 
 - Local notifications are no‑ops; scheduling isn’t validated.
 - Event list caching is disabled (counts caching works).
 - Chat attachments and uploads are not implemented.
-

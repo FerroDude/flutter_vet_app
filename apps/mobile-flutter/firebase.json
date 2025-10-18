@@ -2,22 +2,23 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "functions": {
+    "source": "functions"
+  },
   "flutter": {
     "platforms": {
       "android": {
         "default": {
-          "projectId": "pet-on-app",
-          "appId": "1:637846106040:android:e543186dee3003a456694d",
+          "projectId": "vetplus-digital",
+          "appId": "1:997739068545:android:8f303666a136fbd80d2180",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "pet-on-app",
+          "projectId": "vetplus-digital",
           "configurations": {
-            "android": "1:637846106040:android:e543186dee3003a456694d",
-            "ios": "1:637846106040:ios:20147f1f7200e9dd56694d",
-            "web": "1:637846106040:web:3077621ef063c2a056694d"
+            "ios": "1:997739068545:ios:789777ba53ded1110d2180"
           }
         }
       }

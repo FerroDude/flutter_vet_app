@@ -1,4 +1,4 @@
-# Peton Mobile App — Codebase Overview and Analysis
+# VetPlus Mobile App — Codebase Overview and Analysis
 
 This document summarizes the current Flutter codebase, its architecture, data model, and notable gaps. All statements are verified against the source under `apps/mobile-flutter` as of this analysis.
 
@@ -57,12 +57,14 @@ File: `apps/mobile-flutter/pubspec.yaml:1`
 All models support Firestore `Timestamp | int(ms) | ISO string` parsing for date fields.
 
 - Events
+
   - Base: `CalendarEvent` with `EventType { appointment, medication, note }`
   - `AppointmentEvent` (vetName, location, type, isConfirmed, contactInfo)
   - `MedicationEvent` (name, dosage, frequency/custom interval, completion, nextDose, requiresNotification)
   - File: `apps/mobile-flutter/lib/models/event_model.dart:1`
 
 - Chat
+
   - `ChatMessage` (text/image/appointment/medication), status, timestamp
   - `ChatRoom` (clinicId, petOwnerId/name, vetId/name, petIds[], lastMessage, unreadCounts map)
   - File: `apps/mobile-flutter/lib/models/chat_models.dart:1`
@@ -75,12 +77,14 @@ All models support Firestore `Timestamp | int(ms) | ISO string` parsing for date
 ## Firestore Structure (as used by code)
 
 - Users
+
   - `users/{userId}` — user profile
   - `users/{userId}/clinicHistory/{historyId}` — join/leave records
   - `users/{userId}/events/{eventId}` — appointments/medications/notes
   - Source: `ClinicService`, `EventRepository._getEventsCollection()`
 
 - Clinics
+
   - `clinics/{clinicId}` — clinic info (adminId, contact, hours)
   - `clinics/{clinicId}/members/{userId}` — `ClinicMember`
   - Source: `ClinicService`
@@ -99,6 +103,7 @@ Contrasts with existing docs:
 ## Services, Repositories, and Providers
 
 - EventRepository
+
   - Streams: events and counts for reactive UI
   - Fetch with Firestore query filters and order by `dateTime`
   - Caching: Intended via `CacheService` but event list caching is currently disabled (serialization TODO)
@@ -107,16 +112,19 @@ Contrasts with existing docs:
   - File: `apps/mobile-flutter/lib/repositories/event_repository.dart:1`
 
 - CacheService
+
   - Stores event counts and offline items in SharedPreferences
   - `cacheEvents(...)` intentionally no-ops (disabled) pending fix for `Timestamp` serialization
   - File: `apps/mobile-flutter/lib/services/cache_service.dart:1`
 
 - ClinicService
+
   - CRUD for clinics and members; user–clinic connect/disconnect; search clinics
   - Paths: `clinics/{clinicId}` with `members` subcollection; `users/{userId}` with `clinicHistory`
   - File: `apps/mobile-flutter/lib/services/clinic_service.dart:1`
 
 - ChatService
+
   - One-on-one chat creation and lookups; messages CRUD; mark read
   - Streams: vet/clinic/petOwner chatRooms and messages
   - Unread counts kept in `ChatRoom.unreadCounts` (map of `userId -> count`)
@@ -155,14 +163,17 @@ Contrasts with existing docs:
 ## Doc Accuracy Audit (key mismatches)
 
 - SYSTEM_OVERVIEW.md
+
   - Claims multi-participant chat and presence tracking. Not present in code.
   - General architecture and role descriptions are directionally correct.
 
 - DEPLOYMENT_GUIDE.md
+
   - Firestore paths listed for events and clinic members do not match actual code paths (see “Firestore Structure”).
   - Security rules use a `participants` array and subcollection which the code does not maintain.
 
 - INTEGRATION_TEST_GUIDE.md
+
   - Step flows reference features like sharing appointments/medications in chat and attachments. Message types exist, but UI flows for sharing and uploads aren’t implemented in the current pages.
 
 - REFACTOR.md
@@ -173,11 +184,13 @@ Contrasts with existing docs:
 High-level guidance only; adapt to your needs:
 
 - Allow a user to read/write their doc and owned subcollections:
+
   - `match /users/{userId} { allow read, write: if request.auth != null && request.auth.uid == userId }`
   - `match /users/{userId}/events/{eventId} { allow read, write: if request.auth != null && request.auth.uid == userId }`
   - `match /users/{userId}/clinicHistory/{historyId} { allow read, write: if request.auth != null && request.auth.uid == userId }`
 
 - Clinics:
+
   - `match /clinics/{clinicId} { allow read: if isClinicMember(clinicId); allow write: if isClinicAdmin(clinicId) }`
   - `match /clinics/{clinicId}/members/{userId} { allow read: if isClinicMember(clinicId); allow write: if isClinicAdmin(clinicId) }`
 
@@ -199,4 +212,3 @@ Helper functions `isClinicMember` and `isClinicAdmin` can consult `clinics/{clin
 ---
 
 This overview will be kept as the source of truth for future development context.
-

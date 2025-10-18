@@ -16,25 +16,15 @@ class EmailVerificationPage extends StatefulWidget {
 class _EmailVerificationPageState extends State<EmailVerificationPage> {
   bool _isLoading = false;
   bool _isCheckingVerification = false;
-  Timer? _verificationTimer;
 
   @override
   void initState() {
     super.initState();
-    _startVerificationPolling();
   }
 
   @override
   void dispose() {
-    _verificationTimer?.cancel();
     super.dispose();
-  }
-
-  void _startVerificationPolling() {
-    // Check verification status every 3 seconds
-    _verificationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      _checkEmailVerification();
-    });
   }
 
   Future<void> _checkEmailVerification() async {
@@ -46,36 +36,22 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
     try {
       await widget.user.reload();
+      // Force refresh the ID token so userChanges() emits
+      try {
+        await widget.user.getIdToken(true);
+      } catch (_) {}
       final refreshedUser = FirebaseAuth.instance.currentUser;
 
       if (refreshedUser != null && refreshedUser.emailVerified) {
-        _verificationTimer?.cancel();
-
         if (mounted) {
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Email verified successfully! Welcome to PetOn.'),
+              content: Text('Email verified successfully! Welcome to VetPlus.'),
               backgroundColor: Colors.green,
             ),
           );
-
-          // Force navigation to AuthWrapper to trigger rebuild
-          await Future.delayed(const Duration(milliseconds: 500));
-          if (mounted) {
-            // Import AuthWrapper to avoid circular dependency
-            navigatorKey.currentState?.pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) {
-                  // We'll need to import AuthWrapper from auth_wrapper.dart once extracted
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  ); // Temporary placeholder
-                },
-              ),
-              (route) => false,
-            );
-          }
+          // No manual navigation; AuthWrapper listens to userChanges
         }
       }
     } catch (e) {

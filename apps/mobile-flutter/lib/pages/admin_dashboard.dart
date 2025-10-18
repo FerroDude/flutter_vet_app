@@ -35,33 +35,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('App Owner Dashboard'),
+            backgroundColor: AppTheme.primaryBlue,
             foregroundColor: Colors.white,
             elevation: 0,
-            flexibleSpace: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.primaryBlue,
-                    AppTheme.primaryBlue.withOpacity(0.85),
-                  ],
-                ),
-              ),
-            ),
             actions: [
-              IconButton(
-                onPressed: () => _showAllClinicsDialog(context),
-                icon: const Icon(Icons.search),
-                tooltip: 'Search Clinics',
-              ),
               IconButton(
                 onPressed: () => _showAppSettings(context),
                 icon: const Icon(Icons.settings),
                 tooltip: 'App Settings',
               ),
               IconButton(
-                onPressed: () => _navigateToProfile(),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProfilePage(injectedUserProvider: userProvider),
+                    ),
+                  );
+                },
                 icon: CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.white24,
@@ -118,26 +110,63 @@ class _AdminDashboardState extends State<AdminDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Enhanced System Overview Card
-            _buildEnhancedOverviewCard(userProvider),
+            _buildEnhancedOverviewCard(),
 
             const SizedBox(height: 32),
 
-            // Quick Actions
-            Row(
+            // Quick Actions Section
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.flash_on, color: AppTheme.primaryBlue, size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'Quick Actions',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.flash_on, color: AppTheme.primaryBlue, size: 28),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Actions',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryBlue,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Admin management buttons
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () =>
+                          _showFixClinicAdminDialog(context, userProvider),
+                      icon: const Icon(Icons.build),
+                      label: const Text('Fix Admin'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showCheckClinicDialog(context),
+                      icon: const Icon(Icons.search),
+                      label: const Text('Check Clinic'),
+                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showAdminManagementDialog(context),
+                      icon: const Icon(Icons.admin_panel_settings),
+                      label: const Text('Admin Tools'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.purple,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             _buildImprovedQuickActions(context, userProvider),
 
@@ -185,7 +214,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
             const SizedBox(height: 20),
 
-            _buildQuickStats(userProvider),
+            _buildQuickStats(),
 
             const SizedBox(height: 24),
           ],
@@ -237,7 +266,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
 
             // Clinic Statistics
-            _buildDetailedClinicStats(userProvider),
+            _buildDetailedClinicStats(),
 
             const SizedBox(height: 24),
 
@@ -305,6 +334,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 child: const VetManagementPage(),
               ),
             ),
+          );
+        },
+      ),
+      _buildActionCard(
+        icon: Icons.settings,
+        title: 'Settings',
+        color: AppTheme.accentCoral,
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('App settings coming soon')),
           );
         },
       ),
@@ -396,53 +435,38 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
-      elevation: 4,
-      shadowColor: color.withOpacity(0.25),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color.withOpacity(0.10), color.withOpacity(0.05)],
-          ),
-          border: Border.all(
-            color: (isDark ? Colors.grey[700]! : Colors.grey[200]!).withOpacity(
-              0.9,
-            ),
-          ),
+      color: isDark ? Colors.grey[900] : Colors.grey[50],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+          width: 1,
         ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 2),
             Text(
               value,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 1),
             Text(
               title,
               style: TextStyle(
                 color: isDark ? Colors.grey[300] : Colors.grey[600],
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+                fontSize: 10,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -455,9 +479,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   // Enhanced App Owner overview card with blue theme
-  Widget _buildEnhancedOverviewCard(UserProvider userProvider) {
+  Widget _buildEnhancedOverviewCard() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final clinicsQuery = _clinicsQuery(userProvider, includeInactive: true);
 
     return Card(
       elevation: 8,
@@ -513,7 +536,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'PetOn Platform',
+                        'VetPlus Platform',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -532,52 +555,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 28),
             StreamBuilder<QuerySnapshot>(
-              stream: clinicsQuery.snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('clinics')
+                  .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _buildEnhancedOverviewStat(
-                          'Total Clinics',
-                          '!',
-                          Icons.business,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: _buildEnhancedOverviewStat(
-                          'Active Clinics',
-                          '!',
-                          Icons.check_circle,
-                        ),
-                      ),
-                    ],
-                  );
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-                final isLoading =
-                    snapshot.connectionState == ConnectionState.waiting &&
-                    docs.isEmpty;
-
-                final totalClinics = docs.length;
-                final activeClinics = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['isActive'] == true;
-                }).length;
-
-                final totalLabel = isLoading ? '...' : totalClinics.toString();
-                final activeLabel = isLoading
-                    ? '...'
-                    : activeClinics.toString();
+                final totalClinics = snapshot.data?.docs.length ?? 0;
+                final activeClinics =
+                    snapshot.data?.docs
+                        .where((doc) => doc.get('isActive') == true)
+                        .length ??
+                    0;
 
                 return Row(
                   children: [
                     Expanded(
                       child: _buildEnhancedOverviewStat(
                         'Total Clinics',
-                        totalLabel,
+                        totalClinics.toString(),
                         Icons.business,
                       ),
                     ),
@@ -585,7 +579,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Expanded(
                       child: _buildEnhancedOverviewStat(
                         'Active Clinics',
-                        activeLabel,
+                        activeClinics.toString(),
                         Icons.check_circle,
                       ),
                     ),
@@ -699,13 +693,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  void _navigateToProfile() {
-    // Navigate to the same ProfilePage that normal users use
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ProfilePage()),
-    );
-  }
+  void _navigateToProfile() {}
 
   // Temporary method to fix clinic admin linking
   void _showCheckClinicDialog(BuildContext context) {
@@ -831,7 +819,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ...clinicQuery.docs.map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return Text('   • ${data['name']} (ID: ${doc.id})');
-                    }).toList(),
+                    }),
                   ],
                   const SizedBox(height: 8),
                   Text(
@@ -1078,7 +1066,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ...clinicQuery.docs.map((doc) {
                       final clinicData = doc.data() as Map<String, dynamic>;
                       return Text('   • ${clinicData['name']} (ID: ${doc.id})');
-                    }).toList(),
+                    }),
                   ],
                   const SizedBox(height: 16),
                   Container(
@@ -1527,7 +1515,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // Navigate to the same ProfilePage that normal users use
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ProfilePage()),
+          MaterialPageRoute(
+            builder: (context) =>
+                ProfilePage(injectedUserProvider: userProvider),
+          ),
         );
         break;
       case 'logout':
@@ -1586,24 +1577,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildQuickStats(UserProvider userProvider) {
+  Widget _buildQuickStats() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, userSnapshot) {
         return StreamBuilder<QuerySnapshot>(
-          stream: _clinicsQuery(
-            userProvider,
-            includeInactive: true,
-          ).snapshots(),
+          stream: FirebaseFirestore.instance.collection('clinics').snapshots(),
           builder: (context, clinicSnapshot) {
             final totalUsers = userSnapshot.data?.docs.length ?? 0;
-            final clinicDocs = clinicSnapshot.data?.docs ?? [];
-            final activeClinics = clinicDocs
-                .where(
-                  (doc) =>
-                      (doc.data() as Map<String, dynamic>)['isActive'] == true,
-                )
-                .length;
+            final activeClinics =
+                clinicSnapshot.data?.docs
+                    .where(
+                      (doc) =>
+                          (doc.data() as Map<String, dynamic>)['isActive'] ==
+                          true,
+                    )
+                    .length ??
+                0;
 
             return Row(
               children: [
@@ -1694,26 +1684,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildDetailedClinicStats(UserProvider userProvider) {
+  Widget _buildDetailedClinicStats() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _clinicsQuery(userProvider, includeInactive: true).snapshots(),
+      stream: FirebaseFirestore.instance.collection('clinics').snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Unable to load clinic statistics.'),
-            ),
-          );
         }
 
         final clinics = snapshot.data?.docs ?? [];
@@ -1787,17 +1763,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       },
     );
-  }
-
-  Query<Map<String, dynamic>> _clinicsQuery(
-    UserProvider userProvider, {
-    bool includeInactive = false,
-  }) {
-    final base = FirebaseFirestore.instance.collection('clinics');
-    if (includeInactive && userProvider.isAppOwner) {
-      return base;
-    }
-    return base.where('isActive', isEqualTo: true);
   }
 
   Widget _buildDetailedUserStats() {
@@ -2549,7 +2514,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
   final _clinicEmailController = TextEditingController();
   final _adminNameController = TextEditingController();
   final _adminEmailController = TextEditingController();
-  final _adminPasswordController = TextEditingController();
+  // Admin password is not collected; a reset email will be sent instead
 
   bool _isLoading = false;
   bool _useAdminEmailForClinic = true;
@@ -2676,18 +2641,10 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                TextFormField(
-                  controller: _adminPasswordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Admin Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value?.isEmpty == true) return 'Required';
-                    if (value!.length < 6) return 'Minimum 6 characters';
-                    return null;
-                  },
+                const SizedBox(height: 12),
+                const Text(
+                  'A password reset email will be sent to the admin so they can choose a password.',
+                  style: TextStyle(color: Colors.grey),
                 ),
               ],
             ),
@@ -2914,7 +2871,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text('1. Admin downloads PetOn app'),
+                          Text('1. Admin downloads VetPlus app'),
                           Text(
                             '2. Signs up with: ${_adminEmailController.text}',
                           ),
@@ -3017,7 +2974,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
         name: 'CreateClinicDialog',
       );
       developer.log(
-        '   Subject: Welcome to PetOn - Your Clinic Admin Account',
+        '   Subject: Welcome to VetPlus - Your Clinic Admin Account',
         name: 'CreateClinicDialog',
       );
       developer.log(
@@ -3047,11 +3004,11 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
         name: 'CreateClinicDialog',
       );
       developer.log(
-        '   Subject: PetOn Clinic Registration Confirmation',
+        '   Subject: VetPlus Clinic Registration Confirmation',
         name: 'CreateClinicDialog',
       );
       developer.log(
-        '   Content: Your clinic has been successfully registered on PetOn platform.',
+        '   Content: Your clinic has been successfully registered on VetPlus platform.',
         name: 'CreateClinicDialog',
       );
     } catch (e) {
@@ -3070,7 +3027,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
     _clinicEmailController.dispose();
     _adminNameController.dispose();
     _adminEmailController.dispose();
-    _adminPasswordController.dispose();
+    // No admin password controller to dispose
     super.dispose();
   }
 }
@@ -3650,7 +3607,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 );
               },

@@ -4,7 +4,7 @@ import '../providers/user_provider.dart';
 
 import '../theme/app_theme.dart';
 import 'vet_management_page.dart';
-import '../main.dart' show ProfilePage;
+import '../main.dart' show ProfilePage, SettingsPage;
 
 class ClinicAdminDashboard extends StatefulWidget {
   const ClinicAdminDashboard({super.key});
@@ -14,6 +14,18 @@ class ClinicAdminDashboard extends StatefulWidget {
 }
 
 class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
+  @override
+  void initState() {
+    super.initState();
+    // Post-frame ensure clinic is loaded once the widget has a context
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.isClinicAdmin) {
+        userProvider.loadClinicIfMissing();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
@@ -34,15 +46,25 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
             foregroundColor: Colors.white,
             actions: [
               IconButton(
-                onPressed: () => _showClinicInfo(context, userProvider),
-                icon: const Icon(Icons.info_outline),
-              ),
-              IconButton(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.settings),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ProfilePage(),
+                      builder: (context) => const SettingsPage(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                tooltip: 'Profile',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProfilePage(injectedUserProvider: userProvider),
                     ),
                   );
                 },
@@ -57,7 +79,6 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
                     ),
                   ),
                 ),
-                tooltip: 'Profile',
               ),
             ],
           ),
@@ -84,8 +105,28 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
 
   Widget _buildClinicOverviewCard(UserProvider userProvider) {
     final connectedClinic = userProvider.connectedClinic;
+    final hasClinicConnection =
+        userProvider.currentUser?.connectedClinicId != null;
 
     if (connectedClinic == null) {
+      if (hasClinicConnection) {
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: const [
+                SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Loading clinic info...'),
+              ],
+            ),
+          ),
+        );
+      }
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),

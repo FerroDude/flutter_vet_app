@@ -7,12 +7,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peton/services/cache_service.dart';
-import 'package:peton/models/notification_service.dart';
+import 'package:vet_plus/services/cache_service.dart';
+import 'package:vet_plus/models/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  group('PetOn Services Tests', () {
+  group('VetPlus Services Tests', () {
     setUp(() async {
       // Initialize SharedPreferences for testing
       SharedPreferences.setMockInitialValues({});
@@ -68,21 +68,21 @@ void main() {
     });
   });
 
-  group('PetOn Widget Tests', () {
+  group('VetPlus Widget Tests', () {
     testWidgets('Theme and basic widget creation', (WidgetTester tester) async {
       // Test a simple widget without Firebase dependencies
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            appBar: AppBar(title: const Text('PetOn Test')),
-            body: const Center(child: Text('Welcome to PetOn')),
+            appBar: AppBar(title: const Text('VetPlus Test')),
+            body: const Center(child: Text('Welcome to VetPlus')),
           ),
         ),
       );
 
       // Verify basic widget structure
-      expect(find.text('PetOn Test'), findsOneWidget);
-      expect(find.text('Welcome to PetOn'), findsOneWidget);
+      expect(find.text('VetPlus Test'), findsOneWidget);
+      expect(find.text('Welcome to VetPlus'), findsOneWidget);
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.byType(Scaffold), findsOneWidget);
     });

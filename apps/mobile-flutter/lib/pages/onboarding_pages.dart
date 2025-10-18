@@ -20,7 +20,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -29,7 +29,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
 
               // Welcome header
               Text(
-                'Welcome to Peton!',
+                'Welcome to VetPlus!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryBlue,
@@ -90,7 +90,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 24),
 
               // Continue button
               ElevatedButton(

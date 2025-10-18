@@ -157,7 +157,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Real-time PetOn Platform Statistics',
+                        'Real-time VetPlus Platform Statistics',
                         style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ],

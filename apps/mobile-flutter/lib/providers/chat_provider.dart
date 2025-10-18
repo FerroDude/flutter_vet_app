@@ -299,9 +299,4 @@ class ChatProvider extends ChangeNotifier {
   bool hasUnreadMessages(String chatRoomId) {
     return getUnreadCount(chatRoomId) > 0;
   }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

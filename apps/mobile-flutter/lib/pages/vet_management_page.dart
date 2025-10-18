@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../models/clinic_models.dart';
 import '../providers/user_provider.dart';
@@ -54,7 +55,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
   }
 
   Widget _buildVetsList(UserProvider userProvider) {
-    final vets = userProvider.clinicMembers;
+    final vets = userProvider.clinicMembers
+        .where((m) => m.role == ClinicRole.vet)
+        .toList();
 
     if (vets.isEmpty) {
       return Center(
@@ -171,16 +174,128 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 return Column(
                   children: docs.map((doc) {
                     final data = doc.data();
+                    final email = (data['email'] as String?) ?? '';
+                    final status = (data['status'] as String?) ?? 'pending';
+                    final role = (data['role'] as String?) ?? 'vet';
+
                     return Card(
                       child: ListTile(
                         leading: const Icon(Icons.mark_email_unread),
-                        title: Text(data['email'] ?? ''),
-                        subtitle: Text(
-                          'Status: ${data['status'] ?? 'pending'}',
-                        ),
-                        trailing: Text(
-                          (data['role'] ?? 'vet').toString(),
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        title: Text(email),
+                        subtitle: Text('Status: $status'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryBlue.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                role.toUpperCase(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: AppTheme.primaryBlue,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              tooltip: 'Resend reset email',
+                              icon: const Icon(Icons.refresh),
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                try {
+                                  final ok = await userProvider
+                                      .provisionAuthAccountAndSendReset(email);
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        ok
+                                            ? 'Reset email sent to $email'
+                                            : 'Could not send reset email',
+                                      ),
+                                      backgroundColor: ok
+                                          ? Colors.green
+                                          : Colors.orange,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            IconButton(
+                              tooltip: 'Revoke invite',
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Revoke Invite'),
+                                    content: Text(
+                                      'Revoke the invite for $email? This cannot be undone.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        child: const Text('Revoke'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm == true) {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  try {
+                                    final ok = await userProvider
+                                        .revokeVetInvite(email);
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          ok
+                                              ? 'Invite revoked'
+                                              : 'Failed to revoke invite',
+                                        ),
+                                        backgroundColor: ok
+                                            ? Colors.green
+                                            : Colors.red,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -205,9 +320,28 @@ class _VetManagementPageState extends State<VetManagementPage> {
             color: AppTheme.primaryGreen,
           ),
         ),
-        title: Text(
-          'Vet Member', // TODO: Get actual vet name from UserProfile
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        title: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(vet.userId)
+              .get(),
+          builder: (context, snapshot) {
+            String name = 'Vet Member';
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data();
+              final displayName = data?['displayName'] as String?;
+              final email = data?['email'] as String?;
+              if (displayName != null && displayName.isNotEmpty) {
+                name = displayName;
+              } else if (email != null && email.isNotEmpty) {
+                name = email;
+              }
+            }
+            return Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            );
+          },
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,6 +497,38 @@ class _VetManagementPageState extends State<VetManagementPage> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final email = emailController.text.trim().toLowerCase();
+                if (email.isEmpty) return;
+                try {
+                  final ok = await userProvider
+                      .provisionAuthAccountAndSendReset(email);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          ok
+                              ? 'Password setup email sent to $email.'
+                              : 'Could not send password setup email to $email.',
+                        ),
+                        backgroundColor: ok ? Colors.green : Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Unable to send reset email: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Send Password Reset'),
             ),
             ElevatedButton(
               onPressed: () async {

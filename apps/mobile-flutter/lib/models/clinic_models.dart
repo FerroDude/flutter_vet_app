@@ -220,15 +220,17 @@ class UserProfile {
   final String id;
   final String email;
   final String displayName;
-  final UserType userType;
+  final UserType userType; // legacy/app-compat; prefer globalType + clinicRole
   final String? connectedClinicId;
   final ClinicRole? clinicRole;
   final String? phone;
   final String? address;
   final bool hasSkippedClinicSelection;
+  final bool mustChangePassword;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isActive;
+  final String? globalType; // 'appOwner' or null (regular user)
 
   const UserProfile({
     required this.id,
@@ -240,9 +242,11 @@ class UserProfile {
     this.phone,
     this.address,
     this.hasSkippedClinicSelection = false,
+    this.mustChangePassword = false,
     required this.createdAt,
     required this.updatedAt,
     this.isActive = true,
+    this.globalType,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json, String id) {
@@ -258,9 +262,11 @@ class UserProfile {
       phone: json['phone'],
       address: json['address'],
       hasSkippedClinicSelection: json['hasSkippedClinicSelection'] ?? false,
+      mustChangePassword: json['mustChangePassword'] ?? false,
       createdAt: Clinic._parseDateTime(json['createdAt']),
       updatedAt: Clinic._parseDateTime(json['updatedAt']),
       isActive: json['isActive'] ?? true,
+      globalType: json['globalType'],
     );
   }
 
@@ -274,9 +280,11 @@ class UserProfile {
       'phone': phone,
       'address': address,
       'hasSkippedClinicSelection': hasSkippedClinicSelection,
+      'mustChangePassword': mustChangePassword,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
       'isActive': isActive,
+      'globalType': globalType,
     };
   }
 
@@ -289,8 +297,10 @@ class UserProfile {
     String? phone,
     String? address,
     bool? hasSkippedClinicSelection,
+    bool? mustChangePassword,
     DateTime? updatedAt,
     bool? isActive,
+    String? globalType,
   }) {
     return UserProfile(
       id: id,
@@ -303,16 +313,19 @@ class UserProfile {
       address: address ?? this.address,
       hasSkippedClinicSelection:
           hasSkippedClinicSelection ?? this.hasSkippedClinicSelection,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
+      globalType: globalType ?? this.globalType,
     );
   }
 
   // Helper methods
-  bool get isPetOwner => userType == UserType.petOwner;
-  bool get isVet => userType == UserType.vet;
-  bool get isClinicAdmin => userType == UserType.clinicAdmin;
-  bool get isAppOwner => userType == UserType.appOwner;
+  bool get isAppOwner =>
+      (globalType == 'appOwner') || userType == UserType.appOwner;
+  bool get isClinicAdmin => clinicRole == ClinicRole.admin;
+  bool get isVet => clinicRole == ClinicRole.vet;
+  bool get isPetOwner => !isAppOwner && !isVet && !isClinicAdmin;
   bool get hasClinicConnection => connectedClinicId != null;
 }

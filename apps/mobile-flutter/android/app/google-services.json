@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "637846106040",
-    "project_id": "pet-on-app",
-    "storage_bucket": "pet-on-app.firebasestorage.app"
+    "project_number": "997739068545",
+    "project_id": "vetplus-digital",
+    "storage_bucket": "vetplus-digital.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:637846106040:android:e543186dee3003a456694d",
+        "mobilesdk_app_id": "1:997739068545:android:8f303666a136fbd80d2180",
         "android_client_info": {
-          "package_name": "on.pet.peton"
+          "package_name": "pt.vetplus"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCvldSwcAV7P5Y4m1uQWODskAKiCkvgOyU"
+          "current_key": "AIzaSyAnzcE-Bqq58osNlhrZbzO5ToCNvQEhK_8"
         }
       ],
       "services": {

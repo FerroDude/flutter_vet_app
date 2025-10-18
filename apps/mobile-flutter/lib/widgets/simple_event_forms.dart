@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
+import '../pages/add_symptom_sheet.dart';
 
 class SimpleAddEventDialog extends StatelessWidget {
   final DateTime selectedDate;
@@ -55,10 +56,51 @@ class SimpleAddEventDialog extends StatelessWidget {
               color: AppTheme.accentCoral,
               onTap: () => _showNoteForm(context),
             ),
+            const SizedBox(height: 12),
+            _EventTypeButton(
+              icon: Icons.monitor_heart,
+              label: 'Symptom',
+              color: Colors.orange,
+              onTap: () => _showSymptomForm(context),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  void _showSymptomForm(BuildContext context) async {
+    Navigator.pop(context);
+    // Get first pet or let user choose
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final petsSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('pets')
+        .limit(1)
+        .get();
+    if (petsSnap.docs.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Please add a pet first')));
+      }
+      return;
+    }
+    final petIdToUse = petId ?? petsSnap.docs.first.id;
+    if (context.mounted) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: AddSymptomSheet(petId: petIdToUse),
+        ),
+      );
+    }
   }
 
   void _showAppointmentForm(BuildContext context) {
@@ -192,6 +234,7 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
       ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.95,
         constraints: const BoxConstraints(maxWidth: 800, minWidth: 500),
@@ -312,7 +355,7 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
                         }
 
                         return DropdownButtonFormField<String>(
-                          value: _selectedPetId,
+                          initialValue: _selectedPetId,
                           decoration: InputDecoration(
                             labelText: 'Pet *',
                             border: OutlineInputBorder(
@@ -868,6 +911,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
       ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.95,
         constraints: const BoxConstraints(maxWidth: 800, minWidth: 500),
@@ -1069,7 +1113,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
                         }
 
                         return DropdownButtonFormField<String>(
-                          value: _selectedPetId,
+                          initialValue: _selectedPetId,
                           decoration: InputDecoration(
                             labelText: 'Pet *',
                             border: OutlineInputBorder(
@@ -1215,7 +1259,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
                             ),
                           ),
                           child: DropdownButtonFormField<String>(
-                            value: _recurrencePattern,
+                            initialValue: _recurrencePattern,
                             decoration: InputDecoration(
                               labelText: 'Frequency *',
                               border: OutlineInputBorder(
@@ -1591,12 +1635,11 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
       // Build a human-readable frequency string
       String frequencyString = 'Every ';
       frequencyString +=
-          '$_recurrenceInterval ' +
-          (_recurrencePattern == 'daily'
+          '$_recurrenceInterval ${_recurrencePattern == 'daily'
               ? (_recurrenceInterval == 1 ? 'day' : 'days')
               : _recurrencePattern == 'weekly'
               ? (_recurrenceInterval == 1 ? 'week' : 'weeks')
-              : (_recurrenceInterval == 1 ? 'month' : 'months'));
+              : (_recurrenceInterval == 1 ? 'month' : 'months')}';
 
       // Generate all occurrences between start and end
       final DateTime effectiveEnd = _endDate ?? _startDate;
@@ -1756,6 +1799,7 @@ class _SimpleNoteFormState extends State<SimpleNoteForm> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
       ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(

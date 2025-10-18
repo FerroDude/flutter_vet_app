@@ -1,12 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'dart:developer' as developer;
+import 'dart:async';
 import '../models/clinic_models.dart';
+import '../firebase_options.dart';
 import '../services/clinic_service.dart';
 
 class UserProvider extends ChangeNotifier {
   final ClinicService _clinicService;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  StreamSubscription<User?>? _authSub;
+  StreamSubscription<List<ClinicMember>>? _membersSub;
+  bool _isDisposed = false;
 
   UserProfile? _currentUser;
   Clinic? _connectedClinic;
@@ -16,6 +22,56 @@ class UserProvider extends ChangeNotifier {
 
   UserProvider(this._clinicService) {
     _init();
+  }
+
+  /// Record a vet invitation by email for the connected clinic
+  Future<bool> inviteVetByEmail(String email, List<String> permissions) async {
+    if (!canManageVets || _connectedClinic == null) return false;
+
+    try {
+      _setLoading(true);
+
+      final normalizedEmail = email.trim().toLowerCase();
+      await _clinicService.createVetInvite(
+        _connectedClinic!.id,
+        normalizedEmail,
+        permissions,
+      );
+
+      // Provision an auth account (idempotent) and send a password reset email
+      try {
+        await provisionAuthAccountAndSendReset(normalizedEmail);
+      } catch (e) {
+        // Don't fail the invite if email sending fails; surface a soft error
+        developer.log(
+          'Failed to send reset for vet invite: $e',
+          name: 'UserProvider',
+        );
+      }
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('Failed to invite vet: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  /// Revoke a pending vet invite for the connected clinic
+  Future<bool> revokeVetInvite(String email) async {
+    if (!canManageVets || _connectedClinic == null) return false;
+    try {
+      final normalizedEmail = email.trim().toLowerCase();
+      await _clinicService.revokeVetInvite(
+        _connectedClinic!.id,
+        normalizedEmail,
+      );
+      return true;
+    } catch (e) {
+      _setError('Failed to revoke invite: $e');
+      return false;
+    }
   }
 
   // Getters
@@ -38,10 +94,36 @@ class UserProvider extends ChangeNotifier {
   bool get canCreateClinicAdmins => isAppOwner;
 
   void _init() {
-    _auth.authStateChanges().listen(_onAuthStateChanged);
+    _authSub = _auth.authStateChanges().listen(_onAuthStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    try {
+      _authSub?.cancel();
+    } catch (_) {}
+    _authSub = null;
+    try {
+      _membersSub?.cancel();
+    } catch (_) {}
+    _membersSub = null;
+    super.dispose();
+  }
+
+  Future<FirebaseApp> _getOrInitSecondaryApp() async {
+    try {
+      return Firebase.app('secondary');
+    } catch (_) {
+      return Firebase.initializeApp(
+        name: 'secondary',
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
   }
 
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
+    if (_isDisposed) return;
     if (firebaseUser == null) {
       _clearUserData();
       return;
@@ -53,14 +135,56 @@ class UserProvider extends ChangeNotifier {
     }
 
     await _loadUserProfile(firebaseUser.uid);
+
+    // Note: Vet invite handling is done via temp profiles during _loadUserProfile
+    // and _createInitialUserProfile, so no additional invite checking needed here.
+  }
+
+  /// Attempt to apply a pending vet invite for the currently signed-in
+  /// Firebase user based on their email. Returns true if applied.
+  Future<bool> applyPendingInviteForCurrentEmail() async {
+    try {
+      final firebaseUser = _auth.currentUser;
+      if (firebaseUser == null) return false;
+      final email = (firebaseUser.email ?? '').trim().toLowerCase();
+      if (email.isEmpty) return false;
+
+      _setLoading(true);
+      final invite = await _clinicService.findPendingVetInviteByEmail(email);
+      if (invite == null) {
+        _setLoading(false);
+        return false;
+      }
+
+      await _clinicService.applyVetInvite(
+        clinicId: invite['clinicId'] as String,
+        userId: firebaseUser.uid,
+        permissions: (invite['permissions'] as List<String>),
+        inviteRef: invite['inviteRef'] as dynamic,
+        normalizedEmailForCleanup: email,
+      );
+
+      await _loadUserProfile(firebaseUser.uid);
+      _setLoading(false);
+      if (!_isDisposed) notifyListeners();
+      return true;
+    } catch (e) {
+      _setLoading(false);
+      return false;
+    }
   }
 
   void _clearUserData() {
+    if (_isDisposed) return;
     _currentUser = null;
     _connectedClinic = null;
     _clinicMembers = [];
     _error = null;
-    notifyListeners();
+    try {
+      _membersSub?.cancel();
+    } catch (_) {}
+    _membersSub = null;
+    if (!_isDisposed) notifyListeners();
   }
 
   Future<void> _loadUserProfile(String userId) async {
@@ -77,15 +201,146 @@ class UserProvider extends ChangeNotifier {
         final firebaseUser = _auth.currentUser;
         if (firebaseUser != null &&
             _isAppOwnerEmail(firebaseUser.email) &&
-            userProfile.userType != UserType.appOwner) {
+            userProfile.globalType != 'appOwner') {
           // Update existing user to app owner
           final updatedProfile = userProfile.copyWith(
-            userType: UserType.appOwner,
+            globalType: 'appOwner',
             updatedAt: DateTime.now(),
           );
 
           await _clinicService.updateUserProfile(updatedProfile);
           _currentUser = updatedProfile;
+        }
+
+        // If user is not yet a clinic admin or vet, check for temp profiles by email (case-insensitive)
+        final signedInEmail = (_auth.currentUser?.email ?? '').trim();
+        if (signedInEmail.isNotEmpty &&
+            _currentUser!.userType != UserType.clinicAdmin &&
+            _currentUser!.userType != UserType.vet) {
+          final emailLower = signedInEmail.toLowerCase();
+          final emailToken = emailLower
+              .replaceAll('@', '_')
+              .replaceAll('.', '_')
+              .replaceAll('+', '_');
+          final tempAdminId = 'temp_admin_$emailToken';
+          final tempVetId = 'temp_vet_$emailToken';
+
+          developer.log(
+            'Link-check: looking for temp admin profile $tempAdminId',
+            name: 'UserProvider',
+          );
+
+          UserProfile? tempProfile = await _clinicService.getUserProfile(
+            tempAdminId,
+          );
+          if (tempProfile != null &&
+              tempProfile.userType == UserType.clinicAdmin &&
+              tempProfile.connectedClinicId != null) {
+            final linkedClinicId = tempProfile.connectedClinicId!;
+
+            // Ensure membership and transfer ownership
+            await _clinicService.ensureAdminMembershipFor(
+              linkedClinicId,
+              _currentUser!.id,
+              tempAdminId: tempAdminId,
+            );
+            await _updateClinicAdminId(
+              linkedClinicId,
+              tempAdminId,
+              _currentUser!.id,
+            );
+
+            // Upgrade profile to clinic admin and connect clinic, keep adminName
+            final upgraded = _currentUser!.copyWith(
+              userType: UserType.clinicAdmin,
+              clinicRole: ClinicRole.admin,
+              connectedClinicId: linkedClinicId,
+              displayName: tempProfile.displayName,
+              updatedAt: DateTime.now(),
+            );
+            await _clinicService.updateUserProfile(upgraded);
+            _currentUser = upgraded;
+            await _loadConnectedClinic(linkedClinicId);
+            if (!_isDisposed) notifyListeners();
+
+            // Best-effort delete temp user doc
+            try {
+              await _clinicService.deleteUserDocOnly(tempAdminId);
+            } catch (_) {}
+          } else {
+            // Check for vet invite
+            developer.log(
+              'Link-check: looking for temp vet profile $tempVetId',
+              name: 'UserProvider',
+            );
+
+            tempProfile = await _clinicService.getUserProfile(tempVetId);
+            if (tempProfile != null &&
+                tempProfile.userType == UserType.vet &&
+                tempProfile.connectedClinicId != null) {
+              final linkedClinicId = tempProfile.connectedClinicId!;
+
+              // Get permissions from the temp member document
+              final tempMember = await _clinicService.getClinicMember(
+                linkedClinicId,
+                tempVetId,
+              );
+              final permissions = tempMember?.permissions ?? [];
+
+              // Ensure membership
+              await _clinicService.ensureVetMembershipFor(
+                linkedClinicId,
+                _currentUser!.id,
+                tempVetId: tempVetId,
+                permissions: permissions,
+              );
+
+              // Upgrade profile to vet and connect clinic
+              // Keep displayName empty so vet can set it on first login
+              final upgraded = _currentUser!.copyWith(
+                userType: UserType.vet,
+                clinicRole: ClinicRole.vet,
+                connectedClinicId: linkedClinicId,
+                displayName: '', // Empty - vet will set their own
+                updatedAt: DateTime.now(),
+              );
+              await _clinicService.updateUserProfile(upgraded);
+              _currentUser = upgraded;
+              await _loadConnectedClinic(linkedClinicId);
+              if (!_isDisposed) notifyListeners();
+
+              // Delete the invite document now that user has logged in
+              try {
+                await _clinicService.deleteVetInvite(
+                  linkedClinicId,
+                  signedInEmail,
+                );
+                developer.log(
+                  'Deleted vet invite for: $signedInEmail',
+                  name: 'UserProvider',
+                );
+              } catch (e) {
+                developer.log(
+                  'Failed to delete vet invite (will ignore): $e',
+                  name: 'UserProvider',
+                );
+              }
+
+              // Best-effort delete temp user doc
+              try {
+                await _clinicService.deleteUserDocOnly(tempVetId);
+                developer.log(
+                  'Deleted temporary vet user doc: $tempVetId',
+                  name: 'UserProvider',
+                );
+              } catch (e) {
+                developer.log(
+                  'Failed to delete temp vet user doc (will ignore): $e',
+                  name: 'UserProvider',
+                );
+              }
+            }
+          }
         }
 
         // Load connected clinic if user has one
@@ -110,26 +365,33 @@ class UserProvider extends ChangeNotifier {
       if (firebaseUser == null) return;
 
       final now = DateTime.now();
-      final email = firebaseUser.email ?? '';
+      final email = (firebaseUser.email ?? '').trim();
+      final emailLower = email.toLowerCase();
 
       // Check if this is the app owner
-      UserType userType = _isAppOwnerEmail(email)
-          ? UserType.appOwner
-          : UserType.petOwner;
+      UserType userType =
+          UserType.petOwner; // legacy compat; use globalType + clinicRole
+      String? globalType = _isAppOwnerEmail(email) ? 'appOwner' : null;
 
       String? connectedClinicId;
       ClinicRole? clinicRole;
 
-      // Check if there's a placeholder admin profile for this email
-      final sanitizedEmail = email.replaceAll('@', '_').replaceAll('.', '_');
-      final tempAdminId = 'temp_admin_$sanitizedEmail';
+      // Check if there's a placeholder admin profile for this email (case-insensitive)
+      final emailToken = emailLower
+          .replaceAll('@', '_')
+          .replaceAll('.', '_')
+          .replaceAll('+', '_');
+      final tempAdminId = 'temp_admin_$emailToken';
+      final tempVetId = 'temp_vet_$emailToken';
 
       developer.log(
         'Checking for temp admin profile with ID: $tempAdminId',
         name: 'UserProvider',
       );
 
-      final existingProfile = await _clinicService.getUserProfile(tempAdminId);
+      UserProfile? existingProfile = await _clinicService.getUserProfile(
+        tempAdminId,
+      );
 
       if (existingProfile != null &&
           existingProfile.userType == UserType.clinicAdmin) {
@@ -143,83 +405,147 @@ class UserProvider extends ChangeNotifier {
         connectedClinicId = existingProfile.connectedClinicId;
         clinicRole = ClinicRole.admin;
 
-        // Update the clinic to use the real user ID instead of temp ID
+        // Establish membership and ownership before any reads
         if (connectedClinicId != null) {
           developer.log(
-            'Updating clinic admin ID from $tempAdminId to $userId',
+            'Ensuring real admin membership and updating clinic admin ID',
             name: 'UserProvider',
           );
-          await _updateClinicAdminId(connectedClinicId, tempAdminId, userId);
-          await _clinicService.transferClinicMember(
+          await _clinicService.ensureAdminMembershipFor(
             connectedClinicId,
-            tempAdminId,
             userId,
+            tempAdminId: tempAdminId,
           );
+          await _updateClinicAdminId(connectedClinicId, tempAdminId, userId);
         }
 
-        // Delete the temporary profile
-        await _clinicService.deleteUserProfile(tempAdminId);
-        developer.log(
-          'Deleted temporary admin profile: $tempAdminId',
-          name: 'UserProvider',
-        );
+        // Delete the temporary profile doc only (safer under rules)
+        try {
+          await _clinicService.deleteUserDocOnly(tempAdminId);
+          developer.log(
+            'Deleted temporary admin user doc: $tempAdminId',
+            name: 'UserProvider',
+          );
+        } catch (e) {
+          developer.log(
+            'Failed to delete temp admin user doc (will ignore): $e',
+            name: 'UserProvider',
+          );
+        }
       } else {
+        // Check for vet invite
         developer.log(
-          'No existing clinic admin profile found for email: $email',
+          'No temp admin found, checking for temp vet profile with ID: $tempVetId',
           name: 'UserProvider',
         );
+
+        existingProfile = await _clinicService.getUserProfile(tempVetId);
+
+        if (existingProfile != null &&
+            existingProfile.userType == UserType.vet) {
+          developer.log(
+            'Found existing vet profile for email: $email',
+            name: 'UserProvider',
+          );
+
+          // This user is a vet that was invited by a clinic admin
+          userType = UserType.vet;
+          connectedClinicId = existingProfile.connectedClinicId;
+          clinicRole = ClinicRole.vet;
+
+          // Establish membership and link to clinic
+          if (connectedClinicId != null) {
+            developer.log('Ensuring real vet membership', name: 'UserProvider');
+
+            // Get permissions from the temp member document
+            final tempMember = await _clinicService.getClinicMember(
+              connectedClinicId,
+              tempVetId,
+            );
+            final permissions = tempMember?.permissions ?? [];
+
+            await _clinicService.ensureVetMembershipFor(
+              connectedClinicId,
+              userId,
+              tempVetId: tempVetId,
+              permissions: permissions,
+            );
+
+            // Delete the invite document now that user has logged in for the first time
+            try {
+              await _clinicService.deleteVetInvite(connectedClinicId, email);
+              developer.log(
+                'Deleted vet invite for: $email',
+                name: 'UserProvider',
+              );
+            } catch (e) {
+              developer.log(
+                'Failed to delete vet invite (will ignore): $e',
+                name: 'UserProvider',
+              );
+            }
+          }
+        } else {
+          developer.log(
+            'No existing admin or vet profile found for email: $email',
+            name: 'UserProvider',
+          );
+        }
       }
 
-      // Check if there's a placeholder vet profile for this email
-      final tempVetId = 'temp_vet_$sanitizedEmail';
-      final tempVetProfile = await _clinicService.getUserProfile(tempVetId);
-
-      if (tempVetProfile != null &&
-          tempVetProfile.userType == UserType.vet &&
-          tempVetProfile.connectedClinicId != null) {
-        developer.log(
-          'Found existing vet profile for email: $email',
-          name: 'UserProvider',
-        );
-
-        userType = UserType.vet;
-        connectedClinicId = tempVetProfile.connectedClinicId;
-        clinicRole = ClinicRole.vet;
-
-        await _clinicService.transferClinicMember(
-          tempVetProfile.connectedClinicId!,
-          tempVetId,
-          userId,
-        );
-
-        await _clinicService.deleteUserProfile(tempVetId);
-        developer.log(
-          'Transferred clinic membership from $tempVetId to $userId',
-          name: 'UserProvider',
-        );
+      // Determine display name based on user type
+      String displayName;
+      if (userType == UserType.clinicAdmin && existingProfile != null) {
+        // Clinic admins get their name from temp profile
+        displayName = existingProfile.displayName;
+      } else if (userType == UserType.vet && existingProfile != null) {
+        // Vets should set their own name - use empty string
+        displayName = '';
+      } else {
+        // Pet owners and others use Firebase display name or 'User'
+        displayName = firebaseUser.displayName ?? 'User';
       }
 
       final profile = UserProfile(
         id: userId,
         email: email,
-        displayName: firebaseUser.displayName ?? 'User',
+        displayName: displayName,
         userType: userType,
         connectedClinicId: connectedClinicId,
         clinicRole: clinicRole,
         createdAt: now,
         updatedAt: now,
+        globalType: globalType,
       );
 
       await _clinicService.createUserProfile(profile);
       _currentUser = profile;
 
-      if (connectedClinicId != null && clinicRole != null) {
-        await _clinicService.ensureMemberRecord(
-          clinicId: connectedClinicId,
-          userId: userId,
-          role: clinicRole!,
-        );
+      // Delete temp user profile AFTER creating the real one
+      if (userType == UserType.vet && existingProfile != null) {
+        final tempVetId = 'temp_vet_$emailToken';
+        try {
+          await _clinicService.deleteUserDocOnly(tempVetId);
+          developer.log(
+            'Deleted temporary vet user doc: $tempVetId',
+            name: 'UserProvider',
+          );
+        } catch (e) {
+          developer.log(
+            'Failed to delete temp vet user doc (will ignore): $e',
+            name: 'UserProvider',
+          );
+        }
       }
+
+      // Immediately load connected clinic on first-time admin creation
+      if (connectedClinicId != null) {
+        try {
+          await _loadConnectedClinic(connectedClinicId);
+        } catch (_) {}
+      }
+
+      if (!_isDisposed) notifyListeners();
     } catch (e) {
       _setError('Failed to create user profile: $e');
     }
@@ -232,24 +558,17 @@ class UserProvider extends ChangeNotifier {
 
       // Load clinic members if user is vet or admin
       if (canViewClinicData) {
-        final members = await _clinicService.getClinicMembers(clinicId);
-        _clinicMembers = members;
-
-        if (isClinicAdmin) {
-          final currentUid = _auth.currentUser?.uid;
-          final hasMembership =
-              currentUid != null && members.any((m) => m.userId == currentUid);
-          if (!hasMembership && currentUid != null) {
-            await _clinicService.ensureMemberRecord(
-              clinicId: clinicId,
-              userId: currentUid,
-              role: ClinicRole.admin,
-              permissions: ['*'],
-            );
-            _clinicMembers = await _clinicService.getClinicMembers(clinicId);
-          }
-        }
+        try {
+          _membersSub?.cancel();
+        } catch (_) {}
+        _membersSub = _clinicService.clinicMembersStream(clinicId).listen((
+          members,
+        ) {
+          _clinicMembers = members;
+          if (!_isDisposed) notifyListeners();
+        });
       }
+      if (!_isDisposed) notifyListeners();
     } catch (e) {
       developer.log(
         'Failed to load connected clinic: $e',
@@ -259,17 +578,47 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  /// If the current user is a clinic admin but has no connectedClinicId, attempt to
+  /// discover and connect them to their clinic by admin ownership.
+  Future<void> ensureAdminConnectedToClinic() async {
+    if (_currentUser == null) return;
+    if (!isClinicAdmin) return;
+    if (_currentUser!.connectedClinicId != null) return;
+
+    try {
+      final ownedClinic = await _clinicService.findClinicByAdmin(
+        _currentUser!.id,
+      );
+      if (ownedClinic != null) {
+        final updatedProfile = _currentUser!.copyWith(
+          connectedClinicId: ownedClinic.id,
+          clinicRole: ClinicRole.admin,
+          updatedAt: DateTime.now(),
+        );
+        await _clinicService.updateUserProfile(updatedProfile);
+        _currentUser = updatedProfile;
+        await _loadConnectedClinic(ownedClinic.id);
+        if (!_isDisposed) notifyListeners();
+        if (!_isDisposed) notifyListeners();
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   void _setLoading(bool loading) {
+    if (_isDisposed) return;
     if (_isLoading != loading) {
       _isLoading = loading;
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     }
   }
 
   void _setError(String? error) {
+    if (_isDisposed) return;
     if (_error != error) {
       _error = error;
-      notifyListeners();
+      if (!_isDisposed) notifyListeners();
     }
   }
 
@@ -278,6 +627,7 @@ class UserProvider extends ChangeNotifier {
   // Update user profile
   Future<bool> updateProfile({
     String? displayName,
+    String? email,
     String? phone,
     String? address,
     bool? hasSkippedClinicSelection,
@@ -288,6 +638,7 @@ class UserProvider extends ChangeNotifier {
       _setLoading(true);
 
       final updatedProfile = _currentUser!.copyWith(
+        email: email,
         displayName: displayName,
         phone: phone,
         address: address,
@@ -464,9 +815,12 @@ class UserProvider extends ChangeNotifier {
 
       final now = DateTime.now();
 
+      // Normalize email
+      final normalizedAdminEmail = adminEmail.trim().toLowerCase();
+
       // Generate a temporary admin ID using the email
       final tempAdminId =
-          'temp_admin_${adminEmail.replaceAll('@', '_').replaceAll('.', '_')}';
+          'temp_admin_${normalizedAdminEmail.replaceAll('@', '_').replaceAll('.', '_')}';
 
       developer.log(
         'Generated temp admin ID: $tempAdminId',
@@ -495,7 +849,7 @@ class UserProvider extends ChangeNotifier {
       // Create a placeholder admin user profile
       final adminProfile = UserProfile(
         id: tempAdminId,
-        email: adminEmail,
+        email: normalizedAdminEmail,
         displayName: adminName,
         userType: UserType.clinicAdmin,
         connectedClinicId: clinicId,
@@ -509,50 +863,91 @@ class UserProvider extends ChangeNotifier {
       await _clinicService.createUserProfile(adminProfile);
       developer.log('Admin profile created successfully', name: 'UserProvider');
 
-      // Also create a Firebase Auth account for the admin
+      // Also create a Firebase Auth account for the admin using a secondary app
       try {
         developer.log(
-          'Creating Firebase Auth account for admin...',
+          'Creating Firebase Auth account for admin (secondary app)...',
           name: 'UserProvider',
         );
-        final userCredential = await _auth.createUserWithEmailAndPassword(
-          email: adminEmail,
-          password: 'TempPassword123!', // Temporary password
-        );
+        final secondaryApp = await _getOrInitSecondaryApp();
+
+        final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+
+        UserCredential? userCredential;
+        bool emailAlreadyExists = false;
+        try {
+          userCredential = await secondaryAuth.createUserWithEmailAndPassword(
+            email: normalizedAdminEmail,
+            password: 'TempPassword123!', // Temporary password
+          );
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'email-already-in-use') {
+            emailAlreadyExists = true;
+          } else {
+            // Still attempt to send reset email below; rethrowing not needed
+            developer.log('Auth create error: ${e.code}', name: 'UserProvider');
+          }
+        }
+
+        // Send password reset email to force setting a new password (always try)
+        try {
+          await secondaryAuth.sendPasswordResetEmail(
+            email: normalizedAdminEmail,
+          );
+        } catch (e) {
+          // Fallback via default auth
+          try {
+            await _auth.sendPasswordResetEmail(email: normalizedAdminEmail);
+          } catch (_) {}
+        }
 
         // Create the real admin profile with the Firebase UID
-        final realAdminProfile = UserProfile(
-          id: userCredential.user!.uid,
-          email: adminEmail,
-          displayName: adminName,
-          userType: UserType.clinicAdmin,
-          connectedClinicId: clinicId,
-          clinicRole: ClinicRole.admin,
-          createdAt: now,
-          updatedAt: DateTime.now(),
-          isActive: true,
-        );
+        if (userCredential == null && !emailAlreadyExists) {
+          // Could not create or obtain UID; skip profile creation but clinic exists with temp admin
+          await secondaryApp.delete();
+          _setLoading(false);
+          return clinicId;
+        }
 
-        // Create the real profile and delete the temp one
-        await _clinicService.createUserProfile(realAdminProfile);
-        await _clinicService.deleteUserProfile(tempAdminId);
+        // If account existed, we don't have a UID; cannot create a real profile here
+        if (userCredential != null) {
+          // Update auth display name for the admin user
+          try {
+            await userCredential.user!.updateDisplayName(adminName);
+          } catch (_) {}
 
-        // Update clinic to use real admin ID
-        await _updateClinicAdminId(
-          clinicId,
-          tempAdminId,
-          userCredential.user!.uid,
-        );
-        await _clinicService.transferClinicMember(
-          clinicId,
-          tempAdminId,
-          userCredential.user!.uid,
-        );
+          final realAdminProfile = UserProfile(
+            id: userCredential.user!.uid,
+            email: normalizedAdminEmail,
+            displayName: adminName,
+            userType: UserType.clinicAdmin,
+            connectedClinicId: clinicId,
+            clinicRole: ClinicRole.admin,
+            createdAt: now,
+            updatedAt: DateTime.now(),
+            isActive: true,
+          );
 
-        developer.log(
-          'Firebase Auth account created successfully',
-          name: 'UserProvider',
-        );
+          // Create the real profile and delete the temp one
+          await _clinicService.createUserProfile(realAdminProfile);
+          await _clinicService.ensureAdminMembershipFor(
+            clinicId,
+            userCredential.user!.uid,
+            tempAdminId: tempAdminId,
+          );
+          await _updateClinicAdminId(
+            clinicId,
+            tempAdminId,
+            userCredential.user!.uid,
+          );
+          // Delete only the temp user doc (rules-friendly)
+          await _clinicService.deleteUserDocOnly(tempAdminId);
+        }
+
+        developer.log('Admin auth handling complete', name: 'UserProvider');
+        try {
+          await secondaryApp.delete();
+        } catch (_) {}
       } catch (e) {
         developer.log(
           'Could not create Firebase Auth account: $e',
@@ -594,46 +989,10 @@ class UserProvider extends ChangeNotifier {
       // Reload clinic members
       await _loadConnectedClinic(_connectedClinic!.id);
 
-      _setError(null);
       _setLoading(false);
       return true;
     } catch (e) {
       _setError('Failed to add vet to clinic: $e');
-      _setLoading(false);
-      return false;
-    }
-  }
-
-  Future<bool> inviteVetByEmail(String email, List<String> permissions) async {
-    if (!canManageVets || _connectedClinic == null) return false;
-
-    try {
-      _setLoading(true);
-
-      // If the user already exists, add them directly; otherwise, create an invite
-      final existingId = await _clinicService.findUserIdByEmail(email);
-      if (existingId != null) {
-        await _clinicService.addVetToClinic(
-          _connectedClinic!.id,
-          existingId,
-          permissions,
-        );
-      } else {
-        await _clinicService.createVetInvite(
-          clinicId: _connectedClinic!.id,
-          email: email,
-          permissions: permissions,
-        );
-      }
-
-      await _loadConnectedClinic(_connectedClinic!.id);
-
-      _setError(null);
-      _setLoading(false);
-      return true;
-    } catch (e) {
-      final message = e.toString().replaceFirst('Exception: ', '');
-      _setError(message.isEmpty ? 'Failed to invite vet.' : message);
       _setLoading(false);
       return false;
     }
@@ -693,6 +1052,59 @@ class UserProvider extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user != null) {
       await _loadUserProfile(user.uid);
+    }
+  }
+
+  /// If the user has a connected clinic ID but `_connectedClinic` is null,
+  /// load it and notify listeners.
+  Future<void> loadClinicIfMissing() async {
+    final clinicId = _currentUser?.connectedClinicId;
+    if (clinicId != null && _connectedClinic == null) {
+      await _loadConnectedClinic(clinicId);
+      if (!_isDisposed) notifyListeners();
+    }
+  }
+
+  /// Ensure a Firebase Auth account exists for the given email and send a
+  /// password reset email. Uses a secondary app instance to avoid affecting
+  /// the current user's session.
+  Future<bool> provisionAuthAccountAndSendReset(String email) async {
+    try {
+      final normalizedEmail = email.trim().toLowerCase();
+      final secondaryApp = await _getOrInitSecondaryApp();
+      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+
+      bool emailAlreadyExists = false; // used to avoid treating as failure
+      try {
+        await secondaryAuth.createUserWithEmailAndPassword(
+          email: normalizedEmail,
+          password: 'TempPassword123!',
+        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') {
+          emailAlreadyExists = true;
+        } else {
+          // Non-existence/other errors may still allow sending reset
+        }
+      }
+
+      // Attempt to send reset email regardless
+      try {
+        await secondaryAuth.sendPasswordResetEmail(email: normalizedEmail);
+      } catch (_) {
+        try {
+          await _auth.sendPasswordResetEmail(email: normalizedEmail);
+        } catch (_) {}
+      }
+
+      try {
+        await secondaryApp.delete();
+      } catch (_) {}
+
+      return emailAlreadyExists || true;
+    } catch (e) {
+      _setError('Failed to send reset: $e');
+      return false;
     }
   }
 
@@ -821,28 +1233,26 @@ class UserProvider extends ChangeNotifier {
         await _clinicService.updateUserProfile(updatedProfile);
         _currentUser = updatedProfile;
 
+        // Ensure admin membership first, then update clinic admin ID
         if (existingProfile.connectedClinicId != null) {
-          await _clinicService.ensureMemberRecord(
-            clinicId: existingProfile.connectedClinicId!,
-            userId: userId,
-            role: ClinicRole.admin,
-            permissions: ['*'],
-          );
-
-          await _updateClinicAdminId(
+          await _clinicService.ensureAdminMembershipFor(
             existingProfile.connectedClinicId!,
-            tempAdminId,
             userId,
+            tempAdminId: tempAdminId,
           );
-          await _clinicService.transferClinicMember(
+          await _updateClinicAdminId(
             existingProfile.connectedClinicId!,
             tempAdminId,
             userId,
           );
         }
 
-        // Delete the temporary profile
-        await _clinicService.deleteUserProfile(tempAdminId);
+        // Delete only the temporary profile doc
+        try {
+          await _clinicService.deleteUserDocOnly(tempAdminId);
+        } catch (_) {
+          // ignore
+        }
 
         developer.log(
           'Successfully updated user to clinic admin',
@@ -863,10 +1273,5 @@ class UserProvider extends ChangeNotifier {
       );
       return false;
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

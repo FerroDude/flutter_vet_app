@@ -409,8 +409,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   bool _shouldShowTimestamp(List<ChatMessage> messages, int index) {
-    if (index == messages.length - 1)
+    if (index == messages.length - 1) {
       return true; // Always show for first message
+    }
 
     final currentMessage = messages[index];
     final nextMessage = messages[index + 1];

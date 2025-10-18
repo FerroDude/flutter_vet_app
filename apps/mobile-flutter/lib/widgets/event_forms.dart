@@ -272,7 +272,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value:
+                          initialValue:
                               _appointmentTypes.contains(
                                 _appointmentTypeController.text,
                               )
@@ -543,7 +543,7 @@ class _MedicationFormState extends State<MedicationForm> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: _frequency,
+                          initialValue: _frequency,
                           decoration: const InputDecoration(
                             labelText: 'Frequency',
                             border: OutlineInputBorder(),
@@ -809,7 +809,8 @@ class _NoteFormState extends State<NoteForm> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          value: _categories.contains(_categoryController.text)
+                          initialValue:
+                              _categories.contains(_categoryController.text)
                               ? _categoryController.text
                               : _categories[0],
                           decoration: const InputDecoration(

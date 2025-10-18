@@ -4,6 +4,7 @@ import '../models/chat_models.dart';
 import '../providers/chat_provider.dart';
 import '../providers/user_provider.dart';
 import '../theme/app_theme.dart';
+import '../main.dart' show SettingsPage, ProfilePage;
 import 'chat_room_page.dart';
 
 class ChatPage extends StatefulWidget {
@@ -53,6 +54,33 @@ class _ChatPageState extends State<ChatPage> {
             backgroundColor: AppTheme.primaryBlue,
             foregroundColor: Colors.white,
             actions: [
+              IconButton(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsPage(),
+                    ),
+                  );
+                },
+              ),
+              Consumer<UserProvider>(
+                builder: (context, up, _) => IconButton(
+                  tooltip: 'Profile',
+                  icon: const Icon(Icons.person),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfilePage(injectedUserProvider: up),
+                      ),
+                    );
+                  },
+                ),
+              ),
               if (userProvider.isPetOwner)
                 IconButton(
                   onPressed: () =>

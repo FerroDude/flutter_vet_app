@@ -9,6 +9,7 @@ import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
 import 'simple_event_forms.dart';
 import 'calendar_view.dart';
+import '../services/pet_service.dart';
 
 class AppointmentsPage extends StatefulWidget {
   const AppointmentsPage({super.key});
@@ -24,10 +25,12 @@ class AppointmentsPageState extends State<AppointmentsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _controller = TabController(length: 3, vsync: this);
   final Set<String> _expandedSeries = {};
+  final _petService = PetService();
 
   // Calendar state
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
+  Map<DateTime, int> _symptomCounts = {};
 
   @override
   void initState() {
@@ -40,6 +43,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventProvider>().loadEvents();
+      _loadSymptomCounts();
     });
   }
 
@@ -62,7 +66,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
       case 0: // Calendar tab - show event type selection
         showAddEventDialog();
         break;
-      case 1: // Appointments tab - directly create appointment
+      case 1: // Calendar: Appointments tab - directly create appointment
         showAppointmentForm();
         break;
       case 2: // Medications tab - directly create medication
@@ -109,6 +113,21 @@ class AppointmentsPageState extends State<AppointmentsPage>
     setState(() {
       _selectedDay = selectedDay;
     });
+  }
+
+  Future<void> _loadSymptomCounts() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    final start = DateTime(_selectedDay.year, _selectedDay.month - 3, 1);
+    final end = DateTime(_selectedDay.year, _selectedDay.month + 3, 0);
+    final counts = await _petService.symptomCountsByDayForUser(
+      userId,
+      start: start,
+      end: end,
+    );
+    if (mounted) {
+      setState(() => _symptomCounts = counts);
+    }
   }
 
   void _onFormatChanged(CalendarFormat format) {
@@ -615,16 +634,45 @@ class AppointmentsPageState extends State<AppointmentsPage>
     Map<DateTime, List<CalendarEvent>> eventsByDate,
     List<CalendarEvent> selectedEvents,
   ) {
+    // Merge symptom markers as note-like events for the day list
+    final Map<DateTime, List<CalendarEvent>> merged = {...eventsByDate};
+    _symptomCounts.forEach((day, count) {
+      final existing = merged[day] ??= [];
+      // Add a lightweight NoteEvent placeholder so the day list shows it
+      existing.add(
+        NoteEvent(
+          id: 'symptom_${day.millisecondsSinceEpoch}',
+          title: count == 1 ? '1 symptom' : '$count symptoms',
+          description: '',
+          dateTime: DateTime(day.year, day.month, day.day, 12),
+          userId: FirebaseAuth.instance.currentUser?.uid ?? 'currentUser',
+          petId: null,
+          createdAt: day,
+          updatedAt: day,
+          reminderDateTime: null,
+        ),
+      );
+    });
+
+    final selectedWithSymptoms =
+        merged[DateTime(
+          _selectedDay.year,
+          _selectedDay.month,
+          _selectedDay.day,
+        )] ??
+        selectedEvents;
+
     return Column(
       children: [
         // Calendar widget
         CalendarView(
-          events: eventsByDate,
+          events: merged,
           onDaySelected: (selectedDay, events) {
             setState(() {
               _selectedDay = selectedDay;
             });
             _onDaySelected(selectedDay, events);
+            _loadSymptomCounts();
           },
           selectedDay: _selectedDay,
           calendarFormat: _calendarFormat,
@@ -636,7 +684,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
         Expanded(
           child: Container(
             color: Colors.transparent,
-            child: selectedEvents.isEmpty
+            child: selectedWithSymptoms.isEmpty
                 ? const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -666,7 +714,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                     ),
                   )
                 : DayEventsView(
-                    events: selectedEvents,
+                    events: selectedWithSymptoms,
                     onEventTap: (event) {
                       if (event is AppointmentEvent) {
                         _editAppointmentDirectly(event);
@@ -1451,32 +1499,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
     }
   }
 
-  Color _getAppointmentTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'checkup':
-      case 'routine':
-      case 'vet visit':
-        return AppTheme.primaryBlue;
-      case 'vaccination':
-      case 'vaccine':
-        return AppTheme.successGreen;
-      case 'grooming':
-      case 'bath':
-      case 'nail trim':
-        return AppTheme.accentAmber;
-      case 'training':
-      case 'behavior':
-        return AppTheme.infoBlue;
-      case 'emergency':
-      case 'urgent':
-        return AppTheme.errorRed;
-      case 'play date':
-      case 'social':
-        return AppTheme.accentCoral;
-      default:
-        return AppTheme.textSecondary;
-    }
-  }
+  // _getAppointmentTypeColor removed (unused)
 }
 
 // Pet Badge component for appointments page
