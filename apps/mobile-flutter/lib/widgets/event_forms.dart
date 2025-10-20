@@ -809,8 +809,7 @@ class _NoteFormState extends State<NoteForm> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          initialValue:
-                              _categories.contains(_categoryController.text)
+                          initialValue: _categories.contains(_categoryController.text)
                               ? _categoryController.text
                               : _categories[0],
                           decoration: const InputDecoration(

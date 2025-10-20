@@ -13,18 +13,14 @@ import 'theme/theme_manager.dart';
 import 'models/notification_service.dart';
 import 'services/clinic_service.dart';
 import 'pages/chat_page.dart';
-import 'pages/pets_page.dart';
 import 'widgets/appointments_page.dart';
 import 'widgets/simple_event_forms.dart';
 import 'providers/event_provider.dart';
 import 'providers/user_provider.dart';
 import 'services/cache_service.dart';
 import 'services/chat_service.dart';
-import 'pages/add_symptom_sheet.dart';
-import 'pages/pet_symptoms_page.dart';
-// import 'services/pet_service.dart';
-// Removed profile-specific symptom imports
 
+import 'shared/widgets/list_placeholder.dart';
 import 'core/auth/auth_wrapper.dart';
 import 'widgets/theme_toggle_widget.dart';
 
@@ -71,7 +67,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<ThemeManager>(
         builder: (context, themeManager, child) {
           return MaterialApp(
-            title: 'VetPlus',
+            title: 'Peton',
             navigatorKey: navigatorKey,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
@@ -141,7 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.pets), label: 'Pets'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
-            label: 'Calendar',
+            label: 'Appointments',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
         ],
@@ -859,164 +855,25 @@ class _DashboardPageState extends State<DashboardPage> {
 
             // Today's items (merged in todaysEvents above)
 
-            // Find next upcoming event for "Next up" pill
-            CalendarEvent? nextEvent;
-            final allFutureEvents = [...todaysEvents, ...upcomingEvents]
-              ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
-
-            for (final event in allFutureEvents) {
-              if (event.dateTime.isAfter(now)) {
-                nextEvent = event;
-                break;
-              }
-            }
-
             return ListView(
               children: [
-                // Personalized greeting
-                Consumer<UserProvider>(
-                  builder: (context, userProvider, _) {
-                    final currentUser = userProvider.currentUser;
-                    final displayName =
-                        currentUser?.displayName ??
-                        (currentUser != null
-                            ? currentUser.email.split('@').first
-                            : null) ??
-                        'Pet Owner';
-                    final hour = DateTime.now().hour;
-                    String greeting;
-                    if (hour < 12) {
-                      greeting = 'Good Morning';
-                    } else if (hour < 18) {
-                      greeting = 'Good Afternoon';
-                    } else {
-                      greeting = 'Good Evening';
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$greeting, $displayName',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryBlue,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('EEEE, MMMM d').format(now),
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // "Next up" pill
-                if (nextEvent != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppTheme.primaryBlue.withValues(alpha: 0.1),
-                          AppTheme.primaryGreen.withValues(alpha: 0.05),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            nextEvent is AppointmentEvent
-                                ? Icons.event
-                                : Icons.medication,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Next up',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: AppTheme.textSecondary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                nextEvent.title,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          DateFormat(
-                            nextEvent.dateTime.day == now.day
-                                ? 'h:mm a'
-                                : 'MMM d, h:mm a',
-                          ).format(nextEvent.dateTime),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: AppTheme.primaryBlue,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Highlights strip
-                Row(
+                // Welcome section with better typography
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _DashboardHighlight(
-                        icon: Icons.event,
-                        label: 'This Week',
-                        value: upcomingEvents.length.toString(),
-                        color: AppTheme.primaryBlue,
-                      ),
+                    Text(
+                      'Dashboard',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryBlue,
+                          ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _DashboardHighlight(
-                        icon: Icons.medication,
-                        label: 'Meds Today',
-                        value: todaysMeds.length.toString(),
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _DashboardHighlight(
-                        icon: Icons.chat,
-                        label: 'Unread',
-                        value: '0',
-                        color: AppTheme.accentCoral,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your pet care overview',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -1077,8 +934,6 @@ class _DashboardPageState extends State<DashboardPage> {
                                   final ep = context.read<EventProvider>();
                                   showDialog(
                                     context: context,
-                                    barrierDismissible: false,
-                                    useSafeArea: true,
                                     builder: (dialogContext) =>
                                         ChangeNotifierProvider.value(
                                           value: ep,
@@ -1123,8 +978,6 @@ class _DashboardPageState extends State<DashboardPage> {
                                   final ep = context.read<EventProvider>();
                                   showDialog(
                                     context: context,
-                                    barrierDismissible: false,
-                                    useSafeArea: true,
                                     builder: (dialogContext) =>
                                         ChangeNotifierProvider.value(
                                           value: ep,
@@ -1138,81 +991,6 @@ class _DashboardPageState extends State<DashboardPage> {
                                 label: const Text('Add Medication'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primaryGreen,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.orange.withValues(alpha: 0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  // Get first pet or let user choose
-                                  final user =
-                                      FirebaseAuth.instance.currentUser;
-                                  if (user == null) return;
-                                  final petsSnap = await FirebaseFirestore
-                                      .instance
-                                      .collection('users')
-                                      .doc(user.uid)
-                                      .collection('pets')
-                                      .limit(1)
-                                      .get();
-                                  if (petsSnap.docs.isEmpty) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please add a pet first',
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    return;
-                                  }
-                                  final petId = petsSnap.docs.first.id;
-                                  if (context.mounted) {
-                                    await showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      builder: (_) => Padding(
-                                        padding: EdgeInsets.only(
-                                          bottom: MediaQuery.of(
-                                            context,
-                                          ).viewInsets.bottom,
-                                        ),
-                                        child: AddSymptomSheet(petId: petId),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.monitor_heart, size: 18),
-                                label: const Text('Add Symptom'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1463,7 +1241,127 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// Pets Page - Now in separate file (pages/pets_page.dart)
+// Pets Page - Simplified
+class PetsPage extends StatelessWidget {
+  const PetsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Pets'),
+        backgroundColor: AppTheme.primaryBlue,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+            icon: const Icon(Icons.settings, color: Colors.white),
+          ),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, _) => IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangeNotifierProvider.value(
+                      value: userProvider,
+                      child: ProfilePage(injectedUserProvider: userProvider),
+                    ),
+                  ),
+                );
+              },
+              icon: CircleAvatar(
+                backgroundColor: Colors.white.withOpacity(0.2),
+                radius: 16,
+                child: const Icon(Icons.person, color: Colors.white, size: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: const PetsPageContent(),
+    );
+  }
+}
+
+class PetsPageContent extends StatelessWidget {
+  const PetsPageContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      return const Center(child: Text('Please log in to view your pets'));
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('pets')
+          .orderBy('order')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const ListPlaceholder(
+            icon: Icons.pets_outlined,
+            text: 'No pets yet',
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final pet = docs[index].data();
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppTheme.primaryBlue,
+                  child: Text(
+                    (pet['name'] as String? ?? 'P')[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(pet['name'] as String? ?? 'Unknown'),
+                subtitle: Text(
+                  '${pet['species'] as String? ?? 'Unknown'} • ${pet['breed'] as String? ?? 'Unknown'}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PetDetailsPage(petRef: docs[index].reference),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
 
 // Pet Form Page - Simplified
 class PetFormPage extends StatefulWidget {
@@ -2128,8 +2026,6 @@ class PetDetailsPage extends StatelessWidget {
                                       .read<EventProvider>();
                                   showDialog(
                                     context: context,
-                                    barrierDismissible: false,
-                                    useSafeArea: true,
                                     builder: (dialogContext) =>
                                         ChangeNotifierProvider.value(
                                           value: eventProvider,
@@ -2151,24 +2047,25 @@ class PetDetailsPage extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  await showModalBottomSheet(
+                                onPressed: () {
+                                  final eventProvider = context
+                                      .read<EventProvider>();
+                                  showDialog(
                                     context: context,
-                                    isScrollControlled: true,
-                                    builder: (_) => Padding(
-                                      padding: EdgeInsets.only(
-                                        bottom: MediaQuery.of(
-                                          context,
-                                        ).viewInsets.bottom,
-                                      ),
-                                      child: AddSymptomSheet(petId: petRef.id),
-                                    ),
+                                    builder: (dialogContext) =>
+                                        ChangeNotifierProvider.value(
+                                          value: eventProvider,
+                                          child: SimpleMedicationForm(
+                                            selectedDate: DateTime.now(),
+                                            petId: petRef.id,
+                                          ),
+                                        ),
                                   );
                                 },
-                                icon: const Icon(Icons.monitor_heart),
-                                label: const Text('Add Symptom'),
+                                icon: const Icon(Icons.medication),
+                                label: const Text('Add Medication'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange,
+                                  backgroundColor: Colors.green,
                                   foregroundColor: Colors.white,
                                 ),
                               ),
@@ -2182,7 +2079,7 @@ class PetDetailsPage extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Pet's Events & Symptoms Section
+                // Pet's Events Section
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -2196,28 +2093,6 @@ class PetDetailsPage extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryBlue,
                               ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        PetSymptomsPage(petId: petRef.id),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.monitor_heart),
-                              label: const Text('View Symptoms'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
                         ),
                         const SizedBox(height: 12),
                         Consumer<EventProvider>(
@@ -2388,54 +2263,6 @@ class PetDetailsPage extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(fontWeight: FontWeight.w400),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Dashboard Highlight component
-class _DashboardHighlight extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _DashboardHighlight({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
             ),
           ),
         ],
@@ -2820,12 +2647,12 @@ class SettingsPage extends StatelessWidget {
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('About VetPlus'),
+                        title: const Text('About PetOn'),
                         content: const Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('VetPlus - Your Pet\'s Health Companion'),
+                            Text('PetOn - Your Pet\'s Health Companion'),
                             SizedBox(height: 12),
                             Text('Version: 1.0.0'),
                             SizedBox(height: 8),
@@ -2872,16 +2699,6 @@ class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key, required this.injectedUserProvider});
 
   final UserProvider injectedUserProvider;
-
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: AppTheme.primaryBlue,
-      ),
-    );
-  }
 
   /// Shows dialog to edit user profile information
   void _showEditProfileDialog(
@@ -3380,10 +3197,10 @@ class ProfilePage extends StatelessWidget {
               elevation: 2,
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Column(
                   children: [
                     CircleAvatar(
-                      radius: 34,
+                      radius: 40,
                       backgroundColor: AppTheme.primaryBlue,
                       child: Text(
                         (userProfile?.displayName.isNotEmpty == true)
@@ -3394,69 +3211,68 @@ class ProfilePage extends StatelessWidget {
                                   'U'),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 22,
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            userProfile?.displayName ??
-                                authUser?.displayName ??
-                                'User',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w700),
+                    const SizedBox(height: 16),
+                    Text(
+                      userProfile?.displayName ??
+                          authUser?.displayName ??
+                          'User',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      userProfile?.email ?? authUser?.email ?? '',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          authUser?.emailVerified == true
+                              ? Icons.verified
+                              : Icons.warning,
+                          color: authUser?.emailVerified == true
+                              ? Colors.green
+                              : Colors.orange,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          authUser?.emailVerified == true
+                              ? 'Email verified'
+                              : 'Email not verified',
+                          style: TextStyle(
+                            color: authUser?.emailVerified == true
+                                ? Colors.green
+                                : Colors.orange,
+                            fontSize: 12,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            userProfile?.email ?? authUser?.email ?? '',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.grey[700]),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                authUser?.emailVerified == true
-                                    ? Icons.verified
-                                    : Icons.warning,
-                                color: authUser?.emailVerified == true
-                                    ? Colors.green
-                                    : Colors.orange,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                authUser?.emailVerified == true
-                                    ? 'Email verified'
-                                    : 'Email not verified',
-                                style: TextStyle(
-                                  color: authUser?.emailVerified == true
-                                      ? Colors.green
-                                      : Colors.orange,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
             const SizedBox(height: 24),
 
-            // Account & Security
-            _buildSectionHeader(context, 'Account & Security'),
+            // Account Settings Section
+            Text(
+              'Account Settings',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryBlue,
+              ),
+            ),
             const SizedBox(height: 8),
             Card(
               elevation: 1,
@@ -3480,6 +3296,23 @@ class ProfilePage extends StatelessWidget {
                   ),
                   const Divider(height: 1),
                   ListTile(
+                    leading: Icon(
+                      Icons.notifications,
+                      color: AppTheme.primaryBlue,
+                    ),
+                    title: const Text('Notifications'),
+                    subtitle: const Text('Manage notification settings'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notifications - Coming soon!'),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
                     leading: Icon(Icons.build, color: Colors.orange),
                     title: const Text('Fix Clinic Admin'),
                     subtitle: const Text(
@@ -3493,13 +3326,14 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
-            // Sign out
+            // Sign Out Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
+                  // Show confirmation dialog
                   final shouldSignOut = await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -3517,6 +3351,7 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                   );
+
                   if (shouldSignOut == true) {
                     await FirebaseAuth.instance.signOut();
                     if (context.mounted) {
@@ -3536,6 +3371,8 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
             ),
+
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -3557,7 +3394,7 @@ class _AppointmentsPageWrapperState extends State<AppointmentsPageWrapper> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'),
+        title: const Text('Appointments'),
         backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         actions: [

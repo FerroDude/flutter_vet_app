@@ -224,23 +224,204 @@ class _DashboardStyleEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isAppointment = event is AppointmentEvent;
     final bool isMedication = event is MedicationEvent;
+    final bool isNote = event is NoteEvent;
+
+    final AppointmentEvent? appointment = isAppointment
+        ? event as AppointmentEvent
+        : null;
+    final MedicationEvent? medication = isMedication
+        ? event as MedicationEvent
+        : null;
+    final NoteEvent? note = isNote ? event as NoteEvent : null;
+
     final IconData icon = isAppointment
         ? Icons.event
         : (isMedication ? Icons.medication : Icons.note);
-    final Color color = isAppointment
+    final Color baseColor = isAppointment
         ? AppTheme.primaryBlue
         : (isMedication ? AppTheme.primaryGreen : AppTheme.accentCoral);
+
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final bool isDark = theme.brightness == Brightness.dark;
+    final Color subtleTextColor = isDark
+        ? AppTheme.darkTextSecondary
+        : AppTheme.textSecondary;
+
+    final List<Widget> infoChips = [];
+    final List<Widget> detailLines = [];
+
+    final String description = event.description.trim();
+    final String descriptionLower = description.toLowerCase();
+    if (description.isNotEmpty) {
+      detailLines.add(_DetailLine(text: description, color: subtleTextColor));
+    }
+
+    void addChip(IconData chipIcon, String? rawLabel, {Color? color}) {
+      if (rawLabel == null) return;
+      final label = rawLabel.trim();
+      if (label.isEmpty) return;
+      infoChips.add(
+        _InfoChip(
+          icon: chipIcon,
+          label: label,
+          color: color ?? subtleTextColor,
+        ),
+      );
+    }
+
+    void addDetail(String? rawText, {IconData? icon, Color? color}) {
+      if (rawText == null) return;
+      final text = rawText.trim();
+      if (text.isEmpty) return;
+      detailLines.add(
+        _DetailLine(icon: icon, text: text, color: color ?? subtleTextColor),
+      );
+    }
+
+    if (appointment != null) {
+      if ((appointment.appointmentType ?? '').trim().isNotEmpty) {
+        addChip(
+          _getAppointmentTypeIcon(appointment.appointmentType),
+          appointment.appointmentType,
+          color: AppTheme.primaryBlue,
+        );
+      }
+      if ((appointment.location ?? '').trim().isNotEmpty) {
+        addChip(
+          Icons.place_outlined,
+          appointment.location,
+          color: AppTheme.primaryBlue,
+        );
+      }
+      if ((appointment.vetName ?? '').trim().isNotEmpty) {
+        addChip(
+          Icons.person_outline,
+          appointment.vetName,
+          color: AppTheme.primaryBlue,
+        );
+      }
+      addDetail(
+        appointment.contactInfo,
+        icon: Icons.call,
+        color: AppTheme.primaryBlue,
+      );
+    }
+
+    if (medication != null) {
+      addChip(
+        Icons.vaccines_outlined,
+        medication.dosage,
+        color: AppTheme.primaryGreen,
+      );
+      addChip(
+        Icons.calendar_today_outlined,
+        _formatMedicationFrequency(medication),
+        color: AppTheme.primaryGreen,
+      );
+      if (medication.nextDose != null) {
+        addChip(
+          Icons.arrow_forward,
+          'Next: ${DateFormat('MMM d, h:mm a').format(medication.nextDose!)}',
+          color: AppTheme.primaryGreen,
+        );
+      }
+      if (medication.remainingDoses != null) {
+        addChip(
+          Icons.inventory_2_outlined,
+          '${medication.remainingDoses} left',
+          color: AppTheme.primaryGreen,
+        );
+      }
+      if (medication.lastTaken != null) {
+        addChip(
+          Icons.check_circle_outline,
+          'Last: ${DateFormat('MMM d, h:mm a').format(medication.lastTaken!)}',
+          color: AppTheme.primaryGreen,
+        );
+      }
+      if (medication.requiresNotification) {
+        addChip(
+          Icons.notifications_active,
+          'Reminders on',
+          color: AppTheme.primaryGreen,
+        );
+      }
+      final instructions = medication.instructions?.trim();
+      if (instructions != null &&
+          instructions.isNotEmpty &&
+          instructions.toLowerCase() != descriptionLower) {
+        addDetail(
+          instructions,
+          icon: Icons.info_outline,
+          color: AppTheme.primaryGreen,
+        );
+      }
+    }
+
+    if (note != null) {
+      if ((note.category ?? '').trim().isNotEmpty) {
+        addChip(
+          Icons.folder_outlined,
+          note.category,
+          color: AppTheme.accentCoral,
+        );
+      }
+      if (note.reminderDateTime != null) {
+        addChip(
+          Icons.alarm,
+          'Reminder: ${DateFormat('MMM d, h:mm a').format(note.reminderDateTime!)}',
+          color: AppTheme.accentCoral,
+        );
+      }
+      if (note.isCompleted) {
+        addChip(Icons.check_circle, 'Completed', color: AppTheme.primaryGreen);
+      }
+      if (note.tags != null && note.tags!.isNotEmpty) {
+        final tags = note.tags!;
+        final int limit = tags.length > 3 ? 3 : tags.length;
+        for (final tag in tags.take(limit)) {
+          addChip(Icons.sell_outlined, tag, color: AppTheme.accentCoral);
+        }
+        final int extraCount = tags.length - limit;
+        if (extraCount > 0) {
+          addChip(
+            Icons.sell_outlined,
+            '+$extraCount more',
+            color: AppTheme.accentCoral,
+          );
+        }
+      }
+    }
+
+    Widget? trailing;
+    if (medication?.isCompleted ?? false) {
+      trailing = Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(
+          Icons.check_circle,
+          color: AppTheme.primaryGreen,
+          size: 16,
+        ),
+      );
+    } else if (event.petId != null) {
+      trailing = _PetBadge(petId: event.petId!, badgeColor: baseColor);
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: (isAppointment || isMedication)
-            ? color.withValues(alpha: 0.03)
+            ? baseColor.withValues(alpha: 0.03)
             : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: (isAppointment || isMedication)
-              ? color.withValues(alpha: 0.1)
+              ? baseColor.withValues(alpha: 0.1)
               : (Theme.of(context).brightness == Brightness.dark
                     ? Colors.white.withValues(alpha: 0.08)
                     : Colors.black12),
@@ -256,13 +437,13 @@ class _DashboardStyleEventCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: color,
+                    color: baseColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: Colors.white, size: 18),
@@ -276,111 +457,49 @@ class _DashboardStyleEventCard extends StatelessWidget {
                         event.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        style: textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      // Enhanced subtitle for appointments (same as dashboard)
-                      if (isAppointment && event is AppointmentEvent)
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: subtleTextColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('h:mm a').format(event.dateTime),
+                            style: textTheme.bodySmall?.copyWith(
+                              color: subtleTextColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (infoChips.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 8, runSpacing: 6, children: infoChips),
+                      ],
+                      if (detailLines.isNotEmpty) ...[
+                        const SizedBox(height: 8),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              DateFormat('h:mm a').format(event.dateTime),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: AppTheme.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                            if ((event as AppointmentEvent).appointmentType !=
-                                    null ||
-                                (event as AppointmentEvent).location !=
-                                    null) ...[
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  if ((event as AppointmentEvent)
-                                          .appointmentType !=
-                                      null) ...[
-                                    Icon(
-                                      _getAppointmentTypeIcon(
-                                        (event as AppointmentEvent)
-                                            .appointmentType!,
-                                      ),
-                                      size: 11,
-                                      color: color,
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      (event as AppointmentEvent)
-                                          .appointmentType!,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: color,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                  if ((event as AppointmentEvent).location !=
-                                          null &&
-                                      (event as AppointmentEvent)
-                                              .appointmentType !=
-                                          null)
-                                    const Text(
-                                      ' • ',
-                                      style: TextStyle(fontSize: 11),
-                                    ),
-                                  if ((event as AppointmentEvent).location !=
-                                      null)
-                                    Flexible(
-                                      child: Text(
-                                        (event as AppointmentEvent).location!,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.textTertiary,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                ],
-                              ),
+                            for (int i = 0; i < detailLines.length; i++) ...[
+                              if (i > 0) const SizedBox(height: 6),
+                              detailLines[i],
                             ],
                           ],
-                        )
-                      else
-                        Text(
-                          DateFormat('h:mm a').format(event.dateTime),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppTheme.textSecondary),
                         ),
+                      ],
                     ],
                   ),
                 ),
-                if (isMedication && (event as MedicationEvent).isCompleted)
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: AppTheme.primaryGreen,
-                      size: 16,
-                    ),
-                  )
-                else if (isAppointment &&
-                    (event as AppointmentEvent).petId != null)
-                  _PetBadge(
-                    petId: (event as AppointmentEvent).petId!,
-                    badgeColor: AppTheme.primaryBlue,
-                  ),
+                if (trailing != null) ...[const SizedBox(width: 12), trailing],
               ],
             ),
           ),
@@ -389,9 +508,37 @@ class _DashboardStyleEventCard extends StatelessWidget {
     );
   }
 
-  /// Gets appropriate icon for appointment type
-  IconData _getAppointmentTypeIcon(String type) {
-    switch (type.toLowerCase()) {
+  String _formatMedicationFrequency(MedicationEvent medication) {
+    final String freq = medication.frequency.toLowerCase();
+    switch (freq) {
+      case 'once':
+        return 'Single dose';
+      case 'daily':
+        return 'Daily';
+      case 'weekly':
+        return 'Weekly';
+      case 'monthly':
+        return 'Monthly';
+      default:
+        final interval = medication.customIntervalMinutes;
+        if (interval != null && interval > 0) {
+          final duration = Duration(minutes: interval);
+          if (duration.inDays >= 1) {
+            if (duration.inDays == 1) return 'Every day';
+            return 'Every ${duration.inDays} days';
+          } else if (duration.inHours >= 1) {
+            return 'Every ${duration.inHours} hours';
+          } else {
+            return 'Every ${duration.inMinutes} minutes';
+          }
+        }
+        return medication.frequency;
+    }
+  }
+
+  IconData _getAppointmentTypeIcon(String? type) {
+    final value = type?.toLowerCase().trim() ?? '';
+    switch (value) {
       case 'checkup':
       case 'routine':
       case 'vet visit':
@@ -412,9 +559,96 @@ class _DashboardStyleEventCard extends StatelessWidget {
       case 'play date':
       case 'social':
         return Icons.group;
+      case 'surgery':
+        return Icons.health_and_safety;
       default:
         return Icons.event;
     }
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle =
+        Theme.of(context).textTheme.labelSmall ??
+        const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: baseStyle.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailLine extends StatelessWidget {
+  final IconData? icon;
+  final String text;
+  final Color color;
+
+  const _DetailLine({this.icon, required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle =
+        Theme.of(context).textTheme.bodySmall ??
+        TextStyle(color: color, fontSize: 13, height: 1.3);
+    final textStyle = baseStyle.copyWith(color: color, height: 1.3);
+
+    if (icon == null) {
+      return Text(
+        text,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+        style: textStyle,
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
+      ],
+    );
   }
 }
 

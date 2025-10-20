@@ -299,4 +299,5 @@ class ChatProvider extends ChangeNotifier {
   bool hasUnreadMessages(String chatRoomId) {
     return getUnreadCount(chatRoomId) > 0;
   }
+
 }

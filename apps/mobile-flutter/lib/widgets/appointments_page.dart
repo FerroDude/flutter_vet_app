@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +7,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
+import '../models/symptom_models.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
 import 'simple_event_forms.dart';
@@ -30,7 +33,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
   // Calendar state
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  Map<DateTime, int> _symptomCounts = {};
+  Map<DateTime, List<PetSymptom>> _symptomsByDay = {};
 
   @override
   void initState() {
@@ -43,7 +46,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventProvider>().loadEvents();
-      _loadSymptomCounts();
+      _loadSymptomsByDay();
     });
   }
 
@@ -55,6 +58,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
 
   Future<void> _refreshData() async {
     await context.read<EventProvider>().refresh();
+    await _loadSymptomsByDay();
   }
 
   // Getter to access current tab index
@@ -115,18 +119,75 @@ class AppointmentsPageState extends State<AppointmentsPage>
     });
   }
 
-  Future<void> _loadSymptomCounts() async {
+  Future<void> _loadSymptomsByDay() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
     final start = DateTime(_selectedDay.year, _selectedDay.month - 3, 1);
     final end = DateTime(_selectedDay.year, _selectedDay.month + 3, 0);
-    final counts = await _petService.symptomCountsByDayForUser(
+    final summaries = await _petService.symptomsByDayForUser(
       userId,
       start: start,
       end: end,
     );
     if (mounted) {
-      setState(() => _symptomCounts = counts);
+      setState(() => _symptomsByDay = summaries);
+    }
+  }
+
+  String _symptomSummaryTitle(List<PetSymptom> symptoms) {
+    if (symptoms.isEmpty) return 'Symptoms logged';
+
+    final labels = symptoms.map((s) => _symptomLabel(s.type)).toList();
+    final uniqueLabels = LinkedHashSet<String>.from(labels).toList();
+
+    if (uniqueLabels.length == 1) {
+      final occurrences = labels.length;
+      return occurrences > 1
+          ? '${uniqueLabels.first} (x$occurrences)'
+          : uniqueLabels.first;
+    }
+
+    if (uniqueLabels.length == 2) {
+      return '${uniqueLabels[0]} & ${uniqueLabels[1]}';
+    }
+
+    return '${uniqueLabels[0]}, ${uniqueLabels[1]} + ${uniqueLabels.length - 2} more';
+  }
+
+  String _symptomLabel(SymptomType type) {
+    switch (type) {
+      case SymptomType.vomiting:
+        return 'Vomiting';
+      case SymptomType.diarrhea:
+        return 'Diarrhea';
+      case SymptomType.cough:
+        return 'Cough';
+      case SymptomType.sneezing:
+        return 'Sneezing';
+      case SymptomType.choking:
+        return 'Choking';
+      case SymptomType.seizure:
+        return 'Seizure';
+      case SymptomType.disorientation:
+        return 'Disorientation';
+      case SymptomType.circling:
+        return 'Circling';
+      case SymptomType.restlessness:
+        return 'Restlessness';
+      case SymptomType.limping:
+        return 'Limping';
+      case SymptomType.jointDiscomfort:
+        return 'Joint discomfort';
+      case SymptomType.itching:
+        return 'Itching';
+      case SymptomType.ocularDischarge:
+        return 'Ocular discharge';
+      case SymptomType.vaginalDischarge:
+        return 'Vaginal discharge';
+      case SymptomType.estrus:
+        return 'Estrus';
+      case SymptomType.other:
+        return 'Other symptom';
     }
   }
 
@@ -636,19 +697,28 @@ class AppointmentsPageState extends State<AppointmentsPage>
   ) {
     // Merge symptom markers as note-like events for the day list
     final Map<DateTime, List<CalendarEvent>> merged = {...eventsByDate};
-    _symptomCounts.forEach((day, count) {
+    _symptomsByDay.forEach((day, symptoms) {
+      if (symptoms.isEmpty) return;
       final existing = merged[day] ??= [];
+      final title = _symptomSummaryTitle(symptoms);
+      final List<String> uniqueLabels = LinkedHashSet<String>.from(
+        symptoms.map((s) => _symptomLabel(s.type)),
+      ).toList();
+      final description = uniqueLabels.length > 1
+          ? 'Logged symptoms: ${uniqueLabels.join(', ')}'
+          : '';
       // Add a lightweight NoteEvent placeholder so the day list shows it
       existing.add(
         NoteEvent(
           id: 'symptom_${day.millisecondsSinceEpoch}',
-          title: count == 1 ? '1 symptom' : '$count symptoms',
-          description: '',
+          title: title,
+          description: description,
           dateTime: DateTime(day.year, day.month, day.day, 12),
           userId: FirebaseAuth.instance.currentUser?.uid ?? 'currentUser',
           petId: null,
           createdAt: day,
           updatedAt: day,
+          tags: uniqueLabels.take(4).toList(),
           reminderDateTime: null,
         ),
       );
@@ -672,7 +742,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
               _selectedDay = selectedDay;
             });
             _onDaySelected(selectedDay, events);
-            _loadSymptomCounts();
+            _loadSymptomsByDay();
           },
           selectedDay: _selectedDay,
           calendarFormat: _calendarFormat,

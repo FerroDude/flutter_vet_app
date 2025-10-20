@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../models/clinic_models.dart';
 import '../models/pet_model.dart';
 
@@ -262,36 +261,6 @@ class ClinicService {
     }
   }
 
-  /// Ensure vet membership exists for a newly linked vet account
-  Future<void> ensureVetMembershipFor(
-    String clinicId,
-    String userId, {
-    String? tempVetId,
-    List<String> permissions = const [],
-  }) async {
-    // Create or overwrite the real vet membership for this user
-    final vetMember = ClinicMember(
-      userId: userId,
-      clinicId: clinicId,
-      role: ClinicRole.vet,
-      permissions: permissions,
-      addedAt: DateTime.now(),
-      addedBy: _auth.currentUser?.uid ?? userId,
-      isActive: true,
-    );
-
-    await _addClinicMember(clinicId, vetMember);
-
-    // If there is a temporary vet membership, delete it
-    if (tempVetId != null && tempVetId.isNotEmpty) {
-      try {
-        await _getClinicMembersCollection(clinicId).doc(tempVetId).delete();
-      } catch (_) {
-        // Ignore if it does not exist or permission denied
-      }
-    }
-  }
-
   /// Delete only the user profile document at `users/{userId}`.
   /// This avoids broader cascading deletions that may be blocked by rules.
   Future<void> deleteUserDocOnly(String userId) async {
@@ -347,31 +316,17 @@ class ClinicService {
 
       final batch = _firestore.batch();
 
-      final isTempMember = userId.startsWith('temp_');
+      // Deactivate clinic member
+      batch.update(_getClinicMembersCollection(clinicId).doc(userId), {
+        'isActive': false,
+      });
 
-      if (isTempMember) {
-        batch.delete(_getClinicMembersCollection(clinicId).doc(userId));
-
-        final emailPart = userId
-            .replaceFirst('temp_vet_', '')
-            .replaceFirst('temp_admin_', '')
-            .replaceFirst('temp_account_', '');
-        final inviteId = emailPart;
-        batch.delete(_getClinicInvitesCollection(clinicId).doc(inviteId));
-
-        batch.delete(_usersCollection.doc(userId));
-      } else {
-        batch.update(_getClinicMembersCollection(clinicId).doc(userId), {
-          'isActive': false,
-        });
-
-        // Disconnect user from clinic
-        batch.update(_usersCollection.doc(userId), {
-          'connectedClinicId': FieldValue.delete(),
-          'clinicRole': FieldValue.delete(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+      // Disconnect user from clinic
+      batch.update(_usersCollection.doc(userId), {
+        'connectedClinicId': FieldValue.delete(),
+        'clinicRole': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       await batch.commit();
     } catch (e) {
@@ -481,19 +436,6 @@ class ClinicService {
   }
 
   // Stream clinic members
-  /// Get a single clinic member by ID
-  Future<ClinicMember?> getClinicMember(String clinicId, String userId) async {
-    try {
-      final doc = await _getClinicMembersCollection(clinicId).doc(userId).get();
-      if (doc.exists) {
-        return ClinicMember.fromJson(doc.data() as Map<String, dynamic>);
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
   Stream<List<ClinicMember>> clinicMembersStream(String clinicId) {
     return _getClinicMembersCollection(clinicId).snapshots().map(
       (snapshot) => snapshot.docs
@@ -502,104 +444,6 @@ class ClinicService {
           )
           .toList(),
     );
-  }
-
-  /// VET: PATIENTS (PET OWNERS) IN CLINIC ///
-
-  /// Stream pet owners connected to a clinic (read-only). Optional prefix filter
-  /// applies to displayName only; use `searchClinicPatients` to also search email.
-  Stream<List<UserProfile>> clinicPatientsStream(
-    String clinicId, {
-    String? namePrefix,
-    int limit = 25,
-  }) {
-    Query query = _usersCollection
-        .where('userType', isEqualTo: UserType.petOwner.index)
-        .where('connectedClinicId', isEqualTo: clinicId)
-        .limit(limit);
-
-    if (namePrefix != null && namePrefix.isNotEmpty) {
-      query = query
-          .where('displayName', isGreaterThanOrEqualTo: namePrefix)
-          .where('displayName', isLessThan: '${namePrefix}\uf8ff');
-    }
-
-    return query.snapshots().map(
-      (snapshot) => snapshot.docs
-          .map(
-            (doc) => UserProfile.fromJson(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  /// Non-stream search helper: run two queries and merge distinct results
-  Future<List<UserProfile>> searchClinicPatients(
-    String clinicId, {
-    String? nameOrEmailPrefix,
-    int limit = 25,
-  }) async {
-    try {
-      final base = _usersCollection
-          .where('userType', isEqualTo: UserType.petOwner.index)
-          .where('connectedClinicId', isEqualTo: clinicId)
-          .limit(limit);
-
-      QuerySnapshot nameSnap;
-      QuerySnapshot emailSnap;
-      if (nameOrEmailPrefix != null && nameOrEmailPrefix.isNotEmpty) {
-        nameSnap = await base
-            .where('displayName', isGreaterThanOrEqualTo: nameOrEmailPrefix)
-            .where('displayName', isLessThan: '${nameOrEmailPrefix}\uf8ff')
-            .get();
-        emailSnap = await base
-            .where('email', isGreaterThanOrEqualTo: nameOrEmailPrefix)
-            .where('email', isLessThan: '${nameOrEmailPrefix}\uf8ff')
-            .get();
-      } else {
-        nameSnap = await base.get();
-        emailSnap = await base.get();
-      }
-
-      final Map<String, UserProfile> byId = {};
-      for (final doc in nameSnap.docs) {
-        byId[doc.id] = UserProfile.fromJson(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }
-      for (final doc in emailSnap.docs) {
-        byId[doc.id] = UserProfile.fromJson(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }
-      return byId.values.toList();
-    } catch (e) {
-      throw Exception('Failed to search clinic patients: $e');
-    }
-  }
-
-  /// Stream pets for a given owner (users/{ownerId}/pets)
-  Stream<List<Pet>> ownerPetsStream(String ownerId) {
-    return _usersCollection
-        .doc(ownerId)
-        .collection('pets')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map(
-                (d) => Pet.fromJson(
-                  d.data() as Map<String, dynamic>,
-                  d.id,
-                  ownerId,
-                ),
-              )
-              .toList(),
-        );
   }
 
   /// Delete user profile and all associated data
@@ -731,10 +575,9 @@ class ClinicService {
 
       // 2) Create placeholder user profile: users/temp_vet_{email_token}
       final tempVetId = 'temp_vet_$inviteId';
-
       batch.set(_usersCollection.doc(tempVetId), {
         'email': normalizedEmail,
-        'displayName': '', // Empty - vet will set their own name on first login
+        'displayName': normalizedEmail,
         'userType': UserType.vet.index,
         'connectedClinicId': clinicId,
         'clinicRole': ClinicRole.vet.index,
@@ -777,43 +620,6 @@ class ClinicService {
       await _getClinicInvitesCollection(clinicId).doc(inviteId).delete();
     } catch (e) {
       throw Exception('Failed to revoke vet invite: $e');
-    }
-  }
-
-  /// Delete a vet invite by email (used when invite is accepted)
-  Future<void> deleteVetInvite(String clinicId, String email) async {
-    final normalizedEmail = email.trim().toLowerCase();
-    final inviteId = normalizedEmail
-        .replaceAll('@', '_')
-        .replaceAll('.', '_')
-        .replaceAll('+', '_');
-
-    final inviteDoc = _getClinicInvitesCollection(clinicId).doc(inviteId);
-
-    // Try privileged cleanup via HTTPS callable (if deployed)
-    try {
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('cleanupVetInvite');
-      await callable.call({'clinicId': clinicId, 'inviteId': inviteId});
-      return;
-    } catch (_) {
-      // Fallback to client-side attempt below
-    }
-
-    try {
-      await inviteDoc.update({
-        'status': 'accepted',
-        'acceptedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (_) {
-      // Ignore update failures, attempt delete below
-    }
-
-    try {
-      await inviteDoc.delete();
-      return;
-    } catch (_) {
-      // Ignore errors - invite may already be deleted or lack permissions
     }
   }
 
@@ -884,11 +690,14 @@ class ClinicService {
 
       await membershipAndUserBatch.commit();
 
-      // Delete the invite document now that it has been accepted
+      // Then, best-effort mark the invite as accepted (may be blocked by rules due to email casing)
       try {
-        await inviteRef.delete();
+        await inviteRef.update({
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+        });
       } catch (_) {
-        // Ignore invite deletion failures; membership and user profile are already updated
+        // Ignore invite update failures; membership and user profile are already updated
       }
 
       // Best-effort cleanup of temporary placeholder user profile created at invite time
@@ -948,5 +757,97 @@ class ClinicService {
     } catch (e) {
       throw Exception('Failed to delete clinic: $e');
     }
+  }
+
+  /// Get a single clinic member
+  Future<ClinicMember?> getClinicMember(String clinicId, String userId) async {
+    try {
+      final doc = await _getClinicMembersCollection(clinicId).doc(userId).get();
+      if (doc.exists) {
+        return ClinicMember.fromJson(doc.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get clinic member: $e');
+    }
+  }
+
+  /// Ensure there is a vet membership entry for the given user in the clinic,
+  /// and optionally remove a temporary placeholder vet membership document.
+  Future<void> ensureVetMembershipFor(
+    String clinicId,
+    String userId, {
+    String? tempVetId,
+    required List<String> permissions,
+  }) async {
+    // Create or overwrite the real vet membership for this user
+    final vetMember = ClinicMember(
+      userId: userId,
+      clinicId: clinicId,
+      role: ClinicRole.vet,
+      permissions: permissions,
+      addedAt: DateTime.now(),
+      addedBy: userId,
+    );
+
+    await _addClinicMember(clinicId, vetMember);
+
+    // If there is a temporary vet membership, delete it
+    if (tempVetId != null && tempVetId.isNotEmpty) {
+      try {
+        await _getClinicMembersCollection(clinicId).doc(tempVetId).delete();
+      } catch (_) {
+        // Ignore if it does not exist or permission denies
+      }
+    }
+  }
+
+  /// Delete a vet invite by email (alias for revokeVetInvite)
+  Future<void> deleteVetInvite(String clinicId, String email) async {
+    return revokeVetInvite(clinicId, email);
+  }
+
+  /// Stream of pet owner users connected to a clinic
+  /// Optionally filtered by display name prefix and limited
+  Stream<List<UserProfile>> clinicPatientsStream(
+    String clinicId, {
+    String? namePrefix,
+    int limit = 25,
+  }) {
+    Query query = _usersCollection
+        .where('connectedClinicId', isEqualTo: clinicId)
+        .where('userType', isEqualTo: UserType.petOwner.index);
+
+    // Add name prefix filter if provided
+    if (namePrefix != null && namePrefix.trim().isNotEmpty) {
+      final prefix = namePrefix.trim();
+      query = query
+          .where('displayName', isGreaterThanOrEqualTo: prefix)
+          .where('displayName', isLessThan: '$prefix\uf8ff');
+    }
+
+    query = query.limit(limit);
+
+    return query.snapshots().map((snapshot) {
+      return snapshot.docs
+          .map(
+            (doc) => UserProfile.fromJson(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
+          .toList();
+    });
+  }
+
+  /// Stream of pets for a given owner
+  Stream<List<Pet>> ownerPetsStream(String ownerId) {
+    return _usersCollection.doc(ownerId).collection('pets').snapshots().map((
+      snapshot,
+    ) {
+      return snapshot.docs.map((doc) {
+        return Pet.fromJson(doc.data(), doc.id, ownerId);
+      }).toList();
+    });
   }
 }

@@ -118,6 +118,41 @@ class PetService {
     return aggregated;
   }
 
+  Future<Map<DateTime, List<PetSymptom>>> symptomsByDayForUser(
+    String ownerId, {
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final petsSnap = await _users().doc(ownerId).collection('pets').get();
+    final Map<DateTime, List<PetSymptom>> aggregated = {};
+
+    for (final pet in petsSnap.docs) {
+      final symptoms = await symptomsStream(
+        ownerId,
+        pet.id,
+        start: start,
+        end: end,
+        limit: 1000,
+      ).first;
+
+      for (final symptom in symptoms) {
+        final day = DateTime(
+          symptom.timestamp.year,
+          symptom.timestamp.month,
+          symptom.timestamp.day,
+        );
+        final list = aggregated.putIfAbsent(day, () => []);
+        list.add(symptom);
+      }
+    }
+
+    for (final entry in aggregated.entries) {
+      entry.value.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    }
+
+    return aggregated;
+  }
+
   Future<List<PetSymptom>> recentSymptomsForUser(
     String ownerId, {
     int perPetLimit = 3,
