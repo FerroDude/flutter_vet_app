@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
+import '../../providers/user_provider.dart';
 
-import '../theme/app_theme.dart';
-import 'vet_management_page.dart';
-import '../main.dart' show ProfilePage, SettingsPage;
+import '../../theme/app_theme.dart';
+import '../vets/vet_management_page.dart';
+import '../../main.dart' show ProfilePage, SettingsPage;
 
 class ClinicAdminDashboard extends StatefulWidget {
   const ClinicAdminDashboard({super.key});

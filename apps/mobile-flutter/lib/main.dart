@@ -12,8 +12,6 @@ import 'theme/app_theme.dart';
 import 'theme/theme_manager.dart';
 import 'models/notification_service.dart';
 import 'services/clinic_service.dart';
-import 'pages/chat_page.dart';
-import 'widgets/appointments_page.dart';
 import 'widgets/simple_event_forms.dart';
 import 'providers/event_provider.dart';
 import 'providers/user_provider.dart';
@@ -23,6 +21,11 @@ import 'services/chat_service.dart';
 import 'shared/widgets/list_placeholder.dart';
 import 'core/auth/auth_wrapper.dart';
 import 'widgets/theme_toggle_widget.dart';
+import 'pages/add_symptom_sheet.dart';
+import 'pages/petOwners/modern_dashboard_page.dart';
+import 'pages/petOwners/modern_pets_page.dart';
+import 'pages/petOwners/modern_calendar_page.dart';
+import 'pages/petOwners/modern_chat_page.dart';
 
 // Global navigator key for app-wide navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -94,10 +97,10 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const DashboardPage(),
-    const PetsPage(),
-    const AppointmentsPageWrapper(),
-    const ChatPageWrapper(),
+    const ModernDashboardPage(),
+    const ModernPetsPage(),
+    const ModernCalendarPageWrapper(),
+    const ModernChatPageWrapper(),
   ];
 
   @override
@@ -136,8 +139,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           BottomNavigationBarItem(icon: Icon(Icons.pets), label: 'Pets'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Appointments',
+            icon: Icon(Icons.calendar_month),
+            label: 'Calendar',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
         ],
@@ -265,6 +268,95 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         );
       }
+    }
+  }
+
+  /// Show dialog to select a pet and then add symptom
+  Future<void> _showAddSymptomDialog(BuildContext context) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    // Fetch user's pets
+    final petsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('pets')
+        .orderBy('order')
+        .get();
+
+    if (!mounted) return;
+
+    if (petsSnapshot.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add a pet first before tracking symptoms'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show pet selection dialog
+    final selectedPetDoc =
+        await showDialog<QueryDocumentSnapshot<Map<String, dynamic>>>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Select a Pet'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: petsSnapshot.docs.length,
+                itemBuilder: (context, index) {
+                  final pet = petsSnapshot.docs[index];
+                  final petData = pet.data();
+                  final petName = petData['name'] as String? ?? 'Unknown';
+                  final species = petData['species'] as String? ?? 'Unknown';
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primaryBlue,
+                      child: Text(
+                        petName[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    title: Text(petName),
+                    subtitle: Text(species),
+                    onTap: () => Navigator.pop(dialogContext, pet),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+
+    if (selectedPetDoc != null && mounted) {
+      // Show the add symptom sheet
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: AddSymptomSheet(petId: selectedPetDoc.id),
+        ),
+      );
     }
   }
 
@@ -857,26 +949,44 @@ class _DashboardPageState extends State<DashboardPage> {
 
             return ListView(
               children: [
-                // Welcome section with better typography
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dashboard',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryBlue,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Your pet care overview',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
+                // Welcome section with personalized greeting
+                Consumer<UserProvider>(
+                  builder: (context, userProvider, _) {
+                    final displayName =
+                        userProvider.currentUser?.displayName ?? 'User';
+                    final firstName = displayName.split(' ').first;
+
+                    // Determine greeting based on time of day
+                    final hour = DateTime.now().hour;
+                    String greeting;
+                    if (hour < 12) {
+                      greeting = 'Good morning';
+                    } else if (hour < 17) {
+                      greeting = 'Good afternoon';
+                    } else {
+                      greeting = 'Good evening';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$greeting, $firstName',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryBlue,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Your pet care overview',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
 
@@ -1003,6 +1113,36 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Add Symptom Button
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.accentCoral.withValues(
+                                alpha: 0.1,
+                              ),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showAddSymptomDialog(context),
+                          icon: const Icon(Icons.medical_information, size: 18),
+                          label: const Text('Add Symptom'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentCoral,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -3381,56 +3521,22 @@ class ProfilePage extends StatelessWidget {
 }
 
 // Wrapper for AppointmentsPage to ensure proper app bar
-class AppointmentsPageWrapper extends StatefulWidget {
-  const AppointmentsPageWrapper({super.key});
+class ModernCalendarPageWrapper extends StatefulWidget {
+  const ModernCalendarPageWrapper({super.key});
 
   @override
-  State<AppointmentsPageWrapper> createState() =>
-      _AppointmentsPageWrapperState();
+  State<ModernCalendarPageWrapper> createState() =>
+      _ModernCalendarPageWrapperState();
 }
 
-class _AppointmentsPageWrapperState extends State<AppointmentsPageWrapper> {
+class _ModernCalendarPageWrapperState extends State<ModernCalendarPageWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Appointments'),
-        backgroundColor: AppTheme.primaryBlue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-            icon: const Icon(Icons.settings, color: Colors.white),
-          ),
-          Consumer<UserProvider>(
-            builder: (context, userProvider, _) => IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ProfilePage(injectedUserProvider: userProvider),
-                  ),
-                );
-              },
-              icon: CircleAvatar(
-                backgroundColor: Colors.white.withOpacity(0.2),
-                radius: 16,
-                child: const Icon(Icons.person, color: Colors.white, size: 16),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: AppointmentsPage(key: appointmentsPageKey),
+      body: ModernCalendarPage(key: modernCalendarPageKey),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          appointmentsPageKey.currentState?.handleFabAction();
+          modernCalendarPageKey.currentState?.handleFabAction();
         },
         backgroundColor: AppTheme.primaryBlue,
         child: const Icon(Icons.add, color: Colors.white),
@@ -3440,13 +3546,12 @@ class _AppointmentsPageWrapperState extends State<AppointmentsPageWrapper> {
 }
 
 // Chat Page with proper profile access
-class ChatPageWrapper extends StatelessWidget {
-  const ChatPageWrapper({super.key});
+class ModernChatPageWrapper extends StatelessWidget {
+  const ModernChatPageWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Since ChatPage already has its own scaffold, we'll use it directly
-    // but we need to ensure it has the profile button
-    return const ChatPage();
+    // Modern chat page already has its own scaffold
+    return const ModernChatPage();
   }
 }

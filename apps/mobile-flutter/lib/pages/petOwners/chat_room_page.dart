@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/chat_models.dart';
-import '../providers/chat_provider.dart';
-import '../providers/user_provider.dart';
-import '../theme/app_theme.dart';
+import '../../models/chat_models.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../theme/app_theme.dart';
 
 class ChatRoomPage extends StatefulWidget {
   final ChatRoom chatRoom;

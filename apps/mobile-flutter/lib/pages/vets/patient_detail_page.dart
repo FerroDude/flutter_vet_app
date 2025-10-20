@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/vet_provider.dart';
-import '../services/chat_service.dart';
-import '../models/clinic_models.dart';
-import '../models/pet_model.dart';
-import '../theme/app_theme.dart';
-import 'chat_room_page.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/vet_provider.dart';
+import '../../services/chat_service.dart';
+import '../../models/clinic_models.dart';
+import '../../models/pet_model.dart';
+import '../../theme/app_theme.dart';
+import '../petOwners/chat_room_page.dart';
 
 class PatientDetailPage extends StatelessWidget {
   final String ownerId;

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/clinic_models.dart';
-import '../providers/user_provider.dart';
-import '../theme/app_theme.dart';
+import '../../models/clinic_models.dart';
+import '../../providers/user_provider.dart';
+import '../../theme/app_theme.dart';
 
 /// Initial onboarding page for new users to select their role
 class ClinicOnboardingPage extends StatefulWidget {

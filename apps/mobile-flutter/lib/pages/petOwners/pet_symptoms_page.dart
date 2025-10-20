@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/symptom_models.dart';
-import '../services/pet_service.dart';
-import '../theme/app_theme.dart';
+import '../../models/symptom_models.dart';
+import '../../services/pet_service.dart';
+import '../../theme/app_theme.dart';
 
 class PetSymptomsPage extends StatefulWidget {
   const PetSymptomsPage({super.key, required this.petId});

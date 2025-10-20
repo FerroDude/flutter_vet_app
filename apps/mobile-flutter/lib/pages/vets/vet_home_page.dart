@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
-import '../providers/vet_provider.dart';
-import '../providers/chat_provider.dart';
-import '../theme/app_theme.dart';
-import '../main.dart' show ProfilePage, SettingsPage;
+import '../../providers/user_provider.dart';
+import '../../providers/vet_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../theme/app_theme.dart';
+import '../../main.dart' show ProfilePage, SettingsPage;
 import 'vet_patients_page.dart';
-import 'chat_page.dart';
+import '../petOwners/chat_page.dart';
 
 class VetHomePage extends StatelessWidget {
   const VetHomePage({super.key});

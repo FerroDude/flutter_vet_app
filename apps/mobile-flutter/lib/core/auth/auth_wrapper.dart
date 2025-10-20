@@ -13,9 +13,9 @@ import '../../providers/vet_provider.dart';
 import '../../repositories/event_repository.dart';
 import '../../pages/onboarding_pages.dart';
 import '../../main.dart'; // For MyHomePage
-import '../../pages/admin_dashboard.dart'; // For App Owner Dashboard
-import '../../pages/clinic_admin_dashboard.dart'; // For Clinic Admin Dashboard
-import '../../pages/vet_home_page.dart';
+import '../../pages/appOwner/admin_dashboard.dart'; // For App Owner Dashboard
+import '../../pages/clinicAdmins/clinic_admin_dashboard.dart'; // For Clinic Admin Dashboard
+import '../../pages/vets/vet_home_page.dart';
 import 'email_verification_page.dart';
 import 'display_name_setup_page.dart';
 import 'auth_page.dart';

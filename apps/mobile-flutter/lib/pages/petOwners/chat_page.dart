@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/chat_models.dart';
-import '../providers/chat_provider.dart';
-import '../providers/user_provider.dart';
-import '../theme/app_theme.dart';
-import '../main.dart' show SettingsPage, ProfilePage;
+import '../../models/chat_models.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../theme/app_theme.dart';
+import '../../main.dart' show SettingsPage, ProfilePage;
 import 'chat_room_page.dart';
 
 class ChatPage extends StatefulWidget {

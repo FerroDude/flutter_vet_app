@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// App Theme Configuration
 /// This design system can be replicated in React for consistency across platforms
@@ -376,11 +377,19 @@ class AppTheme {
   // Material Theme Data
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
+    fontFamily: GoogleFonts.inter().fontFamily,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryBlue,
       brightness: Brightness.light,
     ),
-    appBarTheme: appBarTheme,
+    textTheme: GoogleFonts.interTextTheme(),
+    appBarTheme: appBarTheme.copyWith(
+      titleTextStyle: GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: textOnPrimary,
+      ),
+    ),
     bottomNavigationBarTheme: bottomNavTheme,
     navigationBarTheme: navBarTheme,
     elevatedButtonTheme: ElevatedButtonThemeData(style: primaryButtonStyle),
@@ -467,6 +476,7 @@ class AppTheme {
   // Dark Theme Data
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
+    fontFamily: GoogleFonts.inter().fontFamily,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryBlue,
       brightness: Brightness.dark,
@@ -476,6 +486,7 @@ class AppTheme {
       tertiary: accentAmber,
       error: errorRed,
     ),
+    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
     scaffoldBackgroundColor: darkBackgroundPrimary,
 
     // App Bar - Modern premium dark styling

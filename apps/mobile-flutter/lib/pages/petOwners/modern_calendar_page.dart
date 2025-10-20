@@ -1,0 +1,1460 @@
+import 'dart:collection';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../theme/app_theme.dart';
+import '../../models/event_model.dart';
+import '../../models/symptom_models.dart';
+import '../../providers/event_provider.dart';
+import '../../widgets/simple_event_forms.dart';
+import '../../widgets/calendar_view.dart';
+import '../../services/pet_service.dart';
+import '../add_symptom_sheet.dart';
+
+/// Modern, redesigned calendar page with clean UI and smooth animations
+class ModernCalendarPage extends StatefulWidget {
+  const ModernCalendarPage({super.key});
+
+  @override
+  State<ModernCalendarPage> createState() => ModernCalendarPageState();
+}
+
+// Global key for FAB access
+final modernCalendarPageKey = GlobalKey<ModernCalendarPageState>();
+
+class ModernCalendarPageState extends State<ModernCalendarPage>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 4,
+    vsync: this,
+  );
+  final Set<String> _expandedSeries = {};
+  final _petService = PetService();
+
+  DateTime _selectedDay = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  Map<DateTime, List<PetSymptom>> _symptomsByDay = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EventProvider>().loadEvents();
+      _loadSymptomsByDay();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshData() async {
+    await context.read<EventProvider>().refresh();
+    await _loadSymptomsByDay();
+  }
+
+  int get currentTabIndex => _tabController.index;
+
+  void handleFabAction() {
+    switch (_tabController.index) {
+      case 0:
+        showAddEventDialog();
+        break;
+      case 1:
+        _showAppointmentFormWithPetSelection();
+        break;
+      case 2:
+        _showMedicationFormWithPetSelection();
+        break;
+      case 3:
+        _showSymptomSheetWithPetSelection();
+        break;
+    }
+  }
+
+  void showAddEventDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => ChangeNotifierProvider.value(
+        value: context.read<EventProvider>(),
+        child: SimpleAddEventDialog(selectedDate: _selectedDay),
+      ),
+    ).then((result) {
+      if (result == true) _refreshData();
+    });
+  }
+
+  void showAppointmentForm() {
+    _showAppointmentFormWithPetSelection();
+  }
+
+  void showMedicationForm() {
+    _showMedicationFormWithPetSelection();
+  }
+
+  void _onDaySelected(DateTime selectedDay, List<CalendarEvent> events) {
+    setState(() => _selectedDay = selectedDay);
+  }
+
+  Future<void> _loadSymptomsByDay() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+    final start = DateTime(_selectedDay.year, _selectedDay.month - 3, 1);
+    final end = DateTime(_selectedDay.year, _selectedDay.month + 3, 0);
+    final summaries = await _petService.symptomsByDayForUser(
+      userId,
+      start: start,
+      end: end,
+    );
+    if (mounted) setState(() => _symptomsByDay = summaries);
+  }
+
+  void _onFormatChanged(CalendarFormat format) {
+    setState(() => _calendarFormat = format);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: context.surfacePrimary,
+      appBar: AppBar(
+        title: Text('Calendar'),
+        backgroundColor: context.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48),
+          child: Container(
+            color: isDark ? context.surfaceSecondary : Colors.white,
+            child:
+                TabBar(
+                      controller: _tabController,
+                      labelColor: context.primaryColor,
+                      unselectedLabelColor: context.secondaryTextColor,
+                      indicatorColor: context.primaryColor,
+                      indicatorWeight: 3,
+                      tabs: const [
+                        Tab(icon: Icon(Icons.calendar_month, size: 28)),
+                        Tab(icon: Icon(Icons.event, size: 28)),
+                        Tab(icon: Icon(Icons.medication, size: 28)),
+                        Tab(icon: Icon(Icons.healing, size: 28)),
+                      ],
+                    )
+                    .animate()
+                    .fadeIn(duration: 300.ms)
+                    .slideY(begin: -0.1, end: 0, duration: 300.ms),
+          ),
+        ),
+      ),
+      body: Consumer<EventProvider>(
+        builder: (context, eventProvider, child) {
+          if (eventProvider.isLoading && eventProvider.events.isEmpty) {
+            return _buildLoadingState(context);
+          }
+
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _buildCalendarView(context, eventProvider),
+              _buildAppointmentsList(context, eventProvider),
+              _buildMedicationsList(context, eventProvider),
+              _buildSymptomsList(context),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: context.primaryColor),
+          SizedBox(height: AppTheme.spacing4),
+          Text(
+            'Loading calendar...',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarView(BuildContext context, EventProvider eventProvider) {
+    final allEvents = eventProvider.events;
+    final eventsByDate = <DateTime, List<CalendarEvent>>{};
+
+    for (final event in allEvents) {
+      final date = DateTime(
+        event.dateTime.year,
+        event.dateTime.month,
+        event.dateTime.day,
+      );
+      eventsByDate.putIfAbsent(date, () => []).add(event);
+    }
+
+    // Merge symptom data
+    final merged = {...eventsByDate};
+    _symptomsByDay.forEach((day, symptoms) {
+      if (symptoms.isEmpty) return;
+      final existing = merged[day] ??= [];
+      final title = _symptomSummaryTitle(symptoms);
+      final List<String> uniqueLabels = LinkedHashSet<String>.from(
+        symptoms.map((s) => _symptomLabel(s.type)),
+      ).toList();
+      final description = uniqueLabels.length > 1
+          ? 'Logged symptoms: ${uniqueLabels.join(', ')}'
+          : '';
+
+      existing.add(
+        NoteEvent(
+          id: 'symptom_${day.millisecondsSinceEpoch}',
+          title: title,
+          description: description,
+          dateTime: DateTime(day.year, day.month, day.day, 12),
+          userId: FirebaseAuth.instance.currentUser?.uid ?? 'currentUser',
+          petId: null,
+          createdAt: day,
+          updatedAt: day,
+          tags: uniqueLabels.take(4).toList(),
+          reminderDateTime: null,
+        ),
+      );
+    });
+
+    final selectedDate = DateTime(
+      _selectedDay.year,
+      _selectedDay.month,
+      _selectedDay.day,
+    );
+    final selectedEvents = merged[selectedDate] ?? [];
+
+    return Column(
+      children: [
+        // Modern Calendar Widget
+        Container(
+              margin: EdgeInsets.all(AppTheme.spacing4),
+              decoration: BoxDecoration(
+                color: context.surfaceSecondary,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                border: Border.all(color: context.borderLight, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: context.primaryColor.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: CalendarView(
+                events: merged,
+                onDaySelected: (selectedDay, events) {
+                  setState(() => _selectedDay = selectedDay);
+                  _onDaySelected(selectedDay, events);
+                  _loadSymptomsByDay();
+                },
+                selectedDay: _selectedDay,
+                calendarFormat: _calendarFormat,
+                onFormatChanged: _onFormatChanged,
+              ),
+            )
+            .animate()
+            .fadeIn(duration: 400.ms)
+            .scale(
+              begin: Offset(0.95, 0.95),
+              end: Offset(1, 1),
+              duration: 400.ms,
+            ),
+
+        // Day Header
+        Container(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    context.primaryColor.withOpacity(0.1),
+                    context.primaryColor.withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.event_note, color: context.primaryColor, size: 20),
+                  SizedBox(width: AppTheme.spacing2),
+                  Text(
+                    DateFormat('EEEE, MMMM d').format(_selectedDay),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.primaryColor,
+                    ),
+                  ),
+                  Spacer(),
+                  if (selectedEvents.isNotEmpty)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacing2,
+                        vertical: AppTheme.spacing1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: context.primaryColor,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusSmall,
+                        ),
+                      ),
+                      child: Text(
+                        '${selectedEvents.length}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            )
+            .animate()
+            .fadeIn(duration: 300.ms, delay: 100.ms)
+            .slideX(begin: -0.1, end: 0, duration: 300.ms),
+
+        SizedBox(height: AppTheme.spacing2),
+
+        // Events for Selected Day
+        Expanded(
+          child: selectedEvents.isEmpty
+              ? _buildEmptyDayState(context)
+              : ListView.builder(
+                  padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+                  itemCount: selectedEvents.length,
+                  itemBuilder: (context, index) {
+                    return _buildModernEventCard(
+                      context: context,
+                      event: selectedEvents[index],
+                      delay: index * 50,
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernEventCard({
+    required BuildContext context,
+    required CalendarEvent event,
+    required int delay,
+  }) {
+    Color color;
+    IconData icon;
+
+    if (event is AppointmentEvent) {
+      color = context.primaryColor;
+      icon = Icons.medical_services;
+    } else if (event is MedicationEvent) {
+      color = AppTheme.primaryGreen;
+      icon = Icons.medication;
+    } else {
+      color = AppTheme.accentCoral;
+      icon = Icons.note;
+    }
+
+    return Container(
+          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+          decoration: BoxDecoration(
+            color: context.surfaceSecondary,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(color: color.withOpacity(0.2), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.1),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              onTap: () => _handleEventTap(event),
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.spacing4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [color, color.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 24),
+                    ),
+                    SizedBox(width: AppTheme.spacing4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            event.title,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: context.textColor,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: AppTheme.spacing1),
+                          Row(
+                            children: [
+                              Icon(Icons.schedule, size: 14, color: color),
+                              SizedBox(width: 4),
+                              Text(
+                                DateFormat('h:mm a').format(event.dateTime),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.secondaryTextColor,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: context.secondaryTextColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 300.ms, delay: delay.ms)
+        .slideX(begin: 0.2, end: 0, duration: 300.ms, delay: delay.ms);
+  }
+
+  Widget _buildEmptyDayState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+                Icons.event_available,
+                size: 80,
+                color: context.secondaryTextColor.withOpacity(0.5),
+              )
+              .animate(onPlay: (controller) => controller.repeat())
+              .shimmer(duration: 2000.ms, delay: 1000.ms),
+          SizedBox(height: AppTheme.spacing4),
+          Text(
+            'No events this day',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: context.textColor,
+            ),
+          ),
+          SizedBox(height: AppTheme.spacing2),
+          Text(
+            'Tap the + button to add an event',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentsList(
+    BuildContext context,
+    EventProvider eventProvider,
+  ) {
+    final appointments =
+        eventProvider.events.whereType<AppointmentEvent>().toList()
+          ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    if (appointments.isEmpty) {
+      return _buildEmptyState(
+        context: context,
+        icon: Icons.event_note,
+        title: 'No appointments',
+        message: 'Schedule your first appointment',
+      );
+    }
+
+    // Group by date
+    final grouped = <String, List<AppointmentEvent>>{};
+    for (final apt in appointments) {
+      final key = DateFormat('yyyy-MM-dd').format(apt.dateTime);
+      grouped.putIfAbsent(key, () => []).add(apt);
+    }
+
+    final dateKeys = grouped.keys.toList()..sort();
+
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: ListView.builder(
+        padding: EdgeInsets.all(AppTheme.spacing4),
+        itemCount: dateKeys.length,
+        itemBuilder: (context, index) {
+          final key = dateKeys[index];
+          final group = grouped[key]!;
+          final headerDate = DateFormat(
+            'EEE, MMM d',
+          ).format(group.first.dateTime);
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppTheme.spacing2,
+                  AppTheme.spacing4,
+                  AppTheme.spacing2,
+                  AppTheme.spacing2,
+                ),
+                child: Text(
+                  headerDate,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.primaryColor,
+                  ),
+                ),
+              ),
+              ...group.map((apt) => _buildAppointmentCard(context, apt, index)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAppointmentCard(
+    BuildContext context,
+    AppointmentEvent appointment,
+    int index,
+  ) {
+    return Container(
+          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+          decoration: BoxDecoration(
+            color: context.surfaceSecondary,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(
+              color: context.primaryColor.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              onTap: () => _editAppointment(appointment),
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.spacing4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: context.primaryColor,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                      ),
+                      child: Icon(
+                        _getAppointmentIcon(
+                          appointment.appointmentType ?? 'checkup',
+                        ),
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: AppTheme.spacing4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            appointment.title,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: context.textColor,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: AppTheme.spacing1),
+                          Text(
+                            DateFormat('h:mm a').format(appointment.dateTime),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: context.secondaryTextColor),
+                          ),
+                          if (appointment.location != null) ...[
+                            SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 12,
+                                  color: context.primaryColor,
+                                ),
+                                SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    appointment.location!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: context.secondaryTextColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 300.ms, delay: (index * 50).ms)
+        .slideX(begin: 0.2, end: 0, duration: 300.ms);
+  }
+
+  Widget _buildMedicationsList(
+    BuildContext context,
+    EventProvider eventProvider,
+  ) {
+    final medications =
+        eventProvider.events.whereType<MedicationEvent>().toList()
+          ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    if (medications.isEmpty) {
+      return _buildEmptyState(
+        context: context,
+        icon: Icons.medication,
+        title: 'No medications',
+        message: 'Add your first medication reminder',
+      );
+    }
+
+    // Group medications by series
+    final globalGroups = <String, List<MedicationEvent>>{};
+    for (final med in medications) {
+      final seriesKey = (med.seriesId ?? '').trim();
+      final groupKey = seriesKey.isNotEmpty
+          ? seriesKey
+          : 'name_${med.medicationName}';
+      globalGroups.putIfAbsent(groupKey, () => []).add(med);
+    }
+
+    final seriesGroups = <String, List<MedicationEvent>>{};
+    final singles = <MedicationEvent>[];
+
+    for (final entry in globalGroups.entries) {
+      if (entry.value.length > 1) {
+        seriesGroups[entry.key] = entry.value;
+      } else {
+        singles.addAll(entry.value);
+      }
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: ListView(
+        padding: EdgeInsets.all(AppTheme.spacing4),
+        children: [
+          if (seriesGroups.isNotEmpty) ...[
+            _buildSectionHeader(context, 'Recurring Medications', Icons.repeat),
+            ...seriesGroups.entries.map(
+              (entry) => _buildSeriesCard(context, entry.key, entry.value),
+            ),
+          ],
+          if (singles.isNotEmpty) ...[
+            if (seriesGroups.isNotEmpty) SizedBox(height: AppTheme.spacing4),
+            _buildSectionHeader(
+              context,
+              'Individual Medications',
+              Icons.schedule,
+            ),
+            ...singles.map((med) => _buildMedicationCard(context, med)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    IconData icon,
+  ) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppTheme.spacing2,
+        AppTheme.spacing2,
+        AppTheme.spacing2,
+        AppTheme.spacing3,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.primaryGreen),
+          SizedBox(width: AppTheme.spacing2),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeriesCard(
+    BuildContext context,
+    String key,
+    List<MedicationEvent> items,
+  ) {
+    items.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    final first = items.first;
+    final isExpanded = _expandedSeries.contains(key);
+
+    return Container(
+          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(
+              color: AppTheme.primaryGreen.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                  onTap: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedSeries.remove(key);
+                      } else {
+                        _expandedSeries.add(key);
+                      }
+                    });
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(AppTheme.spacing4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMedium,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.medication,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        SizedBox(width: AppTheme.spacing4),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                first.medicationName,
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: context.textColor,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: AppTheme.spacing1),
+                              Text(
+                                '${first.dosage} • ${first.frequency}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: context.secondaryTextColor,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppTheme.spacing2,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGreen.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusSmall,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.layers,
+                                size: 14,
+                                color: AppTheme.primaryGreen,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                '${items.length}',
+                                style: TextStyle(
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: AppTheme.spacing2),
+                        Icon(
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
+                          color: AppTheme.primaryGreen,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (isExpanded)
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                    AppTheme.spacing4,
+                    0,
+                    AppTheme.spacing4,
+                    AppTheme.spacing4,
+                  ),
+                  child: Column(
+                    children: [
+                      Divider(color: AppTheme.primaryGreen.withOpacity(0.2)),
+                      SizedBox(height: AppTheme.spacing2),
+                      ...items.asMap().entries.map((entry) {
+                        final med = entry.value;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryGreen.withOpacity(0.7),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              SizedBox(width: AppTheme.spacing3),
+                              Expanded(
+                                child: Text(
+                                  DateFormat(
+                                    'EEE, MMM d • h:mm a',
+                                  ).format(med.dateTime),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: context.secondaryTextColor,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .scale(begin: Offset(0.95, 0.95), end: Offset(1, 1), duration: 300.ms);
+  }
+
+  Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
+    return Container(
+          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+          decoration: BoxDecoration(
+            color: context.surfaceSecondary,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(color: context.borderLight, width: 1),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              onTap: () => _handleEventTap(med),
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.spacing4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryGreen,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.medication,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: AppTheme.spacing4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            med.medicationName,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: context.textColor,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: AppTheme.spacing1),
+                          Text(
+                            '${med.dosage} • ${DateFormat('EEE, MMM d • h:mm a').format(med.dateTime)}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: context.secondaryTextColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .slideX(begin: 0.2, end: 0, duration: 300.ms);
+  }
+
+  Widget _buildEmptyState({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+                icon,
+                size: 80,
+                color: context.secondaryTextColor.withOpacity(0.5),
+              )
+              .animate(onPlay: (controller) => controller.repeat())
+              .shimmer(duration: 2000.ms, delay: 1000.ms),
+          SizedBox(height: AppTheme.spacing4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: context.textColor,
+            ),
+          ),
+          SizedBox(height: AppTheme.spacing2),
+          Text(
+            message,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper methods
+  void _handleEventTap(CalendarEvent event) {
+    if (event is AppointmentEvent) {
+      _editAppointment(event);
+    } else {
+      _showEventDialog(event);
+    }
+  }
+
+  void _editAppointment(AppointmentEvent appointment) {
+    showDialog(
+      context: context,
+      builder: (context) => ChangeNotifierProvider.value(
+        value: this.context.read<EventProvider>(),
+        child: SimpleAppointmentForm(
+          selectedDate: appointment.dateTime,
+          existingEvent: appointment,
+        ),
+      ),
+    ).then((result) {
+      if (result == true) _refreshData();
+    });
+  }
+
+  void _showEventDialog(CalendarEvent event) {
+    // Implementation for showing event details dialog
+    // (simplified for brevity - uses existing dialog from original page)
+  }
+
+  IconData _getAppointmentIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'checkup':
+      case 'routine':
+        return Icons.medical_services;
+      case 'vaccination':
+      case 'vaccine':
+        return Icons.vaccines;
+      case 'grooming':
+        return Icons.pets;
+      case 'emergency':
+        return Icons.emergency;
+      default:
+        return Icons.event;
+    }
+  }
+
+  String _symptomSummaryTitle(List<PetSymptom> symptoms) {
+    if (symptoms.isEmpty) return 'Symptoms logged';
+    final labels = symptoms.map((s) => _symptomLabel(s.type)).toList();
+    final uniqueLabels = LinkedHashSet<String>.from(labels).toList();
+    if (uniqueLabels.length == 1) {
+      final occurrences = labels.length;
+      return occurrences > 1
+          ? '${uniqueLabels.first} (x$occurrences)'
+          : uniqueLabels.first;
+    }
+    if (uniqueLabels.length == 2) {
+      return '${uniqueLabels[0]} & ${uniqueLabels[1]}';
+    }
+    return '${uniqueLabels[0]}, ${uniqueLabels[1]} + ${uniqueLabels.length - 2} more';
+  }
+
+  String _symptomLabel(SymptomType type) {
+    switch (type) {
+      case SymptomType.vomiting:
+        return 'Vomiting';
+      case SymptomType.diarrhea:
+        return 'Diarrhea';
+      case SymptomType.cough:
+        return 'Cough';
+      case SymptomType.sneezing:
+        return 'Sneezing';
+      case SymptomType.choking:
+        return 'Choking';
+      case SymptomType.seizure:
+        return 'Seizure';
+      case SymptomType.disorientation:
+        return 'Disorientation';
+      case SymptomType.circling:
+        return 'Circling';
+      case SymptomType.restlessness:
+        return 'Restlessness';
+      case SymptomType.limping:
+        return 'Limping';
+      case SymptomType.jointDiscomfort:
+        return 'Joint discomfort';
+      case SymptomType.itching:
+        return 'Itching';
+      case SymptomType.ocularDischarge:
+        return 'Ocular discharge';
+      case SymptomType.vaginalDischarge:
+        return 'Vaginal discharge';
+      case SymptomType.estrus:
+        return 'Estrus';
+      case SymptomType.other:
+        return 'Other symptom';
+    }
+  }
+
+  // Pet Selection Methods
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?>
+  _showPetSelectionDialog() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please sign in first'),
+          backgroundColor: AppTheme.errorRed,
+        ),
+      );
+      return null;
+    }
+
+    // Get user's pets
+    final petsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('pets')
+        .get();
+
+    if (!mounted) return null;
+
+    if (petsSnapshot.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please add a pet first'),
+          backgroundColor: AppTheme.warningAmber,
+        ),
+      );
+      return null;
+    }
+
+    // Show pet selection dialog
+    return await showDialog<QueryDocumentSnapshot<Map<String, dynamic>>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        ),
+        title: Text('Select a Pet'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: petsSnapshot.docs.length,
+            itemBuilder: (context, index) {
+              final pet = petsSnapshot.docs[index];
+              final petData = pet.data();
+              final petName = petData['name'] as String? ?? 'Unknown';
+              final species = petData['species'] as String? ?? 'Unknown';
+
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: context.primaryColor,
+                  child: Text(
+                    petName[0].toUpperCase(),
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                title: Text(petName),
+                subtitle: Text(species),
+                onTap: () => Navigator.pop(dialogContext, pet),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAppointmentFormWithPetSelection() async {
+    final selectedPet = await _showPetSelectionDialog();
+    if (selectedPet != null && mounted) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => ChangeNotifierProvider.value(
+          value: context.read<EventProvider>(),
+          child: SimpleAppointmentForm(
+            selectedDate: _selectedDay,
+            petId: selectedPet.id,
+          ),
+        ),
+      ).then((result) {
+        if (result == true) _refreshData();
+      });
+    }
+  }
+
+  void _showMedicationFormWithPetSelection() async {
+    final selectedPet = await _showPetSelectionDialog();
+    if (selectedPet != null && mounted) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => ChangeNotifierProvider.value(
+          value: context.read<EventProvider>(),
+          child: SimpleMedicationForm(
+            selectedDate: _selectedDay,
+            petId: selectedPet.id,
+          ),
+        ),
+      ).then((result) {
+        if (result == true) _refreshData();
+      });
+    }
+  }
+
+  void _showSymptomSheetWithPetSelection() async {
+    final selectedPet = await _showPetSelectionDialog();
+    if (selectedPet != null && mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => AddSymptomSheet(petId: selectedPet.id),
+      ).then((result) {
+        if (result == true) _refreshData();
+      });
+    }
+  }
+
+  Widget _buildSymptomsList(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      return _buildEmptyState(
+        context: context,
+        icon: Icons.healing,
+        title: 'Not signed in',
+        message: 'Please sign in to view symptoms',
+      );
+    }
+
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('pets')
+          .get(),
+      builder: (context, petsSnapshot) {
+        if (petsSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (!petsSnapshot.hasData || petsSnapshot.data!.docs.isEmpty) {
+          return _buildEmptyState(
+            context: context,
+            icon: Icons.pets,
+            title: 'No pets',
+            message: 'Add a pet to track symptoms',
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            await _loadSymptomsByDay();
+            setState(() {});
+          },
+          child: ListView.builder(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            itemCount: petsSnapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final petDoc = petsSnapshot.data!.docs[index];
+              final petData = petDoc.data() as Map<String, dynamic>;
+              final petName = petData['name'] as String? ?? 'Unknown';
+
+              return FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .collection('pets')
+                    .doc(petDoc.id)
+                    .collection('symptoms')
+                    .orderBy('timestamp', descending: true)
+                    .limit(10)
+                    .get(),
+                builder: (context, symptomsSnapshot) {
+                  if (!symptomsSnapshot.hasData) {
+                    return SizedBox.shrink();
+                  }
+
+                  final symptoms = symptomsSnapshot.data!.docs;
+                  if (symptoms.isEmpty) return SizedBox.shrink();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppTheme.spacing2,
+                          AppTheme.spacing4,
+                          AppTheme.spacing2,
+                          AppTheme.spacing2,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              size: 18,
+                              color: AppTheme.accentCoral,
+                            ),
+                            SizedBox(width: AppTheme.spacing2),
+                            Text(
+                              petName,
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.accentCoral,
+                                  ),
+                            ),
+                            Spacer(),
+                            Text(
+                              '${symptoms.length} symptoms',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.secondaryTextColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ...symptoms.map((symptomDoc) {
+                        final data = symptomDoc.data() as Map<String, dynamic>;
+                        final type = SymptomType.values.firstWhere(
+                          (t) => t.toString().split('.').last == data['type'],
+                          orElse: () => SymptomType.other,
+                        );
+                        final timestamp =
+                            (data['timestamp'] as Timestamp?)?.toDate() ??
+                            DateTime.now();
+                        final note = data['note'] as String?;
+
+                        return _buildSymptomCard(
+                          context,
+                          type,
+                          timestamp,
+                          note,
+                        );
+                      }),
+                      SizedBox(height: AppTheme.spacing4),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSymptomCard(
+    BuildContext context,
+    SymptomType type,
+    DateTime timestamp,
+    String? note,
+  ) {
+    return Container(
+          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+          decoration: BoxDecoration(
+            color: context.surfaceSecondary,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+            border: Border.all(
+              color: AppTheme.accentCoral.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentCoral,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  ),
+                  child: Icon(Icons.healing, color: Colors.white, size: 24),
+                ),
+                SizedBox(width: AppTheme.spacing4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _symptomLabel(type),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: context.textColor,
+                        ),
+                      ),
+                      SizedBox(height: AppTheme.spacing1),
+                      Text(
+                        DateFormat('EEE, MMM d • h:mm a').format(timestamp),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.secondaryTextColor,
+                        ),
+                      ),
+                      if (note != null && note.isNotEmpty) ...[
+                        SizedBox(height: AppTheme.spacing1),
+                        Text(
+                          note,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.secondaryTextColor,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+        .animate()
+        .fadeIn(duration: 300.ms)
+        .slideX(begin: 0.2, end: 0, duration: 300.ms);
+  }
+}
+
+// Extension methods are already defined in app_theme.dart

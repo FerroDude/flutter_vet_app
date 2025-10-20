@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/vet_provider.dart';
-import '../providers/user_provider.dart';
-import '../theme/app_theme.dart';
+import '../../providers/vet_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../theme/app_theme.dart';
 import 'patient_detail_page.dart';
 
 class VetPatientsPage extends StatefulWidget {

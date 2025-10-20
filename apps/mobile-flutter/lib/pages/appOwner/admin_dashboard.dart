@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as developer;
-import '../providers/user_provider.dart';
-import '../models/clinic_models.dart';
-import '../theme/app_theme.dart';
-import 'vet_management_page.dart';
+import '../../providers/user_provider.dart';
+import '../../models/clinic_models.dart';
+import '../../theme/app_theme.dart';
+import '../vets/vet_management_page.dart';
 import 'app_owner_stats.dart';
-import '../main.dart' show ProfilePage;
+import '../../main.dart' show ProfilePage;
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});

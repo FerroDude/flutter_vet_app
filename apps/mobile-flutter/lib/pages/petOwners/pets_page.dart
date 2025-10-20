@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../theme/app_theme.dart';
-import '../providers/event_provider.dart';
-import '../shared/widgets/list_placeholder.dart';
-import '../main.dart' show PetDetailsPage, PetFormPage;
+import '../../theme/app_theme.dart';
+import '../../providers/event_provider.dart';
+import '../../shared/widgets/list_placeholder.dart';
+import '../../main.dart' show PetDetailsPage, PetFormPage;
 
 class PetsPage extends StatelessWidget {
   const PetsPage({super.key});

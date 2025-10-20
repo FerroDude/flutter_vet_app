@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../providers/user_provider.dart';
-import '../models/clinic_models.dart';
-import '../theme/app_theme.dart';
+import '../../providers/user_provider.dart';
+import '../../models/clinic_models.dart';
+import '../../theme/app_theme.dart';
 
 class AppOwnerStats extends StatefulWidget {
   const AppOwnerStats({super.key});
