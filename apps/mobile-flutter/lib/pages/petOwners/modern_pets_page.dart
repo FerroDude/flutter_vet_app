@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -89,10 +88,7 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
     return Column(
       children: [
         // Modern Search Bar
-        _buildModernSearchBar(context)
-            .animate()
-            .fadeIn(duration: 300.ms)
-            .slideY(begin: -0.2, end: 0, duration: 300.ms),
+        _buildModernSearchBar(context),
 
         // Pets List with StreamBuilder
         Expanded(
@@ -119,10 +115,7 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
               return Column(
                 children: [
                   if (speciesSet.isNotEmpty)
-                    _buildSpeciesFilter(context, speciesSet)
-                        .animate()
-                        .fadeIn(duration: 300.ms, delay: 100.ms)
-                        .slideX(begin: -0.2, end: 0, duration: 300.ms),
+                    _buildSpeciesFilter(context, speciesSet),
                   Expanded(
                     child: filteredDocs.isEmpty
                         ? _buildEmptyState(context)
@@ -273,7 +266,7 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
           ),
         ),
       ),
-    ).animate(target: selected ? 1 : 0).scale(duration: 200.ms);
+    );
   }
 
   Widget _buildPetsGrid(
@@ -291,15 +284,7 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
       ),
       itemCount: pets.length,
       itemBuilder: (context, index) {
-        return _buildModernPetCard(context, pets[index], index)
-            .animate()
-            .fadeIn(duration: 400.ms, delay: (index * 50).ms)
-            .scale(
-              begin: Offset(0.8, 0.8),
-              end: Offset(1, 1),
-              duration: 400.ms,
-              delay: (index * 50).ms,
-            );
+        return _buildModernPetCard(context, pets[index], index);
       },
     );
   }
@@ -462,13 +447,11 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
       itemCount: 6,
       itemBuilder: (context, index) {
         return Container(
-              decoration: BoxDecoration(
-                color: context.surfaceSecondary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              ),
-            )
-            .animate(onPlay: (controller) => controller.repeat())
-            .shimmer(duration: 1500.ms, color: context.surfaceTertiary);
+          decoration: BoxDecoration(
+            color: context.surfaceSecondary,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          ),
+        );
       },
     );
   }
@@ -511,24 +494,12 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-                  _searchQuery.isNotEmpty || _selectedSpecies != null
-                      ? Icons.search_off
-                      : Icons.pets_outlined,
-                  size: 80,
-                  color: context.secondaryTextColor.withOpacity(0.5),
-                )
-                .animate(onPlay: (controller) => controller.repeat())
-                .scale(
-                  duration: 2000.ms,
-                  begin: Offset(0.9, 0.9),
-                  end: Offset(1.1, 1.1),
-                )
-                .then()
-                .scale(
-                  duration: 2000.ms,
-                  begin: Offset(1.1, 1.1),
-                  end: Offset(0.9, 0.9),
-                ),
+              _searchQuery.isNotEmpty || _selectedSpecies != null
+                  ? Icons.search_off
+                  : Icons.pets_outlined,
+              size: 80,
+              color: context.secondaryTextColor.withOpacity(0.5),
+            ),
             SizedBox(height: AppTheme.spacing4),
             Text(
               _searchQuery.isNotEmpty || _selectedSpecies != null
@@ -552,26 +523,23 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
             if (_searchQuery.isEmpty && _selectedSpecies == null) ...[
               SizedBox(height: AppTheme.spacing6),
               ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PetFormPage(),
-                        ),
-                      );
-                    },
-                    icon: Icon(Icons.add),
-                    label: Text('Add Your First Pet'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing6,
-                        vertical: AppTheme.spacing4,
-                      ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PetFormPage(),
                     ),
-                  )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 200.ms)
-                  .scale(duration: 400.ms, delay: 200.ms),
+                  );
+                },
+                icon: Icon(Icons.add),
+                label: Text('Add Your First Pet'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacing6,
+                    vertical: AppTheme.spacing4,
+                  ),
+                ),
+              ),
             ],
           ],
         ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../models/chat_models.dart';
@@ -8,7 +7,7 @@ import '../../providers/user_provider.dart';
 import 'chat_room_page.dart';
 import '../../main.dart' show SettingsPage, ProfilePage;
 
-/// Modern, redesigned chat page with clean UI and smooth animations
+/// Clean, professional chat page
 class ModernChatPage extends StatefulWidget {
   const ModernChatPage({super.key});
 
@@ -83,19 +82,16 @@ class _ModernChatPageState extends State<ModernChatPage> {
               ),
               if (userProvider.isPetOwner)
                 Container(
-                      margin: EdgeInsets.only(right: 8),
-                      child: IconButton(
-                        onPressed: () =>
-                            _startNewChat(context, userProvider, chatProvider),
-                        icon: Icon(Icons.add_comment_outlined),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                    )
-                    .animate()
-                    .scale(duration: 300.ms, delay: 200.ms)
-                    .fadeIn(duration: 300.ms),
+                  margin: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: () =>
+                        _startNewChat(context, userProvider, chatProvider),
+                    icon: const Icon(Icons.add_comment_outlined),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                    ),
+                  ),
+                ),
             ],
           ),
           body: RefreshIndicator(
@@ -168,25 +164,23 @@ class _ModernChatPageState extends State<ModernChatPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      context.primaryColor.withOpacity(0.1),
-                      context.primaryColor.withOpacity(0.05),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.medical_services_outlined,
-                  size: 60,
-                  color: context.primaryColor,
-                ),
-              )
-              .animate(onPlay: (controller) => controller.repeat())
-              .shimmer(duration: 2000.ms, delay: 1000.ms),
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  context.primaryColor.withOpacity(0.1),
+                  context.primaryColor.withOpacity(0.05),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.medical_services_outlined,
+              size: 40,
+              color: context.primaryColor,
+            ),
+          ),
           SizedBox(height: AppTheme.spacing6),
           Text(
             'Connect to a Clinic',
@@ -208,31 +202,28 @@ class _ModernChatPageState extends State<ModernChatPage> {
           ),
           SizedBox(height: AppTheme.spacing6),
           ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Go to Settings > Clinic Connection to connect to a clinic',
-                      ),
-                      backgroundColor: context.primaryColor,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                icon: Icon(Icons.add),
-                label: Text('Connect to Clinic'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: context.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacing6,
-                    vertical: AppTheme.spacing4,
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Go to Settings > Clinic Connection to connect to a clinic',
                   ),
+                  backgroundColor: context.primaryColor,
+                  behavior: SnackBarBehavior.floating,
                 ),
-              )
-              .animate()
-              .fadeIn(duration: 400.ms, delay: 200.ms)
-              .scale(duration: 400.ms, delay: 200.ms),
+              );
+            },
+            icon: Icon(Icons.add),
+            label: Text('Connect to Clinic'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: context.primaryColor,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.spacing6,
+                vertical: AppTheme.spacing4,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -292,35 +283,23 @@ class _ModernChatPageState extends State<ModernChatPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      context.primaryColor.withOpacity(0.1),
-                      context.primaryColor.withOpacity(0.05),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.chat_bubble_outline,
-                  size: 60,
-                  color: context.primaryColor,
-                ),
-              )
-              .animate(onPlay: (controller) => controller.repeat())
-              .scale(
-                duration: 2000.ms,
-                begin: Offset(0.9, 0.9),
-                end: Offset(1.1, 1.1),
-              )
-              .then()
-              .scale(
-                duration: 2000.ms,
-                begin: Offset(1.1, 1.1),
-                end: Offset(0.9, 0.9),
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  context.primaryColor.withOpacity(0.1),
+                  context.primaryColor.withOpacity(0.05),
+                ],
               ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.chat_bubble_outline,
+              size: 40,
+              color: context.primaryColor,
+            ),
+          ),
           SizedBox(height: AppTheme.spacing6),
           Text(
             userProvider.isPetOwner
@@ -347,22 +326,19 @@ class _ModernChatPageState extends State<ModernChatPage> {
           if (userProvider.isPetOwner) ...[
             SizedBox(height: AppTheme.spacing6),
             ElevatedButton.icon(
-                  onPressed: () =>
-                      _startNewChat(context, userProvider, chatProvider),
-                  icon: Icon(Icons.add_comment),
-                  label: Text('Start Conversation'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacing6,
-                      vertical: AppTheme.spacing4,
-                    ),
-                  ),
-                )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 200.ms)
-                .scale(duration: 400.ms, delay: 200.ms),
+              onPressed: () =>
+                  _startNewChat(context, userProvider, chatProvider),
+              icon: Icon(Icons.add_comment),
+              label: Text('Start Conversation'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: context.primaryColor,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacing6,
+                  vertical: AppTheme.spacing4,
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -387,190 +363,165 @@ class _ModernChatPageState extends State<ModernChatPage> {
     final color = context.primaryColor;
 
     return Container(
-          decoration: BoxDecoration(
-            color: context.surfaceSecondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(
-              color: hasUnread ? color.withOpacity(0.3) : context.borderLight,
-              width: hasUnread ? 2 : 1,
-            ),
-            boxShadow: hasUnread
-                ? [
-                    BoxShadow(
-                      color: color.withOpacity(0.15),
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ]
-                : [],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              onTap: () => _openChatRoom(context, chatRoom, chatProvider),
-              child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacing4),
-                child: Row(
+      decoration: BoxDecoration(
+        color: context.surfaceSecondary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(
+          color: hasUnread ? color.withOpacity(0.3) : context.borderLight,
+          width: hasUnread ? 2 : 1,
+        ),
+        boxShadow: hasUnread
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.15),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : [],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+          onTap: () => _openChatRoom(context, chatRoom, chatProvider),
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Row(
+              children: [
+                // Avatar with badge
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    // Avatar with badge
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [color, color.withOpacity(0.7)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            userProvider.isPetOwner
-                                ? Icons.medical_services
-                                : Icons.pets,
-                            color: Colors.white,
-                            size: 28,
-                          ),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [color, color.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        if (hasUnread)
-                          Positioned(
-                            right: -4,
-                            top: -4,
-                            child:
-                                Container(
-                                      padding: EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.errorRed,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: context.surfaceSecondary,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      constraints: BoxConstraints(
-                                        minWidth: 20,
-                                        minHeight: 20,
-                                      ),
-                                      child: Text(
-                                        unreadCount > 99
-                                            ? '99+'
-                                            : unreadCount.toString(),
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    )
-                                    .animate(
-                                      onPlay: (controller) =>
-                                          controller.repeat(),
-                                    )
-                                    .scale(
-                                      duration: 1000.ms,
-                                      begin: Offset(1, 1),
-                                      end: Offset(1.1, 1.1),
-                                    )
-                                    .then()
-                                    .scale(
-                                      duration: 1000.ms,
-                                      begin: Offset(1.1, 1.1),
-                                      end: Offset(1, 1),
-                                    ),
-                          ),
-                      ],
-                    ),
-                    SizedBox(width: AppTheme.spacing4),
-                    // Content
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            userProvider.isPetOwner
-                                ? userProvider.connectedClinic?.name ?? 'Clinic'
-                                : chatRoom.petOwnerName,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontWeight: hasUnread
-                                      ? FontWeight.bold
-                                      : FontWeight.w600,
-                                  color: context.textColor,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (chatRoom.topic != null) ...[
-                            SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(Icons.topic, size: 12, color: color),
-                                SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    chatRoom.topic!,
-                                    style: TextStyle(
-                                      color: color,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (chatRoom.lastMessage != null) ...[
-                            SizedBox(height: AppTheme.spacing1),
-                            Text(
-                              _getLastMessagePreview(chatRoom.lastMessage!),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: context.secondaryTextColor,
-                                    fontWeight: hasUnread
-                                        ? FontWeight.w500
-                                        : FontWeight.normal,
-                                  ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              _formatMessageTime(
-                                chatRoom.lastMessage!.timestamp,
-                              ),
-                              style: TextStyle(
-                                color: context.secondaryTextColor.withOpacity(
-                                  0.7,
-                                ),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        userProvider.isPetOwner
+                            ? Icons.medical_services
+                            : Icons.pets,
+                        color: Colors.white,
+                        size: 28,
                       ),
                     ),
-                    SizedBox(width: AppTheme.spacing2),
-                    Icon(
-                      Icons.chevron_right,
-                      color: context.secondaryTextColor,
-                      size: 24,
-                    ),
+                    if (hasUnread)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.errorRed,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: context.surfaceSecondary,
+                              width: 2,
+                            ),
+                          ),
+                          constraints: BoxConstraints(
+                            minWidth: 20,
+                            minHeight: 20,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-              ),
+                SizedBox(width: AppTheme.spacing4),
+                // Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userProvider.isPetOwner
+                            ? userProvider.connectedClinic?.name ?? 'Clinic'
+                            : chatRoom.petOwnerName,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: hasUnread
+                                  ? FontWeight.bold
+                                  : FontWeight.w600,
+                              color: context.textColor,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (chatRoom.topic != null) ...[
+                        SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.topic, size: 12, color: color),
+                            SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                chatRoom.topic!,
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (chatRoom.lastMessage != null) ...[
+                        SizedBox(height: AppTheme.spacing1),
+                        Text(
+                          _getLastMessagePreview(chatRoom.lastMessage!),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: context.secondaryTextColor,
+                                fontWeight: hasUnread
+                                    ? FontWeight.w500
+                                    : FontWeight.normal,
+                              ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          _formatMessageTime(chatRoom.lastMessage!.timestamp),
+                          style: TextStyle(
+                            color: context.secondaryTextColor.withOpacity(0.7),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                SizedBox(width: AppTheme.spacing2),
+                Icon(
+                  Icons.chevron_right,
+                  color: context.secondaryTextColor,
+                  size: 24,
+                ),
+              ],
             ),
           ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms, delay: delay.ms)
-        .slideX(begin: 0.2, end: 0, duration: 300.ms, delay: delay.ms);
+        ),
+      ),
+    );
   }
 
   String _getLastMessagePreview(ChatMessage message) {

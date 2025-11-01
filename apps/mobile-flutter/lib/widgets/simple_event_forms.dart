@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
+import 'modern_modals.dart';
 
 class SimpleAddEventDialog extends StatelessWidget {
   final DateTime selectedDate;
@@ -188,471 +187,68 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.95,
-        constraints: const BoxConstraints(maxWidth: 800, minWidth: 500),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header with aligned close button
-                  Row(
-                    children: [
-                      Icon(Icons.event, size: 18, color: AppTheme.primaryBlue),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.existingEvent == null
-                              ? 'Add Appointment'
-                              : 'Edit Appointment',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryBlue,
-                              ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Title field
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: TextFormField(
-                      controller: _titleController,
-                      decoration: InputDecoration(
-                        labelText: 'Title *',
-                        hintText: 'Vet visit, grooming, checkup',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.primaryBlue.withValues(alpha: 0.05),
-                        prefixIcon: const Icon(
-                          Icons.title,
-                          color: AppTheme.primaryBlue,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter appointment title';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Pet selection for appointment
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(FirebaseAuth.instance.currentUser?.uid)
-                          .collection('pets')
-                          .orderBy('order')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            child: const Text('Loading pets...'),
-                          );
-                        }
-
-                        final pets = snapshot.data!.docs;
-                        if (pets.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            child: const Text(
-                              'No pets found. Add a pet first.',
-                            ),
-                          );
-                        }
-
-                        return DropdownButtonFormField<String>(
-                          initialValue: _selectedPetId,
-                          decoration: InputDecoration(
-                            labelText: 'Pet *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: AppTheme.primaryBlue.withValues(
-                              alpha: 0.05,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.pets,
-                              color: AppTheme.primaryBlue,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                          ),
-                          items: pets.map((doc) {
-                            final pet = doc.data();
-                            return DropdownMenuItem<String>(
-                              value: doc.id,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 12,
-                                    backgroundColor: AppTheme.primaryBlue,
-                                    child: Text(
-                                      (pet['name'] ?? 'P')[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(pet['name'] ?? 'Unknown'),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a pet';
-                            }
-                            return null;
-                          },
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedPetId = value;
-                            });
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Schedule Section
-                  Text(
-                    'Schedule',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Date and Time
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _selectDateTime,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.05),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.schedule,
-                              color: AppTheme.primaryBlue,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Date & Time',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: AppTheme.primaryBlue,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    DateFormat(
-                                      'MMM dd, yyyy • h:mm a',
-                                    ).format(_selectedDateTime),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(fontWeight: FontWeight.w500),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Details Section
-                  Text(
-                    'Details',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Location field
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: TextFormField(
-                      controller: _vetNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Location (Optional)',
-                        hintText: 'Downtown Vet, Grooming Salon',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.primaryBlue.withValues(alpha: 0.05),
-                        prefixIcon: const Icon(
-                          Icons.location_on,
-                          color: AppTheme.primaryBlue,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Notes field
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: TextFormField(
-                      controller: _locationController,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        labelText: 'Notes (Optional)',
-                        hintText:
-                            'Bring vaccination records, special instructions',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.primaryBlue.withValues(alpha: 0.05),
-                        prefixIcon: const Icon(
-                          Icons.notes,
-                          color: AppTheme.primaryBlue,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Action buttons
-                  if (widget.existingEvent != null) ...[
-                    // Delete and Save buttons for editing
-                    Row(
-                      children: [
-                        // Delete button (icon only)
-                        SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: OutlinedButton(
-                            onPressed: _isLoading ? null : _deleteAppointment,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.errorRed,
-                              side: BorderSide(
-                                color: AppTheme.errorRed,
-                                width: 1.5,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: EdgeInsets.zero,
-                            ),
-                            child: const Icon(Icons.delete, size: 24),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Save button
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryBlue.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: SizedBox(
-                              height: 56,
-                              child: ElevatedButton.icon(
-                                onPressed: _isLoading ? null : _saveAppointment,
-                                icon: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                    : const Icon(Icons.save, size: 20),
-                                label: const Text(
-                                  'Update',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryBlue,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    // Save button for new appointments
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: SizedBox(
-                        height: 56,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _saveAppointment,
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.save, size: 20),
-                          label: const Text(
-                            'Save Appointment',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBlue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+    return ModernBottomSheet(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ModernModalHeader(
+              title: widget.existingEvent == null
+                  ? 'Add Appointment'
+                  : 'Edit Appointment',
+              icon: Icons.event_outlined,
+              iconColor: const Color(0xFF3B82F6),
             ),
-          ),
+            const SizedBox(height: 24),
+            ModernModalTextField(
+              controller: _titleController,
+              label: 'Title',
+              hint: 'Vet visit, grooming, checkup',
+              icon: Icons.calendar_today,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter appointment title';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              controller: _vetNameController,
+              label: 'Vet Name (Optional)',
+              hint: 'Dr. Smith',
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              controller: _locationController,
+              label: 'Location (Optional)',
+              hint: 'Pet Clinic',
+              icon: Icons.location_on_outlined,
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              readOnly: true,
+              label: 'Date & Time',
+              hint: DateFormat(
+                'MMM dd, yyyy • h:mm a',
+              ).format(_selectedDateTime),
+              icon: Icons.event_outlined,
+              onTap: _selectDateTime,
+            ),
+            const SizedBox(height: 24),
+            ModernModalButton(
+              text: widget.existingEvent == null
+                  ? 'Add Appointment'
+                  : 'Update Appointment',
+              isLoading: _isLoading,
+              onPressed: _saveAppointment,
+              color: const Color(0xFF3B82F6),
+              icon: widget.existingEvent == null ? Icons.add : Icons.check,
+            ),
+          ],
         ),
       ),
     );
@@ -693,8 +289,6 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
 
     try {
       final eventProvider = context.read<EventProvider>();
-      print('DEBUG: Saving appointment...');
-      print('DEBUG: Current user ID: ${eventProvider.currentUserId}');
 
       final appointment = AppointmentEvent(
         id: widget.existingEvent?.id ?? CalendarEvent.generateId(),
@@ -716,23 +310,16 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
         contactInfo: null,
       );
 
-      print('DEBUG: Created appointment object: ${appointment.toJson()}');
-
       if (widget.existingEvent == null) {
-        print('DEBUG: Creating new event...');
-        final result = await eventProvider.createEvent(appointment);
-        print('DEBUG: Create result: $result');
+        await eventProvider.createEvent(appointment);
       } else {
-        print('DEBUG: Updating existing event...');
         await eventProvider.updateEvent(appointment.id, appointment);
       }
 
       if (mounted) {
-        print('DEBUG: Event saved successfully, closing dialog');
         Navigator.pop(context, true);
       }
     } catch (e) {
-      print('DEBUG: Error saving appointment: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -741,62 +328,6 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _deleteAppointment() async {
-    // Show confirmation dialog
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Appointment'),
-        content: Text(
-          'Are you sure you want to delete "${_titleController.text}"?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldDelete == true && widget.existingEvent != null) {
-      setState(() => _isLoading = true);
-
-      try {
-        final eventProvider = context.read<EventProvider>();
-        await eventProvider.deleteEvent(widget.existingEvent!.id);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Appointment deleted successfully!'),
-              backgroundColor: AppTheme.errorRed,
-            ),
-          );
-          Navigator.of(context).pop(true);
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to delete appointment: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
       }
     }
   }
@@ -826,9 +357,8 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
   late DateTime _startDate;
   late TimeOfDay _startTime;
   String? _selectedPetId;
-  // Recurrence controls
-  String _recurrencePattern = 'daily'; // 'daily' | 'weekly' | 'monthly'
-  int _recurrenceInterval = 1; // every N units
+  String _recurrencePattern = 'daily';
+  int _recurrenceInterval = 1;
   DateTime? _endDate;
   bool _isLoading = false;
 
@@ -864,681 +394,103 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.95,
-        constraints: const BoxConstraints(maxWidth: 800, minWidth: 500),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header with aligned close button
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.medication,
-                        size: 18,
-                        color: AppTheme.primaryGreen,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.existingEvent == null
-                              ? 'Add Medication'
-                              : 'Edit Medication',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryGreen,
-                              ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Medication name
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Name *',
-                        hintText: 'e.g., Heartworm pill, Flea drops',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.primaryGreen.withValues(
-                          alpha: 0.05,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.medical_services,
-                          color: AppTheme.primaryGreen,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter medication name';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Dosage
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: TextFormField(
-                      controller: _dosageController,
-                      decoration: InputDecoration(
-                        labelText: 'Amount *',
-                        hintText: '1 tablet, 5mg, 2ml',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.primaryGreen.withValues(
-                          alpha: 0.05,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.local_pharmacy,
-                          color: AppTheme.primaryGreen,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter dosage';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Instructions field
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: TextFormField(
-                      controller: _instructionsController,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        labelText: 'Notes (Optional)',
-                        hintText: 'With food, morning only, etc.',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.primaryGreen.withValues(
-                          alpha: 0.05,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.info_outline,
-                          color: AppTheme.primaryGreen,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Pet selection for medication
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(FirebaseAuth.instance.currentUser?.uid)
-                          .collection('pets')
-                          .orderBy('order')
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            child: const Text('Loading pets...'),
-                          );
-                        }
-
-                        final pets = snapshot.data!.docs;
-                        if (pets.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.all(16),
-                            child: const Text(
-                              'No pets found. Add a pet first.',
-                            ),
-                          );
-                        }
-
-                        return DropdownButtonFormField<String>(
-                          initialValue: _selectedPetId,
-                          decoration: InputDecoration(
-                            labelText: 'Pet *',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: AppTheme.primaryGreen.withValues(
-                              alpha: 0.05,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.pets,
-                              color: AppTheme.primaryGreen,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
-                          ),
-                          items: pets.map((doc) {
-                            final pet = doc.data();
-                            return DropdownMenuItem<String>(
-                              value: doc.id,
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 12,
-                                    backgroundColor: AppTheme.primaryGreen,
-                                    child: Text(
-                                      (pet['name'] ?? 'P')[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(pet['name'] ?? 'Unknown'),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a pet';
-                            }
-                            return null;
-                          },
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedPetId = value;
-                            });
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Schedule Section
-                  Text(
-                    'Schedule',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Start date and time
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _selectStartDateTime,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.05),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.schedule,
-                              color: AppTheme.primaryBlue,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Start Time',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: AppTheme.primaryBlue,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${DateFormat('MMM dd, yyyy').format(_startDate)} at ${_startTime.format(context)}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(fontWeight: FontWeight.w500),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Recurrence pattern with enhanced styling
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppTheme.primaryBlue.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                          ),
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _recurrencePattern,
-                            decoration: InputDecoration(
-                              labelText: 'Frequency *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: AppTheme.primaryBlue.withValues(
-                                alpha: 0.05,
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.repeat,
-                                color: AppTheme.primaryBlue,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'daily',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.today,
-                                      size: 18,
-                                      color: AppTheme.primaryBlue,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text('Daily'),
-                                  ],
-                                ),
-                              ),
-                              DropdownMenuItem(
-                                value: 'weekly',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.date_range,
-                                      size: 18,
-                                      color: AppTheme.primaryBlue,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text('Weekly'),
-                                  ],
-                                ),
-                              ),
-                              DropdownMenuItem(
-                                value: 'monthly',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_month,
-                                      size: 18,
-                                      color: AppTheme.primaryBlue,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text('Monthly'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _recurrencePattern = value);
-                            },
-                          ),
-                        ),
-                      ),
-                      if (_recurrencePattern != 'daily') ...[
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 120,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppTheme.primaryBlue.withValues(
-                                  alpha: 0.3,
-                                ),
-                              ),
-                            ),
-                            child: TextFormField(
-                              initialValue: _recurrenceInterval.toString(),
-                              decoration: InputDecoration(
-                                labelText: 'Every',
-                                hintText: '1',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                filled: true,
-                                fillColor: AppTheme.primaryBlue.withValues(
-                                  alpha: 0.05,
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.numbers,
-                                  color: AppTheme.primaryBlue,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 16,
-                                ),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                final parsed = int.tryParse(value ?? '');
-                                if (parsed == null || parsed <= 0) {
-                                  return 'Enter a positive number';
-                                }
-                                return null;
-                              },
-                              onChanged: (value) {
-                                final parsed = int.tryParse(value);
-                                if (parsed != null && parsed > 0) {
-                                  setState(() => _recurrenceInterval = parsed);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // End date selection
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _selectEndDate,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          color: AppTheme.primaryGreen.withValues(alpha: 0.05),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.event_available,
-                              color: AppTheme.primaryGreen,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'End Date',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelMedium
-                                        ?.copyWith(
-                                          color: AppTheme.primaryGreen,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _endDate == null
-                                        ? 'When to stop'
-                                        : DateFormat(
-                                            'MMM dd, yyyy',
-                                          ).format(_endDate!),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          color: _endDate == null
-                                              ? AppTheme.textSecondary
-                                              : null,
-                                        ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_drop_down,
-                              color: AppTheme.primaryGreen,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Preview section
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.grey.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.preview,
-                              size: 18,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Preview',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _buildPreviewText(),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Enhanced save button
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryGreen.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _saveMedication,
-                        icon: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              )
-                            : const Icon(Icons.save, size: 20),
-                        label: Text(
-                          widget.existingEvent == null
-                              ? 'Create Schedule'
-                              : 'Update Schedule',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    return ModernBottomSheet(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ModernModalHeader(
+              title: widget.existingEvent == null
+                  ? 'Add Medication'
+                  : 'Edit Medication',
+              icon: Icons.medication,
+              iconColor: const Color(0xFF10B981),
             ),
-          ),
+            const SizedBox(height: 24),
+            ModernModalTextField(
+              controller: _nameController,
+              label: 'Medication Name',
+              hint: 'Heartworm pill, Flea drops',
+              icon: Icons.medical_services,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter medication name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              controller: _dosageController,
+              label: 'Dosage',
+              hint: '1 tablet, 5mg, 2ml',
+              icon: Icons.local_pharmacy,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter dosage';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              controller: _instructionsController,
+              label: 'Instructions (Optional)',
+              hint: 'With food, morning only, etc.',
+              icon: Icons.info_outline,
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              readOnly: true,
+              label: 'Start Date & Time',
+              hint:
+                  '${DateFormat('MMM dd, yyyy').format(_startDate)} • ${_startTime.format(context)}',
+              icon: Icons.calendar_today,
+              onTap: _selectStartDateTime,
+            ),
+            const SizedBox(height: 16),
+            ModernModalDropdown<String>(
+              label: 'Frequency',
+              value: _recurrencePattern,
+              icon: Icons.repeat,
+              items: const [
+                DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _recurrencePattern = value);
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              readOnly: true,
+              label: 'End Date',
+              hint: _endDate != null
+                  ? DateFormat('MMM dd, yyyy').format(_endDate!)
+                  : 'Select end date',
+              icon: Icons.event,
+              onTap: _selectEndDate,
+            ),
+            const SizedBox(height: 24),
+            ModernModalButton(
+              text: widget.existingEvent == null
+                  ? 'Create Schedule'
+                  : 'Update Schedule',
+              isLoading: _isLoading,
+              onPressed: _saveMedication,
+              color: const Color(0xFF10B981),
+              icon: widget.existingEvent == null ? Icons.add : Icons.check,
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  String _buildPreviewText() {
-    if (_endDate == null) return 'Select an end date to see schedule preview';
-
-    final startDateTime = DateTime(
-      _startDate.year,
-      _startDate.month,
-      _startDate.day,
-      _startTime.hour,
-      _startTime.minute,
-    );
-    final occurrences = _generateOccurrences(
-      startDateTime,
-      _endDate!,
-      _recurrencePattern,
-      _recurrenceInterval,
-    );
-    final String intervalText = _recurrencePattern == 'daily'
-        ? 'daily'
-        : _recurrencePattern == 'weekly'
-        ? (_recurrenceInterval == 1
-              ? 'weekly'
-              : 'every $_recurrenceInterval weeks')
-        : (_recurrenceInterval == 1
-              ? 'monthly'
-              : 'every $_recurrenceInterval months');
-
-    return '${occurrences.length} reminders $intervalText at ${_startTime.format(context)} from ${DateFormat('MMM dd').format(_startDate)} to ${DateFormat('MMM dd').format(_endDate!)}.';
   }
 
   Future<void> _selectStartDateTime() async {
@@ -1586,9 +538,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
 
     try {
       final eventProvider = context.read<EventProvider>();
-      print('DEBUG: Saving medication...');
 
-      // Build a human-readable frequency string
       String frequencyString = 'Every ';
       frequencyString +=
           '$_recurrenceInterval ${_recurrencePattern == 'daily'
@@ -1597,7 +547,6 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
               ? (_recurrenceInterval == 1 ? 'week' : 'weeks')
               : (_recurrenceInterval == 1 ? 'month' : 'months')}';
 
-      // Generate all occurrences between start and end
       final DateTime effectiveEnd = _endDate ?? _startDate;
       final DateTime startDateTime = DateTime(
         _startDate.year,
@@ -1613,7 +562,6 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
         _recurrenceInterval,
       );
 
-      // Create each occurrence as a separate event
       final String seriesId = CalendarEvent.generateId();
       for (final dt in occurrences) {
         final medication = MedicationEvent(
@@ -1649,7 +597,6 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      print('DEBUG: Error saving medication: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1691,7 +638,6 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
       } else if (pattern == 'weekly') {
         current = current.add(Duration(days: 7 * interval));
       } else {
-        // monthly
         int y = current.year;
         int m = current.month + interval;
         while (m > 12) {
@@ -1728,7 +674,9 @@ class SimpleNoteForm extends StatefulWidget {
 class _SimpleNoteFormState extends State<SimpleNoteForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
-  late final TextEditingController _contentController;
+  late final TextEditingController _noteController;
+  late DateTime _selectedDateTime;
+  String? _selectedPetId;
   bool _isLoading = false;
 
   @override
@@ -1737,119 +685,110 @@ class _SimpleNoteFormState extends State<SimpleNoteForm> {
     _titleController = TextEditingController(
       text: widget.existingEvent?.title ?? '',
     );
-    _contentController = TextEditingController(
+    _noteController = TextEditingController(
       text: widget.existingEvent?.description ?? '',
     );
+    _selectedDateTime = widget.existingEvent?.dateTime ?? widget.selectedDate;
+    _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _contentController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.note, color: AppTheme.accentCoral),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.existingEvent == null ? 'Quick Note' : 'Edit Note',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Note title
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Note Title *',
-                  hintText: 'e.g., Grooming reminder',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter note title';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Note content
-              TextFormField(
-                controller: _contentController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Details (Optional)',
-                  hintText: 'Additional notes...',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Save button
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveNote,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentCoral,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.radiusMedium,
-                      ),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          widget.existingEvent == null
-                              ? 'Save Note'
-                              : 'Update Note',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
+    return ModernBottomSheet(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ModernModalHeader(
+              title: widget.existingEvent == null ? 'Add Note' : 'Edit Note',
+              icon: Icons.note_outlined,
+              iconColor: const Color(0xFFF59E0B),
+            ),
+            const SizedBox(height: 24),
+            ModernModalTextField(
+              controller: _titleController,
+              label: 'Title',
+              hint: 'Reminder, observation, etc.',
+              icon: Icons.title,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a title';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              controller: _noteController,
+              label: 'Note',
+              hint: 'Add details...',
+              icon: Icons.note_outlined,
+              maxLines: 4,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a note';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            ModernModalTextField(
+              readOnly: true,
+              label: 'Date & Time',
+              hint: DateFormat(
+                'MMM dd, yyyy • h:mm a',
+              ).format(_selectedDateTime),
+              icon: Icons.calendar_today,
+              onTap: _selectDateTime,
+            ),
+            const SizedBox(height: 24),
+            ModernModalButton(
+              text: widget.existingEvent == null ? 'Add Note' : 'Update Note',
+              isLoading: _isLoading,
+              onPressed: _saveNote,
+              color: const Color(0xFFF59E0B),
+              icon: widget.existingEvent == null ? Icons.add : Icons.check,
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _selectDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateTime,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (date != null && mounted) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
+      );
+
+      if (time != null && mounted) {
+        setState(() {
+          _selectedDateTime = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute,
+          );
+        });
+      }
+    }
   }
 
   Future<void> _saveNote() async {
@@ -1859,34 +798,22 @@ class _SimpleNoteFormState extends State<SimpleNoteForm> {
 
     try {
       final eventProvider = context.read<EventProvider>();
-      print('DEBUG: Saving note...');
 
       final note = NoteEvent(
         id: widget.existingEvent?.id ?? CalendarEvent.generateId(),
         title: _titleController.text.trim(),
-        description: _contentController.text.trim().isEmpty
-            ? ''
-            : _contentController.text.trim(),
-        dateTime: widget.existingEvent?.dateTime ?? widget.selectedDate,
-        petId: widget.petId,
+        description: _noteController.text.trim(),
+        dateTime: _selectedDateTime,
+        petId: _selectedPetId,
         userId: eventProvider.currentUserId ?? '',
         createdAt: widget.existingEvent?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
-        isCompleted: widget.existingEvent?.isCompleted ?? false,
-        priority:
-            widget.existingEvent?.priority ?? 3, // 1=high, 2=medium, 3=low
-        category: widget.existingEvent?.category,
-        reminderDateTime: widget.existingEvent?.reminderDateTime,
+        tags: widget.existingEvent?.tags ?? [],
       );
 
-      print('DEBUG: Created note object: ${note.toJson()}');
-
       if (widget.existingEvent == null) {
-        print('DEBUG: Creating new note...');
-        final result = await eventProvider.createEvent(note);
-        print('DEBUG: Create result: $result');
+        await eventProvider.createEvent(note);
       } else {
-        print('DEBUG: Updating existing note...');
         await eventProvider.updateEvent(note.id, note);
       }
 
@@ -1894,7 +821,6 @@ class _SimpleNoteFormState extends State<SimpleNoteForm> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      print('DEBUG: Error saving note: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,

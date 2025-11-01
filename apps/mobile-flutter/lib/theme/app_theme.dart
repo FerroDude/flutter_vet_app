@@ -5,27 +5,22 @@ import 'package:google_fonts/google_fonts.dart';
 /// App Theme Configuration
 /// This design system can be replicated in React for consistency across platforms
 class AppTheme {
-  // Primary Brand Colors (Modern Nature-Inspired Palette)
-  static const Color primaryNavy = Color(
-    0xFF1B365D,
-  ); // Deep forest navy - sophisticated base
-  static const Color primaryBlue = Color(
-    0xFF4A90B2,
-  ); // Ocean blue - friendly primary
-  static const Color primaryGreen = Color(
-    0xFF7CB342,
-  ); // Sage green - natural accent
-  static const Color accentCoral = Color(
-    0xFFFF7F50,
-  ); // Warm coral - energetic highlights
-  static const Color accentAmber = Color(
-    0xFFFFC107,
-  ); // Golden amber - cheerful attention
+  // Primary Brand Colors (Ocean-Inspired Palette)
+  static const Color primaryDarkBlue = Color(
+    0xFF084C7B,
+  ); // Strongest - Main brand color
+  static const Color primaryBlue = Color(0xFF1172B0); // Secondary actions
+  static const Color primaryTeal = Color(0xFF309CB0); // Appointments
+  static const Color primaryMediumTeal = Color(0xFF57B4A4); // Medications
+  static const Color primaryLightGreen = Color(
+    0xFF85E7A9,
+  ); // Health logs, success states
 
-  // Secondary colors from the new palette
-  static const Color secondaryGreen = primaryGreen; // Natural green
-  static const Color secondaryOrange = accentCoral; // Warm coral
-  static const Color secondaryAmber = accentAmber; // Golden amber
+  // Legacy aliases for compatibility
+  static const Color primaryNavy = primaryDarkBlue;
+  static const Color primaryGreen = primaryMediumTeal;
+  static const Color accentCoral = primaryLightGreen;
+  static const Color accentAmber = Color(0xFFFFC107); // Keep amber for warnings
 
   // Neutral Colors - Proper gray scale for better visual hierarchy
   static const Color neutralWhite = Color(0xFFFFFFFF);
@@ -301,9 +296,9 @@ class AppTheme {
   // Bottom Navigation Theme
   static BottomNavigationBarThemeData get bottomNavTheme =>
       BottomNavigationBarThemeData(
-        backgroundColor: backgroundPrimary,
-        selectedItemColor: primaryBlue,
-        unselectedItemColor: textTertiary,
+        backgroundColor: primaryDarkBlue, // Dark blue background
+        selectedItemColor: primaryTeal, // Teal (#309CB0) for selected
+        unselectedItemColor: Colors.white, // White for unselected
         type: BottomNavigationBarType.fixed,
         elevation: 8,
         selectedLabelStyle: labelSmall.copyWith(fontWeight: FontWeight.w600),
@@ -312,18 +307,18 @@ class AppTheme {
 
   // NavigationBar (Material 3) Theme for consistency
   static NavigationBarThemeData get navBarTheme => NavigationBarThemeData(
-    backgroundColor: backgroundPrimary,
-    indicatorColor: primaryBlue.withOpacity(0.12),
+    backgroundColor: primaryDarkBlue, // Dark blue background
+    indicatorColor: primaryTeal.withOpacity(0.2),
     labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
       final isSelected = states.contains(WidgetState.selected);
       return (isSelected
               ? labelSmall.copyWith(fontWeight: FontWeight.w600)
               : labelSmall)
-          .copyWith(color: isSelected ? primaryBlue : textTertiary);
+          .copyWith(color: isSelected ? primaryTeal : Colors.white);
     }),
     iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
       final isSelected = states.contains(WidgetState.selected);
-      return IconThemeData(color: isSelected ? primaryBlue : textTertiary);
+      return IconThemeData(color: isSelected ? primaryTeal : Colors.white);
     }),
   );
 

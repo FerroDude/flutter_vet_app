@@ -1,7 +1,6 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -13,10 +12,11 @@ import '../../models/symptom_models.dart';
 import '../../providers/event_provider.dart';
 import '../../widgets/simple_event_forms.dart';
 import '../../widgets/calendar_view.dart';
+import '../../widgets/modern_modals.dart';
 import '../../services/pet_service.dart';
 import '../add_symptom_sheet.dart';
 
-/// Modern, redesigned calendar page with clean UI and smooth animations
+/// Clean, professional calendar page
 class ModernCalendarPage extends StatefulWidget {
   const ModernCalendarPage({super.key});
 
@@ -135,26 +135,23 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
         foregroundColor: Colors.white,
         elevation: 0,
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(64),
           child: Container(
             color: isDark ? context.surfaceSecondary : Colors.white,
-            child:
-                TabBar(
-                      controller: _tabController,
-                      labelColor: context.primaryColor,
-                      unselectedLabelColor: context.secondaryTextColor,
-                      indicatorColor: context.primaryColor,
-                      indicatorWeight: 3,
-                      tabs: const [
-                        Tab(icon: Icon(Icons.calendar_month, size: 28)),
-                        Tab(icon: Icon(Icons.event, size: 28)),
-                        Tab(icon: Icon(Icons.medication, size: 28)),
-                        Tab(icon: Icon(Icons.healing, size: 28)),
-                      ],
-                    )
-                    .animate()
-                    .fadeIn(duration: 300.ms)
-                    .slideY(begin: -0.1, end: 0, duration: 300.ms),
+            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing2),
+            child: TabBar(
+              controller: _tabController,
+              labelColor: context.primaryColor,
+              unselectedLabelColor: context.secondaryTextColor,
+              indicatorColor: context.primaryColor,
+              indicatorWeight: 3,
+              tabs: const [
+                Tab(icon: Icon(Icons.calendar_month, size: 32)),
+                Tab(icon: Icon(Icons.event, size: 32)),
+                Tab(icon: Icon(Icons.medication, size: 32)),
+                Tab(icon: Icon(Icons.healing, size: 32)),
+              ],
+            ),
           ),
         ),
       ),
@@ -247,95 +244,63 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
 
     return Column(
       children: [
-        // Modern Calendar Widget
+        // Clean Calendar Widget
         Container(
-              margin: EdgeInsets.all(AppTheme.spacing4),
-              decoration: BoxDecoration(
-                color: context.surfaceSecondary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                border: Border.all(color: context.borderLight, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: context.primaryColor.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: CalendarView(
-                events: merged,
-                onDaySelected: (selectedDay, events) {
-                  setState(() => _selectedDay = selectedDay);
-                  _onDaySelected(selectedDay, events);
-                  _loadSymptomsByDay();
-                },
-                selectedDay: _selectedDay,
-                calendarFormat: _calendarFormat,
-                onFormatChanged: _onFormatChanged,
-              ),
-            )
-            .animate()
-            .fadeIn(duration: 400.ms)
-            .scale(
-              begin: Offset(0.95, 0.95),
-              end: Offset(1, 1),
-              duration: 400.ms,
-            ),
+          margin: EdgeInsets.all(AppTheme.spacing4),
+          decoration: BoxDecoration(
+            color: context.surfaceSecondary,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: CalendarView(
+            events: merged,
+            onDaySelected: (selectedDay, events) {
+              setState(() => _selectedDay = selectedDay);
+              _onDaySelected(selectedDay, events);
+              _loadSymptomsByDay();
+            },
+            selectedDay: _selectedDay,
+            calendarFormat: _calendarFormat,
+            onFormatChanged: _onFormatChanged,
+          ),
+        ),
 
-        // Day Header
-        Container(
-              padding: EdgeInsets.all(AppTheme.spacing4),
-              margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    context.primaryColor.withOpacity(0.1),
-                    context.primaryColor.withOpacity(0.05),
-                  ],
+        // Simple Day Header
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+          child: Row(
+            children: [
+              Text(
+                DateFormat('EEEE, MMMM d').format(_selectedDay),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: context.textColor,
                 ),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.event_note, color: context.primaryColor, size: 20),
-                  SizedBox(width: AppTheme.spacing2),
-                  Text(
-                    DateFormat('EEEE, MMMM d').format(_selectedDay),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+              const Spacer(),
+              if (selectedEvents.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: context.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${selectedEvents.length}',
+                    style: TextStyle(
                       color: context.primaryColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
-                  Spacer(),
-                  if (selectedEvents.isNotEmpty)
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing2,
-                        vertical: AppTheme.spacing1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: context.primaryColor,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusSmall,
-                        ),
-                      ),
-                      child: Text(
-                        '${selectedEvents.length}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            )
-            .animate()
-            .fadeIn(duration: 300.ms, delay: 100.ms)
-            .slideX(begin: -0.1, end: 0, duration: 300.ms),
+                ),
+            ],
+          ),
+        ),
 
-        SizedBox(height: AppTheme.spacing2),
+        SizedBox(height: AppTheme.spacing3),
 
         // Events for Selected Day
         Expanded(
@@ -357,6 +322,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     );
   }
 
+  /// Apple-style event card with colored accent bar
   Widget _buildModernEventCard({
     required BuildContext context,
     required CalendarEvent event,
@@ -364,132 +330,177 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
   }) {
     Color color;
     IconData icon;
+    String? subtitle;
 
     if (event is AppointmentEvent) {
-      color = context.primaryColor;
-      icon = Icons.medical_services;
+      color = const Color(0xFF309CB0); // Teal
+      icon = Icons.event_outlined;
+      subtitle = event.location;
     } else if (event is MedicationEvent) {
-      color = AppTheme.primaryGreen;
-      icon = Icons.medication;
+      color = const Color(0xFF57B4A4); // Medium teal
+      icon = Icons.medication_outlined;
+      subtitle = event.dosage;
     } else {
-      color = AppTheme.accentCoral;
-      icon = Icons.note;
+      color = const Color(0xFF85E7A9); // Light green
+      icon = Icons.healing_outlined;
     }
 
     return Container(
-          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
-          decoration: BoxDecoration(
-            color: context.surfaceSecondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: color.withOpacity(0.2), width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.1),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              onTap: () => _handleEventTap(event),
-              child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacing4),
-                child: Row(
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _handleEventTap(event),
+          child: Row(
+            children: [
+              // Prominent colored left border
+              Container(
+                width: 6,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                ),
+              ),
+              // Time display
+              Container(
+                width: 70,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [color, color.withOpacity(0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 24),
-                    ),
-                    SizedBox(width: AppTheme.spacing4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            event.title,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: context.textColor,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: AppTheme.spacing1),
-                          Row(
-                            children: [
-                              Icon(Icons.schedule, size: 14, color: color),
-                              SizedBox(width: 4),
-                              Text(
-                                DateFormat('h:mm a').format(event.dateTime),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.secondaryTextColor,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    Text(
+                      DateFormat('h:mm').format(event.dateTime),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: context.textColor,
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: context.secondaryTextColor,
+                    Text(
+                      DateFormat('a').format(event.dateTime),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.secondaryTextColor,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
+              // Event details
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 8,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(icon, size: 16, color: color),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              event.title,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: context.textColor,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: context.secondaryTextColor,
+                                fontSize: 12,
+                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              // Chevron
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Icon(
+                  Icons.chevron_right,
+                  color: context.secondaryTextColor.withOpacity(0.3),
+                  size: 18,
+                ),
+              ),
+            ],
           ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms, delay: delay.ms)
-        .slideX(begin: 0.2, end: 0, duration: 300.ms, delay: delay.ms);
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyDayState(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: context.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
                 Icons.event_available,
-                size: 80,
-                color: context.secondaryTextColor.withOpacity(0.5),
-              )
-              .animate(onPlay: (controller) => controller.repeat())
-              .shimmer(duration: 2000.ms, delay: 1000.ms),
-          SizedBox(height: AppTheme.spacing4),
-          Text(
-            'No events this day',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: context.textColor,
+                size: 40,
+                color: context.primaryColor,
+              ),
             ),
-          ),
-          SizedBox(height: AppTheme.spacing2),
-          Text(
-            'Tap the + button to add an event',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              'No events this day',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: context.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap the + button to add an event',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.secondaryTextColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -564,98 +575,107 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     int index,
   ) {
     return Container(
-          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
-          decoration: BoxDecoration(
-            color: context.surfaceSecondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(
-              color: context.primaryColor.withOpacity(0.2),
-              width: 1,
-            ),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              onTap: () => _editAppointment(appointment),
-              child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacing4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: context.primaryColor,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                      ),
-                      child: Icon(
-                        _getAppointmentIcon(
-                          appointment.appointmentType ?? 'checkup',
-                        ),
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: AppTheme.spacing4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            appointment.title,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: context.textColor,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: AppTheme.spacing1),
-                          Text(
-                            DateFormat('h:mm a').format(appointment.dateTime),
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: context.secondaryTextColor),
-                          ),
-                          if (appointment.location != null) ...[
-                            SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 12,
-                                  color: context.primaryColor,
-                                ),
-                                SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    appointment.location!,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: context.secondaryTextColor,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _editAppointment(appointment),
+          child: Row(
+            children: [
+              // Prominent colored left border
+              Container(
+                width: 6,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF309CB0), // Teal
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        appointment.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('h:mm a').format(appointment.dateTime),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (appointment.location != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 14,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                appointment.location!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms, delay: (index * 50).ms)
-        .slideX(begin: 0.2, end: 0, duration: 300.ms);
+        ),
+      ),
+    );
   }
 
   Widget _buildMedicationsList(
@@ -759,182 +779,30 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     final isExpanded = _expandedSeries.contains(key);
 
     return Container(
-          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryGreen.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(
-              color: AppTheme.primaryGreen.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                  onTap: () {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedSeries.remove(key);
-                      } else {
-                        _expandedSeries.add(key);
-                      }
-                    });
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.all(AppTheme.spacing4),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMedium,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.medication,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        SizedBox(width: AppTheme.spacing4),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                first.medicationName,
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: context.textColor,
-                                    ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: AppTheme.spacing1),
-                              Text(
-                                '${first.dosage} • ${first.frequency}',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.secondaryTextColor,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: AppTheme.spacing2,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusSmall,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.layers,
-                                size: 14,
-                                color: AppTheme.primaryGreen,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                '${items.length}',
-                                style: TextStyle(
-                                  color: AppTheme.primaryGreen,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: AppTheme.spacing2),
-                        Icon(
-                          isExpanded ? Icons.expand_less : Icons.expand_more,
-                          color: AppTheme.primaryGreen,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (isExpanded)
-                Container(
-                  padding: EdgeInsets.fromLTRB(
-                    AppTheme.spacing4,
-                    0,
-                    AppTheme.spacing4,
-                    AppTheme.spacing4,
-                  ),
-                  child: Column(
-                    children: [
-                      Divider(color: AppTheme.primaryGreen.withOpacity(0.2)),
-                      SizedBox(height: AppTheme.spacing2),
-                      ...items.asMap().entries.map((entry) {
-                        final med = entry.value;
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryGreen.withOpacity(0.7),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              SizedBox(width: AppTheme.spacing3),
-                              Expanded(
-                                child: Text(
-                                  DateFormat(
-                                    'EEE, MMM d • h:mm a',
-                                  ).format(med.dateTime),
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: context.secondaryTextColor,
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms)
-        .scale(begin: Offset(0.95, 0.95), end: Offset(1, 1), duration: 300.ms);
-  }
-
-  Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
-    return Container(
-          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
-          decoration: BoxDecoration(
-            color: context.surfaceSecondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(color: context.borderLight, width: 1),
-          ),
-          child: Material(
+      margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryGreen.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        border: Border.all(
+          color: AppTheme.primaryGreen.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Material(
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              onTap: () => _handleEventTap(med),
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedSeries.remove(key);
+                  } else {
+                    _expandedSeries.add(key);
+                  }
+                });
+              },
               child: Padding(
                 padding: EdgeInsets.all(AppTheme.spacing4),
                 child: Row(
@@ -960,7 +828,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            med.medicationName,
+                            first.medicationName,
                             style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w600,
@@ -971,22 +839,193 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                           ),
                           SizedBox(height: AppTheme.spacing1),
                           Text(
-                            '${med.dosage} • ${DateFormat('EEE, MMM d • h:mm a').format(med.dateTime)}',
+                            '${first.dosage} • ${first.frequency}',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: context.secondaryTextColor),
                           ),
                         ],
                       ),
                     ),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacing2,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryGreen.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusSmall,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.layers,
+                            size: 14,
+                            color: AppTheme.primaryGreen,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            '${items.length}',
+                            style: TextStyle(
+                              color: AppTheme.primaryGreen,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: AppTheme.spacing2),
+                    Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+                      color: AppTheme.primaryGreen,
+                    ),
                   ],
                 ),
               ),
             ),
           ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms)
-        .slideX(begin: 0.2, end: 0, duration: 300.ms);
+          if (isExpanded)
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                AppTheme.spacing4,
+                0,
+                AppTheme.spacing4,
+                AppTheme.spacing4,
+              ),
+              child: Column(
+                children: [
+                  Divider(color: AppTheme.primaryGreen.withOpacity(0.2)),
+                  SizedBox(height: AppTheme.spacing2),
+                  ...items.asMap().entries.map((entry) {
+                    final med = entry.value;
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreen.withOpacity(0.7),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: AppTheme.spacing3),
+                          Expanded(
+                            child: Text(
+                              DateFormat(
+                                'EEE, MMM d • h:mm a',
+                              ).format(med.dateTime),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: context.secondaryTextColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _handleEventTap(med),
+          child: Row(
+            children: [
+              // Prominent colored left border
+              Container(
+                width: 6,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF57B4A4), // Medium teal
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        med.medicationName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('h:mm a').format(med.dateTime),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              med.dosage,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState({
@@ -996,33 +1035,38 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     required String message,
   }) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-                icon,
-                size: 80,
-                color: context.secondaryTextColor.withOpacity(0.5),
-              )
-              .animate(onPlay: (controller) => controller.repeat())
-              .shimmer(duration: 2000.ms, delay: 1000.ms),
-          SizedBox(height: AppTheme.spacing4),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: context.textColor,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: context.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: context.primaryColor),
             ),
-          ),
-          SizedBox(height: AppTheme.spacing2),
-          Text(
-            message,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: context.textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: context.secondaryTextColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1054,23 +1098,6 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
   void _showEventDialog(CalendarEvent event) {
     // Implementation for showing event details dialog
     // (simplified for brevity - uses existing dialog from original page)
-  }
-
-  IconData _getAppointmentIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'checkup':
-      case 'routine':
-        return Icons.medical_services;
-      case 'vaccination':
-      case 'vaccine':
-        return Icons.vaccines;
-      case 'grooming':
-        return Icons.pets;
-      case 'emergency':
-        return Icons.emergency;
-      default:
-        return Icons.event;
-    }
   }
 
   String _symptomSummaryTitle(List<PetSymptom> symptoms) {
@@ -1161,81 +1188,103 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     }
 
     // Show pet selection dialog
-    return await showDialog<QueryDocumentSnapshot<Map<String, dynamic>>>(
+    return await showModalBottomSheet<
+      QueryDocumentSnapshot<Map<String, dynamic>>
+    >(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Text('Select a Pet'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: petsSnapshot.docs.length,
-            itemBuilder: (context, index) {
-              final pet = petsSnapshot.docs[index];
-              final petData = pet.data();
-              final petName = petData['name'] as String? ?? 'Unknown';
-              final species = petData['species'] as String? ?? 'Unknown';
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (dialogContext) => ModernBottomSheet(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ModernModalHeader(
+              title: 'Select a Pet',
+              icon: Icons.pets,
+              iconColor: const Color(0xFF3B82F6),
+            ),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 400),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: List.generate(petsSnapshot.docs.length, (index) {
+                    final pet = petsSnapshot.docs[index];
+                    final petData = pet.data();
+                    final petName = petData['name'] as String? ?? 'Unknown';
+                    final species = petData['species'] as String? ?? 'Unknown';
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: context.primaryColor,
-                  child: Text(
-                    petName[0].toUpperCase(),
-                    style: TextStyle(color: Colors.white),
-                  ),
+                    return ModernSelectionCard(
+                      title: petName,
+                      subtitle: species,
+                      iconColor: _getSpeciesColor(species),
+                      onTap: () => Navigator.pop(dialogContext, pet),
+                    );
+                  }),
                 ),
-                title: Text(petName),
-                subtitle: Text(species),
-                onTap: () => Navigator.pop(dialogContext, pet),
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancel'),
-          ),
-        ],
       ),
     );
   }
 
+  Color _getSpeciesColor(String species) {
+    switch (species.toLowerCase()) {
+      case 'dog':
+        return const Color(0xFF3B82F6); // Blue
+      case 'cat':
+        return const Color(0xFF8B5CF6); // Purple
+      case 'bird':
+        return const Color(0xFFF59E0B); // Amber
+      case 'rabbit':
+        return const Color(0xFF10B981); // Green
+      default:
+        return const Color(0xFF6366F1); // Indigo
+    }
+  }
+
   void _showAppointmentFormWithPetSelection() async {
+    // Capture the provider before async operation
+    final eventProvider = context.read<EventProvider>();
     final selectedPet = await _showPetSelectionDialog();
     if (selectedPet != null && mounted) {
-      showDialog(
+      showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
         builder: (dialogContext) => ChangeNotifierProvider.value(
-          value: context.read<EventProvider>(),
+          value: eventProvider,
           child: SimpleAppointmentForm(
             selectedDate: _selectedDay,
             petId: selectedPet.id,
           ),
         ),
       ).then((result) {
-        if (result == true) _refreshData();
+        if (result == true && mounted) _refreshData();
       });
     }
   }
 
   void _showMedicationFormWithPetSelection() async {
+    // Capture the provider before async operation
+    final eventProvider = context.read<EventProvider>();
     final selectedPet = await _showPetSelectionDialog();
     if (selectedPet != null && mounted) {
-      showDialog(
+      showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
         builder: (dialogContext) => ChangeNotifierProvider.value(
-          value: context.read<EventProvider>(),
+          value: eventProvider,
           child: SimpleMedicationForm(
             selectedDate: _selectedDay,
             petId: selectedPet.id,
           ),
         ),
       ).then((result) {
-        if (result == true) _refreshData();
+        if (result == true && mounted) _refreshData();
       });
     }
   }
@@ -1390,54 +1439,78 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     String? note,
   ) {
     return Container(
-          margin: EdgeInsets.only(bottom: AppTheme.spacing3),
-          decoration: BoxDecoration(
-            color: context.surfaceSecondary,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-            border: Border.all(
-              color: AppTheme.accentCoral.withOpacity(0.2),
-              width: 1,
-            ),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Padding(
-            padding: EdgeInsets.all(AppTheme.spacing4),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentCoral,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {},
+          child: Row(
+            children: [
+              // Prominent colored left border
+              Container(
+                width: 6,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF85E7A9), // Light green
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
                   ),
-                  child: Icon(Icons.healing, color: Colors.white, size: 24),
                 ),
-                SizedBox(width: AppTheme.spacing4),
-                Expanded(
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         _symptomLabel(type),
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: context.textColor,
+                          color: Color(0xFF1F2937),
                         ),
                       ),
-                      SizedBox(height: AppTheme.spacing1),
-                      Text(
-                        DateFormat('EEE, MMM d • h:mm a').format(timestamp),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.secondaryTextColor,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('h:mm a').format(timestamp),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                       if (note != null && note.isNotEmpty) ...[
-                        SizedBox(height: AppTheme.spacing1),
+                        const SizedBox(height: 4),
                         Text(
                           note,
                           style: TextStyle(
                             fontSize: 12,
-                            color: context.secondaryTextColor,
+                            color: Colors.grey[600],
                             fontStyle: FontStyle.italic,
                           ),
                           maxLines: 2,
@@ -1447,13 +1520,13 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
-        )
-        .animate()
-        .fadeIn(duration: 300.ms)
-        .slideX(begin: 0.2, end: 0, duration: 300.ms);
+        ),
+      ),
+    );
   }
 }
 

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../models/symptom_models.dart';
 import '../../services/pet_service.dart';
-import '../../theme/app_theme.dart';
+import '../../widgets/modern_modals.dart';
 
 class AddSymptomSheet extends StatefulWidget {
   const AddSymptomSheet({super.key, required this.petId});
@@ -28,79 +28,52 @@ class _AddSymptomSheetState extends State<AddSymptomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Add Symptom',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<SymptomType>(
-              value: _type,
-              decoration: const InputDecoration(
-                labelText: 'Symptom',
-                border: OutlineInputBorder(),
-              ),
-              items: SymptomType.values
-                  .map(
-                    (t) =>
-                        DropdownMenuItem(value: t, child: Text(_labelFor(t))),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => _type = v ?? _type),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: _pickDateTime,
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'When',
-                  border: OutlineInputBorder(),
-                ),
-                child: Text(DateFormat('yyyy-MM-dd HH:mm').format(_timestamp)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _noteController,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.check),
-                label: const Text('Save Symptom'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
+    return ModernBottomSheet(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ModernModalHeader(
+            title: 'Add Symptom',
+            icon: Icons.healing,
+            iconColor: const Color(0xFFEF4444),
+          ),
+          const SizedBox(height: 24),
+          ModernModalDropdown<SymptomType>(
+            label: 'Symptom Type',
+            value: _type,
+            icon: Icons.medical_information,
+            items: SymptomType.values
+                .map(
+                  (t) => DropdownMenuItem(value: t, child: Text(_labelFor(t))),
+                )
+                .toList(),
+            onChanged: (v) => setState(() => _type = v ?? _type),
+          ),
+          const SizedBox(height: 16),
+          ModernModalTextField(
+            readOnly: true,
+            label: 'When',
+            hint: DateFormat('MMM dd, yyyy • h:mm a').format(_timestamp),
+            icon: Icons.calendar_today,
+            onTap: _pickDateTime,
+          ),
+          const SizedBox(height: 16),
+          ModernModalTextField(
+            controller: _noteController,
+            label: 'Additional Notes (Optional)',
+            hint: 'Describe what happened...',
+            icon: Icons.note_outlined,
+            maxLines: 3,
+          ),
+          const SizedBox(height: 24),
+          ModernModalButton(
+            text: 'Add Symptom',
+            isLoading: _saving,
+            onPressed: _save,
+            color: const Color(0xFFEF4444),
+            icon: Icons.add,
+          ),
+        ],
       ),
     );
   }
@@ -182,12 +155,18 @@ class _AddSymptomSheetState extends State<AddSymptomSheet> {
       );
       if (!mounted) return;
       Navigator.pop(context, true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Symptom added successfully!'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to save symptom: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: const Color(0xFFEF4444),
         ),
       );
     } finally {
