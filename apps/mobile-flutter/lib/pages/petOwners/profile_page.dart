@@ -24,7 +24,7 @@ class ProfilePage extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.edit_outlined),
             onPressed: () {
-              // TODO: Navigate to edit profile
+              // missing Navigate to edit profile
             },
           ),
         ],
@@ -35,56 +35,68 @@ class ProfilePage extends StatelessWidget {
           builder: (context, userProvider, child) {
             final profile = userProvider.currentUser;
             final clinic = userProvider.connectedClinic;
-            
+
             return ListView(
               padding: EdgeInsets.zero,
               children: [
                 _buildProfileHeader(context, authUser, profile),
-                
+
                 if (clinic != null) ...[
                   Gap(AppTheme.spacing3),
-                  _buildSection(
-                    context,
-                    'Connected Clinic',
-                    [
-                      _buildInfoRow(context, Icons.business, 'Clinic', clinic.name),
-                      if (clinic.address.isNotEmpty)
-                        _buildInfoRow(context, Icons.location_on_outlined, 'Address', clinic.address),
-                      if (clinic.phone.isNotEmpty)
-                        _buildInfoRow(context, Icons.phone_outlined, 'Phone', clinic.phone),
-                      if (clinic.email.isNotEmpty)
-                        _buildInfoRow(context, Icons.email_outlined, 'Email', clinic.email),
-                    ],
-                  ),
-                ],
-                
-                Gap(AppTheme.spacing3),
-                _buildSection(
-                  context,
-                  'Account Information',
-                  [
+                  _buildSection(context, 'Connected Clinic', [
                     _buildInfoRow(
                       context,
-                      Icons.email_outlined,
-                      'Email',
-                      profile?.email ?? authUser?.email ?? 'Not set',
+                      Icons.business,
+                      'Clinic',
+                      clinic.name,
                     ),
-                    _buildInfoRow(
-                      context,
-                      Icons.shield_outlined,
-                      'Account Type',
-                      _getUserTypeLabel(profile?.globalType),
-                    ),
-                    if (profile?.createdAt != null)
+                    if (clinic.address.isNotEmpty)
                       _buildInfoRow(
                         context,
-                        Icons.calendar_today_outlined,
-                        'Member Since',
-                        DateFormat('MMMM d, yyyy').format(profile!.createdAt),
+                        Icons.location_on_outlined,
+                        'Address',
+                        clinic.address,
                       ),
-                  ],
-                ),
-                
+                    if (clinic.phone.isNotEmpty)
+                      _buildInfoRow(
+                        context,
+                        Icons.phone_outlined,
+                        'Phone',
+                        clinic.phone,
+                      ),
+                    if (clinic.email.isNotEmpty)
+                      _buildInfoRow(
+                        context,
+                        Icons.email_outlined,
+                        'Email',
+                        clinic.email,
+                      ),
+                  ]),
+                ],
+
+                Gap(AppTheme.spacing3),
+                _buildSection(context, 'Account Information', [
+                  _buildInfoRow(
+                    context,
+                    Icons.email_outlined,
+                    'Email',
+                    profile?.email ?? authUser?.email ?? 'Not set',
+                  ),
+                  _buildInfoRow(
+                    context,
+                    Icons.shield_outlined,
+                    'Account Type',
+                    _getUserTypeLabel(profile?.globalType),
+                  ),
+                  if (profile?.createdAt != null)
+                    _buildInfoRow(
+                      context,
+                      Icons.calendar_today_outlined,
+                      'Member Since',
+                      DateFormat('MMMM d, yyyy').format(profile!.createdAt),
+                    ),
+                ]),
+
                 Gap(AppTheme.spacing6),
               ],
             );
@@ -94,7 +106,11 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, User? authUser, dynamic profile) {
+  Widget _buildProfileHeader(
+    BuildContext context,
+    User? authUser,
+    dynamic profile,
+  ) {
     final displayName = profile?.displayName ?? authUser?.displayName ?? 'User';
     final email = profile?.email ?? authUser?.email ?? '';
 
@@ -108,7 +124,7 @@ class ProfilePage extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 48.r,
-            backgroundColor: AppTheme.primary.withOpacity(0.1),
+            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
             child: Text(
               displayName[0].toUpperCase(),
               style: TextStyle(
@@ -130,10 +146,7 @@ class ProfilePage extends StatelessWidget {
           Gap(AppTheme.spacing1),
           Text(
             email,
-            style: TextStyle(
-              fontSize: 15.sp,
-              color: context.textSecondary,
-            ),
+            style: TextStyle(fontSize: 15.sp, color: context.textSecondary),
           ),
           Gap(AppTheme.spacing4),
           Row(
@@ -175,21 +188,27 @@ class ProfilePage extends StatelessWidget {
         Gap(4.h),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 13.sp,
-            color: context.textSecondary,
-          ),
+          style: TextStyle(fontSize: 13.sp, color: context.textSecondary),
         ),
       ],
     );
   }
 
-  Widget _buildSection(BuildContext context, String title, List<Widget> children) {
+  Widget _buildSection(
+    BuildContext context,
+    String title,
+    List<Widget> children,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(AppTheme.spacing4, AppTheme.spacing3, AppTheme.spacing4, AppTheme.spacing2),
+          padding: EdgeInsets.fromLTRB(
+            AppTheme.spacing4,
+            AppTheme.spacing3,
+            AppTheme.spacing4,
+            AppTheme.spacing2,
+          ),
           child: Text(
             title.toUpperCase(),
             style: TextStyle(
@@ -209,20 +228,37 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           child: Column(
-            children: children.expand((child) => [
-              child,
-              if (child != children.last)
-                Divider(height: 0.5, thickness: 0.5, color: context.border, indent: 52.w),
-            ]).toList(),
+            children: children
+                .expand(
+                  (child) => [
+                    child,
+                    if (child != children.last)
+                      Divider(
+                        height: 0.5,
+                        thickness: 0.5,
+                        color: context.border,
+                        indent: 52.w,
+                      ),
+                  ],
+                )
+                .toList(),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value) {
+  Widget _buildInfoRow(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4, vertical: AppTheme.spacing3),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppTheme.spacing4,
+        vertical: AppTheme.spacing3,
+      ),
       child: Row(
         children: [
           Icon(icon, size: 22.sp, color: AppTheme.primary),
@@ -270,4 +306,3 @@ class ProfilePage extends StatelessWidget {
     }
   }
 }
-

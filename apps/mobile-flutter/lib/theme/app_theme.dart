@@ -175,7 +175,7 @@ class AppTheme {
     scaffoldBackgroundColor: Color(0xFF000000),
     
     appBarTheme: AppBarTheme(
-      backgroundColor: Color(0xFF1C1C1E).withOpacity(0.85),
+      backgroundColor: Color(0xFF1C1C1E).withValues(alpha:0.85),
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: false,
@@ -191,7 +191,7 @@ class AppTheme {
     ),
 
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: Color(0xFF1C1C1E).withOpacity(0.85),
+      backgroundColor: Color(0xFF1C1C1E).withValues(alpha:0.85),
       selectedItemColor: Colors.white,
       unselectedItemColor: neutral500,
       type: BottomNavigationBarType.fixed,
@@ -264,7 +264,7 @@ class AppTheme {
     ),
 
     iconTheme: IconThemeData(color: Color(0xFFC7C7CC), size: 22.sp),
-    dividerTheme: DividerThemeData(color: Color(0xFF2F2F2F).withOpacity(0.5), thickness: 0.5, space: 1),
+    dividerTheme: DividerThemeData(color: Color(0xFF2F2F2F).withValues(alpha:0.5), thickness: 0.5, space: 1),
   );
 }
 

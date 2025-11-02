@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/event_model.dart';
 
@@ -16,7 +17,7 @@ class CacheService {
 
   // Cache events with user ID - temporarily disabled due to Timestamp serialization issues
   Future<void> cacheEvents(String userId, List<CalendarEvent> events) async {
-    // TODO: Fix Timestamp serialization in event models before re-enabling caching
+    // missing: Fix Timestamp serialization in event models before re-enabling caching
     // Caching is disabled to prevent serialization errors
     return;
   }
@@ -37,7 +38,7 @@ class CacheService {
       final eventsJson = decoded['events'] as List;
       return eventsJson.map((json) => CalendarEvent.fromJson(json)).toList();
     } catch (e) {
-      print('Error reading cached events: $e');
+      developer.log('Error reading cached events: $e', name: 'CacheService');
       return null;
     }
   }
@@ -88,7 +89,7 @@ class CacheService {
       };
       await _prefs.setString('event_counts', jsonEncode(cacheData));
     } catch (e) {
-      print('Error caching event counts: $e');
+      developer.log('Error caching event counts: $e', name: 'CacheService');
     }
   }
 
@@ -106,7 +107,10 @@ class CacheService {
 
       return Map<String, int>.from(decoded['counts']);
     } catch (e) {
-      print('Error reading cached event counts: $e');
+      developer.log(
+        'Error reading cached event counts: $e',
+        name: 'CacheService',
+      );
       return null;
     }
   }
@@ -119,7 +123,10 @@ class CacheService {
       decoded[eventId] = event.toJson();
       await _prefs.setString('offline_events', jsonEncode(decoded));
     } catch (e) {
-      print('Error caching event for offline: $e');
+      developer.log(
+        'Error caching event for offline: $e',
+        name: 'CacheService',
+      );
     }
   }
 
@@ -132,7 +139,7 @@ class CacheService {
         (key, value) => MapEntry(key, CalendarEvent.fromJson(value)),
       );
     } catch (e) {
-      print('Error reading offline events: $e');
+      developer.log('Error reading offline events: $e', name: 'CacheService');
       return {};
     }
   }
@@ -145,7 +152,7 @@ class CacheService {
       decoded.remove(eventId);
       await _prefs.setString('offline_events', jsonEncode(decoded));
     } catch (e) {
-      print('Error removing offline event: $e');
+      developer.log('Error removing offline event: $e', name: 'CacheService');
     }
   }
 

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/app_theme.dart';
-import '../../app.dart'; // For navigatorKey
+import '../../main.dart'; // For navigatorKey
 
 class EmailVerificationPage extends StatefulWidget {
   final User user;

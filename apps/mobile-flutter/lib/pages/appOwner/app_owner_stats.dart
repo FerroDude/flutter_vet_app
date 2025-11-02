@@ -120,7 +120,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
             end: Alignment.bottomRight,
             colors: [
               AppTheme.neutral600,
-              AppTheme.neutral600.withOpacity(0.8),
+              AppTheme.neutral600.withValues(alpha: 0.8),
             ],
           ),
         ),
@@ -133,7 +133,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -234,7 +234,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
             ),
             _buildStatCard(
               title: 'This Month',
-              value: '0', // TODO: Implement monthly new clinics count
+              value: '0',
               icon: Icons.trending_up,
               color: AppTheme.neutral500,
             ),

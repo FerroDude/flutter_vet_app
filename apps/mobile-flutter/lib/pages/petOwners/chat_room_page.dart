@@ -154,7 +154,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       style: TextStyle(
                         fontSize: 11.sp,
                         color: isMe
-                            ? Colors.white.withOpacity(0.7)
+                            ? Colors.white.withValues(alpha: 0.7)
                             : context.textSecondary,
                       ),
                     ),

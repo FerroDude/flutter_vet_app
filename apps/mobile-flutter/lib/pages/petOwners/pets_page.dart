@@ -7,7 +7,8 @@ import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
-import '../../main.dart' show PetDetailsPage, PetFormPage;
+import 'pet_details_page.dart';
+import 'pet_form_page.dart';
 import 'settings_page.dart';
 import 'profile_page.dart';
 

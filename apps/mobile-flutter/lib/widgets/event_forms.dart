@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'dart:developer' as developer;
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
@@ -108,12 +109,12 @@ class _EventTypeButton extends StatelessWidget {
       label: Text(label),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         foregroundColor: color,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: color.withOpacity(0.3)),
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
         ),
       ),
     );
@@ -308,7 +309,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
                           onChanged: (value) =>
                               setState(() => _isConfirmed = value),
                           tileColor: _isConfirmed
-                              ? AppTheme.neutral500.withOpacity(0.1)
+                              ? AppTheme.neutral500.withValues(alpha: 0.1)
                               : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -356,8 +357,11 @@ class _AppointmentFormState extends State<AppointmentForm> {
 
     try {
       final eventProvider = context.read<EventProvider>();
-      print('DEBUG: Saving appointment...');
-      print('DEBUG: Current user ID: ${eventProvider.currentUserId}');
+      developer.log('Saving appointment...', name: 'EventForms');
+      developer.log(
+        'Current user ID: ${eventProvider.currentUserId}',
+        name: 'EventForms',
+      );
 
       final appointment = AppointmentEvent(
         id: widget.existingEvent?.id ?? CalendarEvent.generateId(),
@@ -383,23 +387,29 @@ class _AppointmentFormState extends State<AppointmentForm> {
             : _contactInfoController.text.trim(),
       );
 
-      print('DEBUG: Created appointment object: ${appointment.toJson()}');
+      developer.log(
+        'Created appointment object: ${appointment.toJson()}',
+        name: 'EventForms',
+      );
 
       if (widget.existingEvent == null) {
-        print('DEBUG: Creating new event...');
+        developer.log('Creating new event...', name: 'EventForms');
         final result = await eventProvider.createEvent(appointment);
-        print('DEBUG: Create result: $result');
+        developer.log('Create result: $result', name: 'EventForms');
       } else {
-        print('DEBUG: Updating existing event...');
+        developer.log('Updating existing event...', name: 'EventForms');
         await eventProvider.updateEvent(appointment.id, appointment);
       }
 
       if (mounted) {
-        print('DEBUG: Event saved successfully, closing dialog');
+        developer.log(
+          'Event saved successfully, closing dialog',
+          name: 'EventForms',
+        );
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
-      print('DEBUG: Error saving appointment: $e');
+      developer.log('Error saving appointment: $e', name: 'EventForms');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -593,7 +603,7 @@ class _MedicationFormState extends State<MedicationForm> {
                           onChanged: (value) =>
                               setState(() => _requiresNotification = value),
                           tileColor: _requiresNotification
-                              ? AppTheme.neutral500.withOpacity(0.1)
+                              ? AppTheme.neutral500.withValues(alpha: 0.1)
                               : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),

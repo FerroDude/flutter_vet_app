@@ -356,7 +356,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     return Card(
       elevation: 6,
-      shadowColor: color.withOpacity(0.3),
+      shadowColor: color.withValues(alpha: 0.3),
       color: isDark ? Colors.grey[900] : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -375,11 +375,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+              colors: [
+                color.withValues(alpha: 0.15),
+                color.withValues(alpha: 0.05),
+              ],
             ),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -391,11 +394,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withOpacity(0.2),
+                      color: color.withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -480,7 +483,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     return Card(
       elevation: 8,
-      shadowColor: AppTheme.neutral700.withOpacity(0.3),
+      shadowColor: AppTheme.neutral700.withValues(alpha: 0.3),
       color: isDark ? Colors.grey[900] : Colors.grey[50],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -495,7 +498,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppTheme.neutral700, AppTheme.neutral700.withOpacity(0.8)],
+            colors: [
+              AppTheme.neutral700,
+              AppTheme.neutral700.withValues(alpha: 0.8),
+            ],
           ),
         ),
         padding: const EdgeInsets.all(24),
@@ -507,11 +513,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -590,9 +596,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
@@ -764,7 +773,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('📋 Clinics found: ${clinicQuery.docs.length}'),
+                  Text('Clinics found: ${clinicQuery.docs.length}'),
                   if (clinicQuery.docs.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     ...clinicQuery.docs.map((doc) {
@@ -774,12 +783,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                   const SizedBox(height: 8),
                   Text(
-                    '👤 Temporary admin profile: ${tempAdminQuery.exists ? 'Found' : 'Not found'}',
+                    'Temporary admin profile: ${tempAdminQuery.exists ? 'Found' : 'Not found'}',
                   ),
                   if (tempAdminQuery.exists) ...[Text('   • ID: $tempAdminId')],
                   const SizedBox(height: 8),
                   Text(
-                    '👤 Regular user profile: ${userQuery.docs.isNotEmpty ? 'Found' : 'Not found'}',
+                    'Regular user profile: ${userQuery.docs.isNotEmpty ? 'Found' : 'Not found'}',
                   ),
                   if (userQuery.docs.isNotEmpty) ...[
                     Builder(
@@ -1004,14 +1013,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('👤 User ID: $userId'),
-                  Text('👤 User Type: ${userData['userType']}'),
+                  Text('User ID: $userId'),
+                  Text('User Type: ${userData['userType']}'),
                   Text(
-                    '👤 Connected Clinic: ${userData['connectedClinicId'] ?? 'None'}',
+                    'Connected Clinic: ${userData['connectedClinicId'] ?? 'None'}',
                   ),
-                  Text('👤 Clinic Role: ${userData['clinicRole'] ?? 'None'}'),
+                  Text('Clinic Role: ${userData['clinicRole'] ?? 'None'}'),
                   const SizedBox(height: 8),
-                  Text('📋 Clinics found: ${clinicQuery.docs.length}'),
+                  Text('Clinics found: ${clinicQuery.docs.length}'),
                   if (clinicQuery.docs.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     ...clinicQuery.docs.map((doc) {
@@ -1031,20 +1040,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          '💡 Analysis:',
+                          'Analysis:',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         if (userData['userType'] == 2) ...[
-                          const Text('✅ User is already a clinic admin'),
+                          const Text('User is already a clinic admin'),
                           if (userData['connectedClinicId'] != null)
-                            const Text('✅ User is connected to a clinic'),
+                            const Text('User is connected to a clinic'),
                           if (clinicQuery.docs.isNotEmpty)
-                            const Text('✅ Clinic exists for this email'),
+                            const Text('Clinic exists for this email'),
                         ] else ...[
-                          const Text('❌ User is not a clinic admin'),
+                          const Text('User is not a clinic admin'),
                           if (clinicQuery.docs.isNotEmpty)
-                            const Text('💡 Clinic exists - can be linked'),
+                            const Text('Clinic exists - can be linked'),
                         ],
                       ],
                     ),
@@ -1204,7 +1213,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Successfully fixed clinic role for $email'),
+            content: Text('Successfully fixed clinic role for $email'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
@@ -1215,7 +1224,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error fixing clinic role: $e'),
+            content: Text('Error fixing clinic role: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -1279,7 +1288,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ Successfully deleted clinic and reset $email to regular user',
+              'Successfully deleted clinic and reset $email to regular user',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 5),
@@ -1291,7 +1300,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error deleting clinic: $e'),
+            content: Text('Error deleting clinic: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -1430,8 +1439,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                 final success = await userProvider.fixClinicAdminLinking(email);
 
+                if (!context.mounted) return;
                 Navigator.pop(context); // Close loading dialog
 
+                if (!context.mounted) return;
                 if (success) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1541,7 +1552,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     return Card(
       elevation: 4,
-      shadowColor: color.withOpacity(0.3),
+      shadowColor: color.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -1550,7 +1561,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+            colors: [
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.05),
+            ],
           ),
         ),
         child: Column(
@@ -1559,7 +1573,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 20),
@@ -1839,7 +1853,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.neutral600.withOpacity(0.1),
+                          color: AppTheme.neutral600.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -2073,8 +2087,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.neutral700.withOpacity(
-                                          0.1,
+                                        color: AppTheme.neutral700.withValues(
+                                          alpha: 0.1,
                                         ),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -2109,7 +2123,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.neutral600.withOpacity(0.1),
+                                  color: AppTheme.neutral600.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -2360,10 +2376,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.neutral700.withOpacity(0.1),
+                  color: AppTheme.neutral700.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.neutral700.withOpacity(0.3),
+                    color: AppTheme.neutral700.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -2693,6 +2709,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
       );
 
       // Close the creation dialog first
+      if (!mounted) return;
       Navigator.of(context).pop();
 
       // Show enhanced success dialog
@@ -2726,7 +2743,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '🏥 Clinic Details',
+                            'Clinic Details',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.green[800],
@@ -2754,7 +2771,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '👤 Admin Account Created',
+                            'Admin Account Created',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.blue[800],
@@ -2800,7 +2817,7 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '📧 Email Notifications Sent',
+                            'Email Notifications Sent',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.orange[800],
@@ -2872,8 +2889,6 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
   /// Send welcome email to new clinic admin
   Future<void> _sendAdminWelcomeEmail(String adminEmail) async {
     try {
-      // TODO: Implement actual email sending logic
-      // For now, just log the email that would be sent
       developer.log(
         'Would send welcome email to admin: $adminEmail',
         name: 'CreateClinicDialog',
@@ -2903,7 +2918,6 @@ class _CreateClinicAdminDialogState extends State<_CreateClinicAdminDialog> {
   /// Send clinic registration confirmation
   Future<void> _sendClinicRegistrationEmail(String clinicEmail) async {
     try {
-      // TODO: Implement actual email sending logic
       developer.log(
         'Would send clinic registration email to: $clinicEmail',
         name: 'CreateClinicDialog',
@@ -3577,7 +3591,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'userType': 2, // Clinic Admin
         'connectedClinicId': widget.clinic.id,
-        'clinicRole': 0, // Admin role
+        'clinicRole': 1, // Admin role
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
       });
 

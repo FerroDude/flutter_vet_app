@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import '../models/event_model.dart';
 import '../repositories/event_repository.dart';
@@ -126,7 +127,7 @@ class EventProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = e.toString();
-      print('Error loading events: $e');
+      developer.log('Error loading events: $e', name: 'EventProvider');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -140,19 +141,19 @@ class EventProvider extends ChangeNotifier {
       _eventCounts = counts;
       notifyListeners();
     } catch (e) {
-      print('Error loading event counts: $e');
+      developer.log('Error loading event counts: $e', name: 'EventProvider');
     }
   }
 
   // Create event with optimistic updates
   Future<String?> createEvent(CalendarEvent event) async {
     try {
-      print('DEBUG: EventProvider.createEvent called');
-      print('DEBUG: Event type: ${event.type}');
-      print('DEBUG: Event data: ${event.toJson()}');
+      developer.log('EventProvider.createEvent called', name: 'EventProvider');
+      developer.log('Event type: ${event.type}', name: 'EventProvider');
+      developer.log('Event data: ${event.toJson()}', name: 'EventProvider');
 
       final eventId = await _repository.createEvent(event);
-      print('DEBUG: Repository returned eventId: $eventId');
+        developer.log('Repository returned eventId: $eventId', name: 'EventProvider');
 
       // Schedule notification
       if (event is MedicationEvent && event.requiresNotification) {
@@ -161,10 +162,10 @@ class EventProvider extends ChangeNotifier {
         await _notificationService.scheduleEventNotification(event);
       }
 
-      print('DEBUG: Event created successfully with ID: $eventId');
+        developer.log('Event created successfully with ID: $eventId', name: 'EventProvider');
       return eventId;
     } catch (e) {
-      print('Error creating event: $e');
+      developer.log('Error creating event: $e', name: 'EventProvider');
       // Reload events to sync state
       await loadEvents(forceRefresh: true);
       return null;
@@ -186,7 +187,7 @@ class EventProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      print('Error updating event: $e');
+      developer.log('Error updating event: $e', name: 'EventProvider');
       // Reload events to sync state
       await loadEvents(forceRefresh: true);
       return false;
@@ -203,7 +204,7 @@ class EventProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      print('Error deleting event: $e');
+      developer.log('Error deleting event: $e', name: 'EventProvider');
       // Reload events to sync state
       await loadEvents(forceRefresh: true);
       return false;
@@ -253,7 +254,7 @@ class EventProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      print('Error marking medication completed: $e');
+      developer.log('Error marking medication completed: $e', name: 'EventProvider');
       return false;
     }
   }
@@ -264,7 +265,7 @@ class EventProvider extends ChangeNotifier {
       await _repository.markNoteCompleted(eventId, event);
       return true;
     } catch (e) {
-      print('Error marking note completed: $e');
+      developer.log('Error marking note completed: $e', name: 'EventProvider');
       return false;
     }
   }
@@ -302,7 +303,7 @@ class EventProvider extends ChangeNotifier {
       await _repository.syncOfflineEvents();
       await refresh();
     } catch (e) {
-      print('Error syncing offline events: $e');
+      developer.log('Error syncing offline events: $e', name: 'EventProvider');
     }
   }
 

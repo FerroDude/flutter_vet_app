@@ -380,7 +380,7 @@ class AppChip extends StatelessWidget {
         vertical: AppTheme.spacing1,
       ),
       decoration: BoxDecoration(
-        color: (color ?? AppTheme.neutral800).withOpacity(0.1),
+        color: (color ?? AppTheme.neutral800).withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(AppTheme.radius1),
       ),
       child: Row(

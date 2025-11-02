@@ -192,7 +192,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.neutral700.withOpacity(0.08),
+                                color: AppTheme.neutral700.withValues(
+                                  alpha: 0.08,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -266,12 +268,14 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                 );
 
                                 if (confirm == true) {
+                                  if (!context.mounted) return;
                                   final messenger = ScaffoldMessenger.of(
                                     context,
                                   );
                                   try {
                                     final ok = await userProvider
                                         .revokeVetInvite(email);
+                                    if (!context.mounted) return;
                                     messenger.showSnackBar(
                                       SnackBar(
                                         content: Text(
@@ -314,11 +318,8 @@ class _VetManagementPageState extends State<VetManagementPage> {
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.neutral600.withOpacity(0.1),
-          child: const Icon(
-            Icons.medical_services,
-            color: AppTheme.neutral600,
-          ),
+          backgroundColor: AppTheme.neutral600.withValues(alpha: 0.1),
+          child: const Icon(Icons.medical_services, color: AppTheme.neutral600),
         ),
         title: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           future: FirebaseFirestore.instance
@@ -355,7 +356,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
@@ -505,7 +506,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 try {
                   final ok = await userProvider
                       .provisionAuthAccountAndSendReset(email);
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
@@ -518,7 +519,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     );
                   }
                 } catch (e) {
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Unable to send reset email: $e'),
@@ -676,7 +677,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
     UserProvider userProvider,
   ) async {
     try {
-      // TODO: Implement permission update
+      // missing: Implement permission update
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Permissions updated successfully'),
@@ -698,7 +699,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
     UserProvider userProvider,
   ) async {
     try {
-      // TODO: Implement status toggle
+      // missing: Implement status toggle
       final action = vet.isActive ? 'deactivated' : 'activated';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

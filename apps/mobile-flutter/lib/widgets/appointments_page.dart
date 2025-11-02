@@ -1597,10 +1597,10 @@ class _AppointmentsPetBadge extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(
-            color: AppTheme.neutral700.withOpacity(0.12),
+            color: AppTheme.neutral700.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppTheme.neutral700.withOpacity(0.3),
+              color: AppTheme.neutral700.withValues(alpha: 0.3),
               width: 1,
             ),
           ),

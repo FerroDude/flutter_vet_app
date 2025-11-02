@@ -153,7 +153,7 @@ class _ChatPageState extends State<ChatPage> {
       ),
       content: GFListTile(
         avatar: GFAvatar(
-          backgroundColor: AppTheme.primary.withOpacity(0.1),
+          backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
           size: GFSize.LARGE,
           child: Text(
             displayName[0].toUpperCase(),

@@ -23,7 +23,7 @@ class ModernModal extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -62,7 +62,7 @@ class ModernBottomSheet extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 24,
             offset: const Offset(0, -4),
           ),
@@ -78,7 +78,7 @@ class ModernBottomSheet extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: context.secondaryTextColor.withOpacity(0.3),
+                color: context.secondaryTextColor.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -120,7 +120,7 @@ class ModernModalHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (iconColor ?? AppTheme.neutral700).withOpacity(0.1),
+              color: (iconColor ?? AppTheme.neutral700).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -147,7 +147,7 @@ class ModernModalHeader extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: context.secondaryTextColor.withOpacity(0.1),
+                color: context.secondaryTextColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -215,8 +215,8 @@ class ModernModalButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
-          disabledBackgroundColor: (color ?? AppTheme.neutral700).withOpacity(
-            0.5,
+          disabledBackgroundColor: (color ?? AppTheme.neutral700).withValues(
+            alpha: 0.5,
           ),
         ),
         child: isLoading
@@ -304,7 +304,7 @@ class ModernModalTextField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              color: context.secondaryTextColor.withOpacity(0.5),
+              color: context.secondaryTextColor.withValues(alpha: 0.5),
             ),
             prefixIcon: icon != null
                 ? Icon(icon, size: 20, color: context.secondaryTextColor)
@@ -319,7 +319,7 @@ class ModernModalTextField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: context.secondaryTextColor.withOpacity(0.1),
+                color: context.secondaryTextColor.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -373,13 +373,13 @@ class ModernSelectionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppTheme.neutral700.withOpacity(0.1)
+            ? AppTheme.neutral700.withValues(alpha: 0.1)
             : context.surfaceSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected
               ? AppTheme.neutral700
-              : context.secondaryTextColor.withOpacity(0.1),
+              : context.secondaryTextColor.withValues(alpha: 0.1),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -397,7 +397,9 @@ class ModernSelectionCard extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: (iconColor ?? AppTheme.neutral700).withOpacity(0.15),
+                    color: (iconColor ?? AppTheme.neutral700).withValues(
+                      alpha: 0.15,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
@@ -449,7 +451,7 @@ class ModernSelectionCard extends StatelessWidget {
                   isSelected ? Icons.check_circle : Icons.chevron_right,
                   color: isSelected
                       ? AppTheme.neutral700
-                      : context.secondaryTextColor.withOpacity(0.3),
+                      : context.secondaryTextColor.withValues(alpha: 0.3),
                   size: 22,
                 ),
               ],
@@ -486,7 +488,7 @@ class ModernActionCard extends StatelessWidget {
         color: context.surfaceSecondary,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: context.secondaryTextColor.withOpacity(0.1),
+          color: context.secondaryTextColor.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -503,7 +505,7 @@ class ModernActionCard extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
+                    color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(child: Icon(icon, color: color, size: 24)),
@@ -536,7 +538,7 @@ class ModernActionCard extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right,
-                  color: context.secondaryTextColor.withOpacity(0.3),
+                  color: context.secondaryTextColor.withValues(alpha: 0.3),
                   size: 20,
                 ),
               ],
@@ -584,7 +586,7 @@ class ModernModalDropdown<T> extends StatelessWidget {
             color: context.surfaceSecondary,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: context.secondaryTextColor.withOpacity(0.1),
+              color: context.secondaryTextColor.withValues(alpha: 0.1),
               width: 1,
             ),
           ),

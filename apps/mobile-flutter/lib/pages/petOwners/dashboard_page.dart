@@ -197,10 +197,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
     todayEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
-    if (todayEvents.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
       child: Column(
@@ -215,12 +211,39 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           Gap(AppTheme.spacing3),
-          ...todayEvents.map(
-            (event) => Padding(
-              padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-              child: _EventCard(event: event),
+          if (todayEvents.isEmpty)
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              decoration: BoxDecoration(
+                color: context.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radius3),
+                border: Border.all(color: context.border),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_note_outlined,
+                    size: 20.sp,
+                    color: context.textSecondary,
+                  ),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'No events today',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: context.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...todayEvents.map(
+              (event) => Padding(
+                padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                child: _EventCard(event: event),
+              ),
             ),
-          ),
           Gap(AppTheme.spacing4),
         ],
       ),
@@ -244,10 +267,6 @@ class _DashboardPageState extends State<DashboardPage> {
     upcomingEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
     final limitedEvents = upcomingEvents.take(5).toList();
 
-    if (limitedEvents.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
       child: Column(
@@ -262,12 +281,39 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           Gap(AppTheme.spacing3),
-          ...limitedEvents.map(
-            (event) => Padding(
-              padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-              child: _UpcomingEventCard(event: event),
+          if (limitedEvents.isEmpty)
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              decoration: BoxDecoration(
+                color: context.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radius3),
+                border: Border.all(color: context.border),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_month_outlined,
+                    size: 20.sp,
+                    color: context.textSecondary,
+                  ),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'No upcoming events',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: context.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...limitedEvents.map(
+              (event) => Padding(
+                padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                child: _UpcomingEventCard(event: event),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -385,28 +431,35 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GFButton(
-      onPressed: onTap,
-      type: GFButtonType.outline2x,
-      shape: GFButtonShape.standard,
-      color: AppTheme.neutral300,
-      size: GFSize.LARGE,
-      fullWidthButton: true,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 24.sp, color: context.textPrimary),
-          Gap(AppTheme.spacing1),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w500,
-              color: context.textPrimary,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radius3),
+      child: Container(
+        height: 80.h,
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          border: Border.all(color: context.border),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 28.sp, color: AppTheme.neutral700),
+            Gap(AppTheme.spacing2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: context.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

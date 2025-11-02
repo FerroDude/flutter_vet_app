@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:developer' as developer;
 import '../../models/clinic_models.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
@@ -140,7 +141,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
 
     return Card(
       elevation: isSelected ? 8 : 2,
-      shadowColor: isSelected ? color.withOpacity(0.3) : null,
+      shadowColor: isSelected ? color.withValues(alpha:0.3) : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
@@ -159,7 +160,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -353,7 +354,7 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.1),
+            color: AppTheme.primary.withValues(alpha:0.1),
             borderRadius: BorderRadius.circular(25),
           ),
           child: const Icon(Icons.local_hospital, color: AppTheme.primary),
@@ -410,7 +411,7 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
         });
       }
     } catch (e) {
-      print('Error loading clinics: $e');
+      developer.log('Error loading clinics: $e', name: 'OnboardingPages');
     }
   }
 

@@ -1,0 +1,497 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../../theme/app_theme.dart';
+import '../../providers/event_provider.dart';
+import '../../models/event_model.dart';
+import '../../widgets/simple_event_forms.dart';
+import 'pet_form_page.dart';
+
+class PetDetailsPage extends StatelessWidget {
+  const PetDetailsPage({super.key, required this.petRef});
+  final DocumentReference<Map<String, dynamic>> petRef;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pet Details'),
+        backgroundColor: AppTheme.neutral700,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () async {
+              final doc = await petRef.get();
+              if (doc.exists && context.mounted) {
+                if (!context.mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        PetFormPage(petRef: petRef, initialData: doc.data()),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.edit),
+          ),
+        ],
+      ),
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: petRef.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('Pet not found'));
+          }
+
+          final pet = snapshot.data!.data()!;
+          final dateOfBirth = pet['dateOfBirth'] != null
+              ? (pet['dateOfBirth'] as Timestamp).toDate()
+              : null;
+
+          String getAge() {
+            if (dateOfBirth == null) return 'Unknown';
+            final now = DateTime.now();
+            final years = now.difference(dateOfBirth).inDays ~/ 365;
+            final months = (now.difference(dateOfBirth).inDays % 365) ~/ 30;
+            if (years > 0) return '$years years, $months months old';
+            return '$months months old';
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pet Header Card
+                Card(
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: AppTheme.neutral700,
+                              child: Text(
+                                (pet['name'] ?? 'P')[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    pet['name'] ?? 'Unknown',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    '${pet['species'] ?? 'Unknown'} • ${pet['breed'] ?? 'Unknown'}',
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(color: Colors.grey[600]),
+                                  ),
+                                  if (dateOfBirth != null)
+                                    Text(
+                                      getAge(),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: AppTheme.neutral700,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Basic Information Card
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Basic Information',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.neutral700,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInfoRow('Species', pet['species']),
+                        _buildInfoRow('Breed', pet['breed']),
+                        _buildInfoRow('Gender', pet['gender']),
+                        if (dateOfBirth != null)
+                          _buildInfoRow(
+                            'Date of Birth',
+                            '${dateOfBirth.day}/${dateOfBirth.month}/${dateOfBirth.year}',
+                          ),
+                        _buildInfoRow('Weight', pet['weight']),
+                        _buildInfoRow('Color/Markings', pet['color']),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Medical Information Card
+                if (pet['microchip']?.isNotEmpty == true ||
+                    pet['veterinarian']?.isNotEmpty == true ||
+                    pet['medicalNotes']?.isNotEmpty == true)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Medical Information',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.neutral700,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (pet['microchip']?.isNotEmpty == true)
+                            _buildInfoRow('Microchip', pet['microchip']),
+                          if (pet['veterinarian']?.isNotEmpty == true)
+                            _buildInfoRow('Veterinarian', pet['veterinarian']),
+                          if (pet['medicalNotes']?.isNotEmpty == true)
+                            _buildInfoRow(
+                              'Medical Notes',
+                              pet['medicalNotes'],
+                              isMultiline: true,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                // Emergency Contact Card
+                if (pet['emergencyContact']?.isNotEmpty == true)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Emergency Contact',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.neutral700,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Contact', pet['emergencyContact']),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                // Quick Actions Card
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quick Actions',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.neutral700,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  final eventProvider = context
+                                      .read<EventProvider>();
+                                  showDialog(
+                                    context: context,
+                                    builder: (dialogContext) =>
+                                        ChangeNotifierProvider.value(
+                                          value: eventProvider,
+                                          child: SimpleAppointmentForm(
+                                            selectedDate: DateTime.now(),
+                                            petId: petRef.id,
+                                          ),
+                                        ),
+                                  );
+                                },
+                                icon: const Icon(Icons.calendar_today),
+                                label: const Text('Add Appointment'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.neutral700,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  final eventProvider = context
+                                      .read<EventProvider>();
+                                  showDialog(
+                                    context: context,
+                                    builder: (dialogContext) =>
+                                        ChangeNotifierProvider.value(
+                                          value: eventProvider,
+                                          child: SimpleMedicationForm(
+                                            selectedDate: DateTime.now(),
+                                            petId: petRef.id,
+                                          ),
+                                        ),
+                                  );
+                                },
+                                icon: const Icon(Icons.medication),
+                                label: const Text('Add Medication'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Pet's Events Section
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recent Activity',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.neutral700,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        Consumer<EventProvider>(
+                          builder: (context, eventProvider, _) {
+                            final petEvents =
+                                eventProvider.events
+                                    .where((event) => event.petId == petRef.id)
+                                    .toList()
+                                  ..sort(
+                                    (a, b) => b.dateTime.compareTo(a.dateTime),
+                                  );
+
+                            if (petEvents.isEmpty) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.event_note,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'No appointments or medications yet',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: AppTheme.textSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return Column(
+                              children: petEvents.take(5).map((event) {
+                                final isAppointment = event is AppointmentEvent;
+                                final isMedication = event is MedicationEvent;
+                                final icon = isAppointment
+                                    ? Icons.event
+                                    : (isMedication
+                                          ? Icons.medication
+                                          : Icons.note);
+                                final color = isAppointment
+                                    ? AppTheme.neutral700
+                                    : (isMedication
+                                          ? AppTheme.neutral600
+                                          : AppTheme.neutral500);
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: color.withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          icon,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              event.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              DateFormat(
+                                                'MMM dd, yyyy • h:mm a',
+                                              ).format(event.dateTime),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color:
+                                                        AppTheme.textSecondary,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isMedication && (event).isCompleted)
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: AppTheme.neutral600,
+                                          size: 20,
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    String label,
+    String? value, {
+    bool isMultiline = false,
+  }) {
+    if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: isMultiline
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w400),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

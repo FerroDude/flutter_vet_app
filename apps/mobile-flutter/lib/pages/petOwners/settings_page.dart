@@ -212,7 +212,7 @@ class SettingsPage extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 32.r,
-            backgroundColor: AppTheme.neutral800.withOpacity(0.1),
+            backgroundColor: AppTheme.neutral800.withValues(alpha:0.1),
             child: Text(
               (user.displayName ?? user.email ?? 'U')[0].toUpperCase(),
               style: TextStyle(

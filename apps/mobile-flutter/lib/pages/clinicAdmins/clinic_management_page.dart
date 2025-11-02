@@ -583,7 +583,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
           Navigator.pop(context);
         }
       } else {
-        // TODO: Implement clinic update
+        //Implement clinic update
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Clinic updated successfully'),

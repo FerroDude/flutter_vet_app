@@ -59,7 +59,7 @@ class _CalendarViewState extends State<CalendarView> {
           shape: BoxShape.circle,
         ),
         todayDecoration: BoxDecoration(
-          color: AppTheme.neutral700.withOpacity(0.3),
+          color: AppTheme.neutral700.withValues(alpha:0.3),
           shape: BoxShape.circle,
         ),
         defaultTextStyle: TextStyle(
@@ -986,9 +986,9 @@ class _PetBadge extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha:0.12),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.3), width: 1),
+            border: Border.all(color: color.withValues(alpha:0.3), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

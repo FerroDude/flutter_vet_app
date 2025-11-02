@@ -111,8 +111,8 @@ class PetService {
         start: start,
         end: end,
       );
-      counts.forEach((day, count) {
-        aggregated[day] = (aggregated[day] ?? 0) + count;
+      counts.forEach((day, symptomCount) {
+        aggregated[day] = (aggregated[day] ?? 0) + symptomCount;
       });
     }
     return aggregated;

@@ -113,7 +113,7 @@ class _PetSymptomsPageState extends State<PetSymptomsPage> {
                     avatar: GFAvatar(
                       backgroundColor: _getSymptomColor(
                         symptom.type,
-                      ).withOpacity(0.1),
+                      ).withValues(alpha: 0.1),
                       child: Icon(
                         _getSymptomIcon(symptom.type),
                         color: _getSymptomColor(symptom.type),

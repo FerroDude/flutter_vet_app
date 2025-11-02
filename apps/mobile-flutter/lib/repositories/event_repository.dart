@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/event_model.dart';
 import '../services/cache_service.dart';
@@ -122,7 +123,7 @@ class EventRepository {
 
       return events;
     } catch (e) {
-      print('Error fetching events: $e');
+      developer.log('Error fetching events: $e', name: 'EventRepository');
       return _cachedEvents ?? [];
     }
   }
@@ -178,20 +179,20 @@ class EventRepository {
 
   // Create event with offline support
   Future<String> createEvent(CalendarEvent event) async {
-    print('DEBUG: EventRepository.createEvent called');
-    print('DEBUG: Current user ID: $_currentUserId');
+    developer.log('EventRepository.createEvent called', name: 'EventRepository');
+    developer.log('Current user ID: $_currentUserId', name: 'EventRepository');
 
     if (_currentUserId == null) {
-      print('DEBUG: User not authenticated, throwing exception');
+      developer.log('User not authenticated, throwing exception', name: 'EventRepository');
       throw Exception('User not authenticated');
     }
 
     try {
-      print('DEBUG: Getting events collection...');
+      developer.log('Getting events collection...', name: 'EventRepository');
       final collection = _getEventsCollection();
-      print('DEBUG: Adding event to Firestore...');
+      developer.log('Adding event to Firestore...', name: 'EventRepository');
       final docRef = await collection.add(event.toJson());
-      print('DEBUG: Firestore document created with ID: ${docRef.id}');
+      developer.log('Firestore document created with ID: ${docRef.id}', name: 'EventRepository');
 
       // Update local cache optimistically
       _cachedEvents?.add(event.copyWith(id: docRef.id));
@@ -202,10 +203,10 @@ class EventRepository {
       // Invalidate counts cache
       _cachedCounts = null;
 
-      print('DEBUG: EventRepository.createEvent completed successfully');
+      developer.log('EventRepository.createEvent completed successfully', name: 'EventRepository');
       return docRef.id;
     } catch (e) {
-      print('DEBUG: Error in EventRepository.createEvent: $e');
+      developer.log('Error in EventRepository.createEvent: $e', name: 'EventRepository');
       // Cache for offline sync
       await _cacheService.cacheEventForOffline(event.id, event);
       rethrow;
@@ -255,7 +256,7 @@ class EventRepository {
       // Invalidate counts cache
       _cachedCounts = null;
     } catch (e) {
-      print('Error deleting event: $e');
+      developer.log('Error deleting event: $e', name: 'EventRepository');
       rethrow;
     }
   }
@@ -373,7 +374,7 @@ class EventRepository {
 
       return counts;
     } catch (e) {
-      print('Error getting event counts: $e');
+      developer.log('Error getting event counts: $e', name: 'EventRepository');
       return {};
     }
   }
@@ -466,14 +467,14 @@ class EventRepository {
           await _getEventsCollection().doc(entry.key).set(entry.value.toJson());
           await _cacheService.removeOfflineEvent(entry.key);
         } catch (e) {
-          print('Error syncing offline event ${entry.key}: $e');
+          developer.log('Error syncing offline event ${entry.key}: $e', name: 'EventRepository');
         }
       }
 
       // Refresh cache after sync
       await refresh();
     } catch (e) {
-      print('Error syncing offline events: $e');
+      developer.log('Error syncing offline events: $e', name: 'EventRepository');
     }
   }
 

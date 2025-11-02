@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:developer' as developer;
 import '../models/chat_models.dart';
 import '../services/chat_service.dart';
 
@@ -242,7 +243,10 @@ class ChatProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Failed to update total unread count: $e');
+      developer.log(
+        'Failed to update total unread count: $e',
+        name: 'ChatProvider',
+      );
     }
   }
 
@@ -252,7 +256,7 @@ class ChatProvider extends ChangeNotifier {
       // This will be called by the stream, but we can force refresh if needed
       notifyListeners();
     } catch (e) {
-      print('Failed to refresh chat rooms: $e');
+      developer.log('Failed to refresh chat rooms: $e', name: 'ChatProvider');
     }
   }
 
@@ -260,7 +264,7 @@ class ChatProvider extends ChangeNotifier {
   String _getUserRole() {
     // This should be determined based on user's actual role
     // For now, return a default value
-    return 'pet_owner'; // TODO: Get from UserProvider
+    return 'pet_owner'; // missing:  Get from UserProvider
   }
 
   // Update chat rooms from stream
@@ -299,5 +303,4 @@ class ChatProvider extends ChangeNotifier {
   bool hasUnreadMessages(String chatRoomId) {
     return getUnreadCount(chatRoomId) > 0;
   }
-
 }

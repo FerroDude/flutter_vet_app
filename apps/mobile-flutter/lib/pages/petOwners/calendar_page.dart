@@ -6,6 +6,9 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+import 'package:getwidget/getwidget.dart';
 import '../../theme/app_theme.dart';
 import '../../models/event_model.dart';
 import '../../models/symptom_models.dart';
@@ -134,20 +137,53 @@ class CalendarPageState extends State<CalendarPage>
         child: Container(
           decoration: BoxDecoration(
             color: isDark ? context.surfaceSecondary : Colors.white,
-            border: Border(bottom: BorderSide(color: context.border, width: 1)),
           ),
           padding: EdgeInsets.symmetric(vertical: AppTheme.spacing2),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.neutral700,
-            unselectedLabelColor: context.secondaryTextColor,
-            indicatorColor: AppTheme.neutral700,
-            indicatorWeight: 3,
-            tabs: const [
-              Tab(icon: Icon(Icons.calendar_month, size: 32)),
-              Tab(icon: Icon(Icons.event, size: 32)),
-              Tab(icon: Icon(Icons.medication, size: 32)),
-              Tab(icon: Icon(Icons.healing, size: 32)),
+          child: Stack(
+            children: [
+              TabBar(
+                controller: _tabController,
+                labelColor: AppTheme.neutral700,
+                unselectedLabelColor: context.secondaryTextColor,
+                indicatorColor: AppTheme.neutral700,
+                indicatorWeight: 5,
+                dividerColor: Colors.transparent,
+                tabs: const [
+                  Tab(icon: Icon(Icons.calendar_month, size: 32)),
+                  Tab(icon: Icon(Icons.event, size: 32)),
+                  Tab(icon: Icon(Icons.medication, size: 32)),
+                  Tab(icon: Icon(Icons.healing, size: 32)),
+                ],
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final tabWidth = constraints.maxWidth / 4;
+                    final indicatorLeft = tabWidth * _tabController.index;
+                    return Stack(
+                      children: [
+                        Container(height: 1, color: Colors.black),
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          left: indicatorLeft + (tabWidth * 0.15),
+                          bottom: 0,
+                          child: Container(
+                            width: tabWidth * 0.7,
+                            height: 1,
+                            color: isDark
+                                ? context.surfaceSecondary
+                                : Colors.white,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -281,7 +317,7 @@ class CalendarPageState extends State<CalendarPage>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.neutral700.withOpacity(0.1),
+                    color: AppTheme.neutral700.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -319,142 +355,104 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  /// Apple-style event card with colored accent bar
   Widget _buildModernEventCard({
     required BuildContext context,
     required CalendarEvent event,
     required int delay,
   }) {
-    Color color;
-    IconData icon;
+    Color color = AppTheme.neutral800;
     String? subtitle;
 
     if (event is AppointmentEvent) {
-      color = const Color(0xFF309CB0); // Teal
-      icon = Icons.event_outlined;
+      color = AppTheme.neutral800;
       subtitle = event.location;
     } else if (event is MedicationEvent) {
-      color = const Color(0xFF57B4A4); // Medium teal
-      icon = Icons.medication_outlined;
+      color = AppTheme.neutral800;
       subtitle = event.dosage;
     } else {
-      color = const Color(0xFF85E7A9); // Light green
-      icon = Icons.healing_outlined;
+      color = AppTheme.neutral800;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _handleEventTap(event),
-          child: Row(
-            children: [
-              // Prominent colored left border
-              Container(
-                width: 6,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                  ),
-                ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+      child: GFCard(
+        elevation: 0,
+        color: context.surface,
+        borderOnForeground: true,
+        boxFit: BoxFit.cover,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          side: BorderSide(color: context.border),
+        ),
+        content: Row(
+          children: [
+            Container(
+              width: 4.w,
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(2.r),
               ),
-              // Time display
-              Container(
-                width: 70,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      DateFormat('h:mm').format(event.dateTime),
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: context.textColor,
-                      ),
+            ),
+            Gap(AppTheme.spacing3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.title,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: context.textPrimary,
                     ),
-                    Text(
-                      DateFormat('a').format(event.dateTime),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.secondaryTextColor,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Event details
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 8,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Gap(AppTheme.spacing1),
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(icon, size: 16, color: color),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              event.title,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: context.textColor,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      Icon(
+                        Icons.access_time,
+                        size: 12.sp,
+                        color: context.textSecondary,
                       ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: context.secondaryTextColor,
-                                fontSize: 12,
-                              ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Gap(AppTheme.spacing1),
+                      Text(
+                        DateFormat('h:mm a').format(event.dateTime),
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: context.textSecondary,
+                        ),
+                      ),
+                      if (subtitle != null && subtitle.isNotEmpty) ...[
+                        Gap(AppTheme.spacing2),
+                        Icon(
+                          event is AppointmentEvent
+                              ? Icons.location_on_outlined
+                              : Icons.info_outline,
+                          size: 12.sp,
+                          color: context.textSecondary,
+                        ),
+                        Gap(AppTheme.spacing1),
+                        Expanded(
+                          child: Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: context.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ],
                   ),
-                ),
+                ],
               ),
-              // Chevron
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Icon(
-                  Icons.chevron_right,
-                  color: context.secondaryTextColor.withOpacity(0.3),
-                  size: 18,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -471,7 +469,7 @@ class CalendarPageState extends State<CalendarPage>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppTheme.neutral700.withOpacity(0.1),
+                color: AppTheme.neutral700.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -571,103 +569,85 @@ class CalendarPageState extends State<CalendarPage>
     AppointmentEvent appointment,
     int index,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+      child: GFCard(
+        elevation: 0,
+        color: context.surface,
+        borderOnForeground: true,
+        boxFit: BoxFit.cover,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          side: BorderSide(color: context.border),
+        ),
+        content: InkWell(
           onTap: () => _editAppointment(appointment),
           child: Row(
             children: [
-              // Prominent colored left border
               Container(
-                width: 6,
-                height: 80,
+                width: 4.w,
+                height: 48.h,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF309CB0), // Teal
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                  ),
+                  color: AppTheme.neutral800,
+                  borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
-              const SizedBox(width: 16),
+              Gap(AppTheme.spacing3),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        appointment.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      appointment.title,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: context.textPrimary,
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: Colors.grey[600],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Gap(AppTheme.spacing1),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12.sp,
+                          color: context.textSecondary,
+                        ),
+                        Gap(AppTheme.spacing1),
+                        Text(
+                          DateFormat('h:mm a').format(appointment.dateTime),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: context.textSecondary,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('h:mm a').format(appointment.dateTime),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
+                        ),
+                        if (appointment.location != null) ...[
+                          Gap(AppTheme.spacing2),
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 12.sp,
+                            color: context.textSecondary,
+                          ),
+                          Gap(AppTheme.spacing1),
+                          Expanded(
+                            child: Text(
+                              appointment.location!,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: context.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
-                      ),
-                      if (appointment.location != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 14,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                appointment.location!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
             ],
           ),
         ),
@@ -778,10 +758,10 @@ class CalendarPageState extends State<CalendarPage>
     return Container(
       margin: EdgeInsets.only(bottom: AppTheme.spacing3),
       decoration: BoxDecoration(
-        color: AppTheme.neutral600.withOpacity(0.05),
+        color: AppTheme.neutral600.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
         border: Border.all(
-          color: AppTheme.neutral600.withOpacity(0.2),
+          color: AppTheme.neutral600.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -849,7 +829,7 @@ class CalendarPageState extends State<CalendarPage>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.neutral600.withOpacity(0.15),
+                        color: AppTheme.neutral600.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(
                           AppTheme.radiusSmall,
                         ),
@@ -894,7 +874,7 @@ class CalendarPageState extends State<CalendarPage>
               ),
               child: Column(
                 children: [
-                  Divider(color: AppTheme.neutral600.withOpacity(0.2)),
+                  Divider(color: AppTheme.neutral600.withValues(alpha: 0.2)),
                   SizedBox(height: AppTheme.spacing2),
                   ...items.asMap().entries.map((entry) {
                     final med = entry.value;
@@ -906,7 +886,7 @@ class CalendarPageState extends State<CalendarPage>
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: AppTheme.neutral600.withOpacity(0.7),
+                              color: AppTheme.neutral600.withValues(alpha: 0.7),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -933,91 +913,77 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+      child: GFCard(
+        elevation: 0,
+        color: context.surface,
+        borderOnForeground: true,
+        boxFit: BoxFit.cover,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          side: BorderSide(color: context.border),
+        ),
+        content: InkWell(
           onTap: () => _handleEventTap(med),
           child: Row(
             children: [
-              // Prominent colored left border
               Container(
-                width: 6,
-                height: 80,
+                width: 4.w,
+                height: 48.h,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF57B4A4), // Medium teal
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                  ),
+                  color: AppTheme.neutral800,
+                  borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
-              const SizedBox(width: 16),
+              Gap(AppTheme.spacing3),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        med.medicationName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      med.medicationName,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: context.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Gap(AppTheme.spacing1),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12.sp,
+                          color: context.textSecondary,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: Colors.grey[600],
+                        Gap(AppTheme.spacing1),
+                        Text(
+                          DateFormat('h:mm a').format(med.dateTime),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: context.textSecondary,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('h:mm a').format(med.dateTime),
+                        ),
+                        Gap(AppTheme.spacing2),
+                        Expanded(
+                          child: Text(
+                            med.dosage,
                             style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
+                              fontSize: 12.sp,
+                              color: context.textSecondary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              med.dosage,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
             ],
           ),
         ),
@@ -1041,7 +1007,7 @@ class CalendarPageState extends State<CalendarPage>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppTheme.neutral700.withOpacity(0.1),
+                color: AppTheme.neutral700.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 40, color: AppTheme.neutral700),
@@ -1435,92 +1401,77 @@ class CalendarPageState extends State<CalendarPage>
     DateTime timestamp,
     String? note,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {},
-          child: Row(
-            children: [
-              // Prominent colored left border
-              Container(
-                width: 6,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF85E7A9), // Light green
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                  ),
-                ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+      child: GFCard(
+        elevation: 0,
+        color: context.surface,
+        borderOnForeground: true,
+        boxFit: BoxFit.cover,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          side: BorderSide(color: context.border),
+        ),
+        content: Row(
+          children: [
+            Container(
+              width: 4.w,
+              height: 48.h,
+              decoration: BoxDecoration(
+                color: AppTheme.neutral800,
+                borderRadius: BorderRadius.circular(2.r),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+            ),
+            Gap(AppTheme.spacing3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _symptomLabel(type),
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: context.textPrimary,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing1),
+                  Row(
                     children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 12.sp,
+                        color: context.textSecondary,
+                      ),
+                      Gap(AppTheme.spacing1),
                       Text(
-                        _symptomLabel(type),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
+                        DateFormat('h:mm a').format(timestamp),
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: context.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 14,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('h:mm a').format(timestamp),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
                       if (note != null && note.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          note,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontStyle: FontStyle.italic,
+                        Gap(AppTheme.spacing2),
+                        Expanded(
+                          child: Text(
+                            note,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: context.textSecondary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ],
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 16),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
