@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
-
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
-import '../../main.dart' show ProfilePage, SettingsPage;
+import '../petOwners/profile_page.dart';
+import '../petOwners/settings_page.dart';
 
 class ClinicAdminDashboard extends StatefulWidget {
   const ClinicAdminDashboard({super.key});
@@ -42,7 +42,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Clinic Admin Dashboard'),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
             actions: [
               IconButton(
@@ -52,7 +52,8 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const SettingsPage(),
+                      builder: (context) =>
+                          SettingsPage(injectedUserProvider: userProvider),
                     ),
                   );
                 },
@@ -155,7 +156,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
           children: [
             Row(
               children: [
-                Icon(Icons.business, color: AppTheme.primaryBlue, size: 28),
+                Icon(Icons.business, color: AppTheme.neutral700, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -250,7 +251,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.people,
         title: 'Manage Vets',
         subtitle: 'Invite and manage vets',
-        color: AppTheme.primaryGreen,
+        color: AppTheme.neutral600,
         onTap: () {
           Navigator.push(
             context,
@@ -267,7 +268,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.analytics,
         title: 'Clinic Reports',
         subtitle: 'Track analytics',
-        color: AppTheme.warningAmber,
+        color: AppTheme.neutral400,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Clinic reports coming soon')),
@@ -278,7 +279,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.people_outline,
         title: 'Pet Owners',
         subtitle: 'Connected owners',
-        color: AppTheme.accentCoral,
+        color: AppTheme.neutral500,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pet owner management coming soon')),
@@ -289,7 +290,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.settings,
         title: 'Clinic Settings',
         subtitle: 'Clinic details',
-        color: AppTheme.primaryBlue,
+        color: AppTheme.neutral700,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Clinic settings coming soon')),
@@ -363,61 +364,6 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
     }
 
     return 'C';
-  }
-
-  void _showClinicInfo(BuildContext context, UserProvider userProvider) {
-    final clinic = userProvider.connectedClinic;
-
-    if (clinic == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No clinic information available')),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(clinic.name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoRow('Address', clinic.address),
-            _buildInfoRow('Phone', clinic.phone),
-            _buildInfoRow('Email', clinic.email),
-            _buildInfoRow('Created', _formatDate(clinic.createdAt)),
-            if (clinic.description?.isNotEmpty == true)
-              _buildInfoRow('Description', clinic.description!),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
   }
 
   String _formatDate(DateTime date) {

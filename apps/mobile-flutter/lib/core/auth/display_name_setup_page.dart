@@ -65,13 +65,16 @@ class _DisplayNameSetupPageState extends State<DisplayNameSetupPage> {
                               .updateProfile(
                                 displayName: _nameController.text.trim(),
                               );
-                          if (!mounted) return;
+                          if (!mounted || !context.mounted) return;
                           setState(() => _submitting = false);
                           if (ok) {
+                            if (!context.mounted) return;
                             Navigator.of(context).maybePop();
                           } else {
+                            if (!context.mounted) return;
                             final err =
                                 context.read<UserProvider>().error ?? 'Error';
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(
                               context,
                             ).showSnackBar(SnackBar(content: Text(err)));

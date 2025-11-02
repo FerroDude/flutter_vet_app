@@ -20,10 +20,7 @@ class _AuthPageState extends State<AuthPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.primaryBlue,
-              AppTheme.primaryBlue.withOpacity(0.8),
-            ],
+            colors: [AppTheme.primary, AppTheme.primary.withValues(alpha: 0.8)],
           ),
         ),
         child: SafeArea(
@@ -40,11 +37,7 @@ class _AuthPageState extends State<AuthPage> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(
-                      Icons.pets,
-                      size: 60,
-                      color: AppTheme.primaryBlue,
-                    ),
+                    child: Icon(Icons.pets, size: 60, color: AppTheme.primary),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -58,7 +51,7 @@ class _AuthPageState extends State<AuthPage> {
                   Text(
                     'Your pet\'s health companion',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -166,7 +159,7 @@ class _AuthFormState extends State<AuthForm> {
             widget.title,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryBlue,
+              color: AppTheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -296,7 +289,7 @@ class _AuthFormState extends State<AuthForm> {
           ElevatedButton(
             onPressed: _isLoading ? null : _handleSubmit,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryBlue,
+              backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -328,7 +321,7 @@ class _AuthFormState extends State<AuthForm> {
               onPressed: _handleForgotPassword,
               child: Text(
                 'Forgot Password?',
-                style: TextStyle(color: AppTheme.primaryBlue),
+                style: TextStyle(color: AppTheme.primary),
               ),
             ),
           ],

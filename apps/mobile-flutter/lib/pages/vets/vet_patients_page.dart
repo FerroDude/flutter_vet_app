@@ -42,7 +42,7 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Patients'),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
           ),
           body: clinic == null
@@ -147,7 +147,7 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+              backgroundColor: AppTheme.neutral700.withOpacity(0.1),
               child: const Icon(Icons.person, color: Colors.black87),
             ),
             title: Text(

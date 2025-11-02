@@ -29,7 +29,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('System Statistics'),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
             actions: [
               IconButton(
@@ -119,8 +119,8 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryGreen,
-              AppTheme.primaryGreen.withOpacity(0.8),
+              AppTheme.neutral600,
+              AppTheme.neutral600.withOpacity(0.8),
             ],
           ),
         ),
@@ -218,25 +218,25 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
               title: 'Total Clinics',
               value: totalClinics.toString(),
               icon: Icons.business,
-              color: AppTheme.primaryBlue,
+              color: AppTheme.neutral700,
             ),
             _buildStatCard(
               title: 'Active Clinics',
               value: activeClinics.toString(),
               icon: Icons.check_circle,
-              color: AppTheme.primaryGreen,
+              color: AppTheme.neutral600,
             ),
             _buildStatCard(
               title: 'Inactive Clinics',
               value: inactiveClinics.toString(),
               icon: Icons.pause_circle,
-              color: AppTheme.warningAmber,
+              color: AppTheme.neutral400,
             ),
             _buildStatCard(
               title: 'This Month',
               value: '0', // TODO: Implement monthly new clinics count
               icon: Icons.trending_up,
-              color: AppTheme.accentCoral,
+              color: AppTheme.neutral500,
             ),
           ],
         );
@@ -301,25 +301,25 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
               title: 'Total Users',
               value: totalUsers.toString(),
               icon: Icons.people,
-              color: AppTheme.primaryBlue,
+              color: AppTheme.neutral700,
             ),
             _buildStatCard(
               title: 'Pet Owners',
               value: petOwners.toString(),
               icon: Icons.pets,
-              color: AppTheme.primaryGreen,
+              color: AppTheme.neutral600,
             ),
             _buildStatCard(
               title: 'Veterinarians',
               value: vets.toString(),
               icon: Icons.medical_services,
-              color: AppTheme.warningAmber,
+              color: AppTheme.neutral400,
             ),
             _buildStatCard(
               title: 'Clinic Admins',
               value: clinicAdmins.toString(),
               icon: Icons.admin_panel_settings,
-              color: AppTheme.accentCoral,
+              color: AppTheme.neutral500,
             ),
           ],
         );
@@ -445,7 +445,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppTheme.primaryGreen,
+                        backgroundColor: AppTheme.neutral600,
                         child: const Icon(
                           Icons.business,
                           color: Colors.white,

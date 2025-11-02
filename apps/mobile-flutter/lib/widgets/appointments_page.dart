@@ -11,6 +11,7 @@ import '../models/symptom_models.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
 import 'simple_event_forms.dart';
+import 'simple_note_form.dart';
 import 'calendar_view.dart';
 import '../services/pet_service.dart';
 
@@ -224,11 +225,8 @@ class AppointmentsPageState extends State<AppointmentsPage>
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: event is AppointmentEvent
-                    ? AppTheme.primaryBlue
-                    : (event is MedicationEvent
-                          ? AppTheme.primaryGreen
-                          : AppTheme.accentCoral),
+                color: AppTheme
+                    .neutral500, // Unified navy color for all event types
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -300,17 +298,17 @@ class AppointmentsPageState extends State<AppointmentsPage>
                       return Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                          color: AppTheme.neutral700.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                            color: AppTheme.neutral700.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: AppTheme.primaryBlue,
+                              backgroundColor: AppTheme.neutral700,
                               child: Text(
                                 (pet['name'] ?? 'P')[0].toUpperCase(),
                                 style: const TextStyle(
@@ -391,7 +389,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                      color: AppTheme.neutral700.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -402,7 +400,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                             children: [
                               Icon(
                                 Icons.location_on,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
@@ -416,7 +414,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                             children: [
                               Icon(
                                 Icons.notes,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
@@ -435,7 +433,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withValues(alpha: 0.05),
+                    color: AppTheme.neutral600.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -445,7 +443,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                         children: [
                           Icon(
                             Icons.medical_services,
-                            color: AppTheme.primaryGreen,
+                            color: AppTheme.neutral600,
                             size: 18,
                           ),
                           const SizedBox(width: 8),
@@ -472,14 +470,14 @@ class AppointmentsPageState extends State<AppointmentsPage>
                           children: [
                             Icon(
                               Icons.check_circle,
-                              color: AppTheme.primaryGreen,
+                              color: AppTheme.neutral600,
                               size: 18,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               'Completed',
                               style: TextStyle(
-                                color: AppTheme.primaryGreen,
+                                color: AppTheme.neutral600,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -506,7 +504,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
           ElevatedButton(
             onPressed: () => _editEvent(dialogContext, event),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryBlue,
+              backgroundColor: AppTheme.neutral700,
               foregroundColor: Colors.white,
             ),
             child: const Text('Edit'),
@@ -762,7 +760,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                         Icon(
                           Icons.event_note_outlined,
                           size: 64,
-                          color: AppTheme.accentCoral,
+                          color: AppTheme.neutral500,
                         ),
                         SizedBox(height: 16),
                         Text(
@@ -853,7 +851,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                   headerDate,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryBlue,
+                    color: AppTheme.neutral700,
                   ),
                 ),
               ),
@@ -861,10 +859,10 @@ class AppointmentsPageState extends State<AppointmentsPage>
                 (appointment) => Container(
                   margin: const EdgeInsets.only(bottom: 6, left: 16, right: 16),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.03),
+                    color: AppTheme.neutral700.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      color: AppTheme.neutral700.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -882,7 +880,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -939,14 +937,14 @@ class AppointmentsPageState extends State<AppointmentsPage>
                                                   appointment.appointmentType!,
                                                 ),
                                                 size: 11,
-                                                color: AppTheme.primaryBlue,
+                                                color: AppTheme.neutral700,
                                               ),
                                               const SizedBox(width: 3),
                                               Text(
                                                 appointment.appointmentType!,
                                                 style: const TextStyle(
                                                   fontSize: 11,
-                                                  color: AppTheme.primaryBlue,
+                                                  color: AppTheme.neutral700,
                                                   fontWeight: FontWeight.w500,
                                                 ),
                                               ),
@@ -965,7 +963,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                                                   style: const TextStyle(
                                                     fontSize: 11,
                                                     color:
-                                                        AppTheme.textTertiary,
+                                                        AppTheme.textSecondary,
                                                   ),
                                                   overflow:
                                                       TextOverflow.ellipsis,
@@ -1058,13 +1056,13 @@ class AppointmentsPageState extends State<AppointmentsPage>
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
-              Icon(Icons.repeat, size: 18, color: AppTheme.primaryGreen),
+              Icon(Icons.repeat, size: 18, color: AppTheme.neutral600),
               const SizedBox(width: 8),
               Text(
                 'Recurring Medications',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryGreen,
+                  color: AppTheme.neutral600,
                 ),
               ),
             ],
@@ -1084,10 +1082,10 @@ class AppointmentsPageState extends State<AppointmentsPage>
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
           decoration: BoxDecoration(
-            color: AppTheme.primaryGreen.withValues(alpha: 0.05),
+            color: AppTheme.neutral600.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.2),
+              color: AppTheme.neutral600.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -1116,7 +1114,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen,
+                            color: AppTheme.neutral600,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -1154,9 +1152,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withValues(
-                              alpha: 0.15,
-                            ),
+                            color: AppTheme.neutral600.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -1165,13 +1161,13 @@ class AppointmentsPageState extends State<AppointmentsPage>
                               const Icon(
                                 Icons.layers,
                                 size: 14,
-                                color: AppTheme.primaryGreen,
+                                color: AppTheme.neutral600,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '${items.length}',
                                 style: const TextStyle(
-                                  color: AppTheme.primaryGreen,
+                                  color: AppTheme.neutral600,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
@@ -1183,7 +1179,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                         Icon(
                           isExpanded ? Icons.expand_less : Icons.expand_more,
                           size: 20,
-                          color: AppTheme.primaryGreen,
+                          color: AppTheme.neutral600,
                         ),
                       ],
                     ),
@@ -1196,7 +1192,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                   child: Column(
                     children: [
                       Divider(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.2),
+                        color: AppTheme.neutral600.withValues(alpha: 0.2),
                         height: 1,
                       ),
                       const SizedBox(height: 8),
@@ -1229,7 +1225,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                                   width: isNext ? 8 : 6,
                                   height: isNext ? 8 : 6,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryGreen.withValues(
+                                    color: AppTheme.neutral600.withValues(
                                       alpha: isNext
                                           ? 1.0
                                           : (isPast ? 0.4 : 0.7),
@@ -1252,7 +1248,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: AppTheme.primaryGreen
+                                              color: AppTheme.neutral600
                                                   .withValues(alpha: 0.15),
                                               borderRadius:
                                                   BorderRadius.circular(8),
@@ -1263,8 +1259,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(
-                                                    color:
-                                                        AppTheme.primaryGreen,
+                                                    color: AppTheme.neutral600,
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w600,
                                                   ),
@@ -1325,13 +1320,13 @@ class AppointmentsPageState extends State<AppointmentsPage>
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Row(
             children: [
-              Icon(Icons.schedule, size: 18, color: AppTheme.primaryBlue),
+              Icon(Icons.schedule, size: 18, color: AppTheme.neutral700),
               const SizedBox(width: 8),
               Text(
                 'Individual Medications',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                 ),
               ),
             ],
@@ -1382,7 +1377,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen,
+                          color: AppTheme.neutral600,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -1417,13 +1412,13 @@ class AppointmentsPageState extends State<AppointmentsPage>
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                          color: AppTheme.neutral700.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.edit,
                           size: 16,
-                          color: AppTheme.primaryBlue,
+                          color: AppTheme.neutral700,
                         ),
                       ),
                     ],
@@ -1602,24 +1597,24 @@ class _AppointmentsPetBadge extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(
-            color: AppTheme.primaryBlue.withOpacity(0.12),
+            color: AppTheme.neutral700.withOpacity(0.12),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppTheme.primaryBlue.withOpacity(0.3),
+              color: AppTheme.neutral700.withOpacity(0.3),
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(_getPetIcon(species), size: 12, color: AppTheme.primaryBlue),
+              Icon(_getPetIcon(species), size: 12, color: AppTheme.neutral700),
               const SizedBox(width: 4),
               Text(
                 petName,
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                 ),
               ),
             ],

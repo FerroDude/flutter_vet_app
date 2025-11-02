@@ -63,7 +63,7 @@ class ThemeToggleWidget extends StatelessWidget {
 
   Widget _buildExpandedToggle(BuildContext context, ThemeManager themeManager) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacing4),
+      padding: EdgeInsets.all(AppTheme.spacing4),
       decoration: BoxDecoration(
         color: context.surfaceSecondary,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
@@ -74,7 +74,7 @@ class ThemeToggleWidget extends StatelessWidget {
         children: [
           if (showLabel) ...[
             Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.spacing3),
+              padding: EdgeInsets.only(bottom: AppTheme.spacing3),
               child: Text(
                 'Theme',
                 style: AppTheme.labelLarge.copyWith(color: context.textColor),
@@ -92,7 +92,7 @@ class ThemeToggleWidget extends StatelessWidget {
                   'Light',
                 ),
               ),
-              const SizedBox(width: AppTheme.spacing2),
+              SizedBox(width: AppTheme.spacing2),
               Expanded(
                 child: _buildExpandedButton(
                   context,
@@ -102,7 +102,7 @@ class ThemeToggleWidget extends StatelessWidget {
                   'System',
                 ),
               ),
-              const SizedBox(width: AppTheme.spacing2),
+              SizedBox(width: AppTheme.spacing2),
               Expanded(
                 child: _buildExpandedButton(
                   context,
@@ -132,8 +132,8 @@ class ThemeToggleWidget extends StatelessWidget {
       onTap: () => themeManager.setThemeMode(mode),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(AppTheme.spacing3),
-        margin: const EdgeInsets.all(AppTheme.spacing1),
+        padding: EdgeInsets.all(AppTheme.spacing3),
+        margin: EdgeInsets.all(AppTheme.spacing1),
         decoration: BoxDecoration(
           color: isSelected ? context.accentPrimary : Colors.transparent,
           borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -164,7 +164,7 @@ class ThemeToggleWidget extends StatelessWidget {
       onTap: () => themeManager.setThemeMode(mode),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(
+        padding: EdgeInsets.symmetric(
           vertical: AppTheme.spacing3,
           horizontal: AppTheme.spacing2,
         ),
@@ -184,7 +184,7 @@ class ThemeToggleWidget extends StatelessWidget {
                         : Colors.white)
                   : context.textColor,
             ),
-            const SizedBox(height: AppTheme.spacing1),
+            SizedBox(height: AppTheme.spacing1),
             Text(
               label,
               style: AppTheme.bodySmall.copyWith(

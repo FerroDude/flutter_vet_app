@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../../models/symptom_models.dart';
-import '../../services/pet_service.dart';
-import '../../widgets/modern_modals.dart';
+import '../../../models/symptom_models.dart';
+import '../../../services/pet_service.dart';
+import '../../../widgets/modern_modals.dart';
 
 class AddSymptomSheet extends StatefulWidget {
   const AddSymptomSheet({super.key, required this.petId});
@@ -122,12 +122,12 @@ class _AddSymptomSheetState extends State<AddSymptomSheet> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
-    if (date == null) return;
+    if (date == null || !mounted || !context.mounted) return;
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_timestamp),
     );
-    if (time == null) return;
+    if (time == null || !mounted || !context.mounted) return;
     setState(() {
       _timestamp = DateTime(
         date.year,
@@ -153,8 +153,9 @@ class _AddSymptomSheetState extends State<AddSymptomSheet> {
             ? null
             : _noteController.text.trim(),
       );
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
       Navigator.pop(context, true);
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Symptom added successfully!'),
@@ -162,7 +163,7 @@ class _AddSymptomSheetState extends State<AddSymptomSheet> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to save symptom: $e'),

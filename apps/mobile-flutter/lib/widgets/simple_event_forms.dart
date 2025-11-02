@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+import 'package:getwidget/getwidget.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
-import 'modern_modals.dart';
 
 class SimpleAddEventDialog extends StatelessWidget {
   final DateTime selectedDate;
@@ -20,39 +22,40 @@ class SimpleAddEventDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(AppTheme.spacing6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Add New Event',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w600,
+                color: context.textPrimary,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            _EventTypeButton(
-              icon: Icons.event,
-              label: 'Appointment',
-              color: AppTheme.primaryBlue,
-              onTap: () => _showAppointmentForm(context),
+            Gap(AppTheme.spacing6),
+            GFButton(
+              onPressed: () => _showAppointmentForm(context),
+              text: 'Appointment',
+              icon: Icon(Icons.event, color: Colors.white),
+              color: AppTheme.neutral800,
+              fullWidthButton: true,
+              size: GFSize.LARGE,
             ),
-            const SizedBox(height: 12),
-            _EventTypeButton(
-              icon: Icons.medication,
-              label: 'Medication',
-              color: AppTheme.primaryGreen,
-              onTap: () => _showMedicationForm(context),
-            ),
-            const SizedBox(height: 12),
-            _EventTypeButton(
-              icon: Icons.note,
-              label: 'Quick Note',
-              color: AppTheme.accentCoral,
-              onTap: () => _showNoteForm(context),
+            Gap(AppTheme.spacing3),
+            GFButton(
+              onPressed: () => _showMedicationForm(context),
+              text: 'Medication',
+              icon: Icon(Icons.medication, color: Colors.white),
+              color: AppTheme.neutral600,
+              fullWidthButton: true,
+              size: GFSize.LARGE,
             ),
           ],
         ),
@@ -63,8 +66,10 @@ class SimpleAddEventDialog extends StatelessWidget {
   void _showAppointmentForm(BuildContext context) {
     final eventProvider = context.read<EventProvider>();
     Navigator.pop(context);
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: eventProvider,
         child: SimpleAppointmentForm(selectedDate: selectedDate, petId: petId),
@@ -75,62 +80,13 @@ class SimpleAddEventDialog extends StatelessWidget {
   void _showMedicationForm(BuildContext context) {
     final eventProvider = context.read<EventProvider>();
     Navigator.pop(context);
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: eventProvider,
         child: SimpleMedicationForm(selectedDate: selectedDate, petId: petId),
-      ),
-    );
-  }
-
-  void _showNoteForm(BuildContext context) {
-    final eventProvider = context.read<EventProvider>();
-    Navigator.pop(context);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => ChangeNotifierProvider.value(
-        value: eventProvider,
-        child: SimpleNoteForm(selectedDate: selectedDate, petId: petId),
-      ),
-    );
-  }
-}
-
-class _EventTypeButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _EventTypeButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 24),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-        ],
       ),
     );
   }
@@ -154,180 +110,193 @@ class SimpleAppointmentForm extends StatefulWidget {
 
 class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
-  late final TextEditingController _vetNameController;
-  late final TextEditingController _locationController;
-  late DateTime _selectedDateTime;
-  String? _selectedPetId;
-  bool _isLoading = false;
+  final _titleController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _notesController = TextEditingController();
+  late TimeOfDay _selectedTime;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(
-      text: widget.existingEvent?.title ?? '',
-    );
-    _vetNameController = TextEditingController(
-      text: widget.existingEvent?.vetName ?? '',
-    );
-    _locationController = TextEditingController(
-      text: widget.existingEvent?.location ?? '',
-    );
-    _selectedDateTime = widget.existingEvent?.dateTime ?? widget.selectedDate;
-    _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
+    _selectedTime = TimeOfDay.fromDateTime(widget.selectedDate);
+    if (widget.existingEvent != null) {
+      _titleController.text = widget.existingEvent!.title;
+      _locationController.text = widget.existingEvent!.location ?? '';
+      _notesController.text = widget.existingEvent!.description;
+      _selectedTime = TimeOfDay.fromDateTime(widget.existingEvent!.dateTime);
+    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _vetNameController.dispose();
     _locationController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ModernBottomSheet(
+    return Container(
+      padding: EdgeInsets.all(AppTheme.spacing4),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius4)),
+      ),
       child: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ModernModalHeader(
-              title: widget.existingEvent == null
-                  ? 'Add Appointment'
-                  : 'Edit Appointment',
-              icon: Icons.event_outlined,
-              iconColor: const Color(0xFF3B82F6),
+            Text(
+              widget.existingEvent == null ? 'New Appointment' : 'Edit Appointment',
+              style: TextStyle(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w600,
+                color: context.textPrimary,
+              ),
             ),
-            const SizedBox(height: 24),
-            ModernModalTextField(
+            Gap(AppTheme.spacing4),
+            TextFormField(
               controller: _titleController,
-              label: 'Title',
-              hint: 'Vet visit, grooming, checkup',
-              icon: Icons.calendar_today,
+              decoration: InputDecoration(
+                labelText: 'Title',
+                hintText: 'e.g., Annual Checkup',
+                prefixIcon: Icon(Icons.event_outlined),
+              ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter appointment title';
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a title';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              controller: _vetNameController,
-              label: 'Vet Name (Optional)',
-              hint: 'Dr. Smith',
-              icon: Icons.person_outline,
-            ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
+            Gap(AppTheme.spacing3),
+            TextFormField(
               controller: _locationController,
-              label: 'Location (Optional)',
-              hint: 'Pet Clinic',
-              icon: Icons.location_on_outlined,
+              decoration: InputDecoration(
+                labelText: 'Location',
+                hintText: 'e.g., Vet Clinic Name',
+                prefixIcon: Icon(Icons.location_on_outlined),
+              ),
             ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              readOnly: true,
-              label: 'Date & Time',
-              hint: DateFormat(
-                'MMM dd, yyyy • h:mm a',
-              ).format(_selectedDateTime),
-              icon: Icons.event_outlined,
-              onTap: _selectDateTime,
+            Gap(AppTheme.spacing3),
+            GFListTile(
+              avatar: Icon(Icons.access_time, color: context.textPrimary),
+              title: Text('Time', style: TextStyle(color: context.textSecondary, fontSize: 12.sp)),
+              subTitle: Text(
+                _selectedTime.format(context),
+                style: TextStyle(color: context.textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w500),
+              ),
+              onTap: () async {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: _selectedTime,
+                );
+                if (time != null) {
+                  setState(() => _selectedTime = time);
+                }
+              },
             ),
-            const SizedBox(height: 24),
-            ModernModalButton(
-              text: widget.existingEvent == null
-                  ? 'Add Appointment'
-                  : 'Update Appointment',
-              isLoading: _isLoading,
-              onPressed: _saveAppointment,
-              color: const Color(0xFF3B82F6),
-              icon: widget.existingEvent == null ? Icons.add : Icons.check,
+            Gap(AppTheme.spacing3),
+            TextFormField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: 'Notes (optional)',
+                hintText: 'Additional information',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+              maxLines: 3,
             ),
+            Gap(AppTheme.spacing4),
+            Row(
+              children: [
+                Expanded(
+                  child: GFButton(
+                    onPressed: () => Navigator.pop(context),
+                    text: 'Cancel',
+                    type: GFButtonType.outline2x,
+                    size: GFSize.LARGE,
+                  ),
+                ),
+                Gap(AppTheme.spacing2),
+                Expanded(
+                  child: GFButton(
+                    onPressed: _isSubmitting ? null : _submitForm,
+                    text: widget.existingEvent == null ? 'Add' : 'Update',
+                    color: AppTheme.neutral800,
+                    size: GFSize.LARGE,
+                    icon: _isSubmitting
+                        ? SizedBox(
+                            width: 16.w,
+                            height: 16.h,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+            Gap(AppTheme.spacing2),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _selectDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDateTime,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (date != null && mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
-      );
-
-      if (time != null && mounted) {
-        setState(() {
-          _selectedDateTime = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
-    }
-  }
-
-  Future<void> _saveAppointment() async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() => _isSubmitting = true);
 
     try {
-      final eventProvider = context.read<EventProvider>();
-
-      final appointment = AppointmentEvent(
-        id: widget.existingEvent?.id ?? CalendarEvent.generateId(),
-        title: _titleController.text.trim(),
-        description: '',
-        dateTime: _selectedDateTime,
-        petId: _selectedPetId,
-        userId: eventProvider.currentUserId ?? '',
-        createdAt: widget.existingEvent?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-        vetName: _vetNameController.text.trim().isEmpty
-            ? null
-            : _vetNameController.text.trim(),
-        location: _locationController.text.trim().isEmpty
-            ? null
-            : _locationController.text.trim(),
-        appointmentType: null,
-        isConfirmed: widget.existingEvent?.isConfirmed ?? false,
-        contactInfo: null,
+      final dateTime = DateTime(
+        widget.selectedDate.year,
+        widget.selectedDate.month,
+        widget.selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
       );
 
+      final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final now = DateTime.now();
+      
+      final event = AppointmentEvent(
+        id: widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text.trim(),
+        description: _notesController.text.trim().isEmpty ? 'Appointment' : _notesController.text.trim(),
+        dateTime: dateTime,
+        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+        petId: widget.petId ?? widget.existingEvent?.petId,
+        userId: userId,
+        createdAt: widget.existingEvent?.createdAt ?? now,
+        updatedAt: now,
+      );
+
+      final eventProvider = context.read<EventProvider>();
       if (widget.existingEvent == null) {
-        await eventProvider.createEvent(appointment);
+        await eventProvider.createEvent(event);
       } else {
-        await eventProvider.updateEvent(appointment.id, appointment);
+        await eventProvider.updateEvent(event.id, event);
       }
 
       if (mounted) {
-        Navigator.pop(context, true);
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Appointment ${widget.existingEvent == null ? 'added' : 'updated'}')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving appointment: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isSubmitting = false);
       }
     }
   }
@@ -351,484 +320,201 @@ class SimpleMedicationForm extends StatefulWidget {
 
 class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late final TextEditingController _dosageController;
-  late final TextEditingController _instructionsController;
-  late DateTime _startDate;
-  late TimeOfDay _startTime;
-  String? _selectedPetId;
-  String _recurrencePattern = 'daily';
-  int _recurrenceInterval = 1;
-  DateTime? _endDate;
-  bool _isLoading = false;
+  final _nameController = TextEditingController();
+  final _dosageController = TextEditingController();
+  final _notesController = TextEditingController();
+  late TimeOfDay _selectedTime;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(
-      text: widget.existingEvent?.medicationName ?? '',
-    );
-    _dosageController = TextEditingController(
-      text: widget.existingEvent?.dosage ?? '',
-    );
-    _instructionsController = TextEditingController(
-      text: widget.existingEvent?.instructions ?? '',
-    );
-    _startDate = widget.existingEvent?.dateTime ?? widget.selectedDate;
-    _startTime = TimeOfDay.fromDateTime(_startDate);
-    _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
-    _recurrencePattern = widget.existingEvent?.recurrencePattern ?? 'daily';
-    _recurrenceInterval = widget.existingEvent?.recurrenceInterval ?? 1;
-    _endDate =
-        widget.existingEvent?.endDate ??
-        _startDate.add(const Duration(days: 7));
+    _selectedTime = TimeOfDay.fromDateTime(widget.selectedDate);
+    if (widget.existingEvent != null) {
+      _nameController.text = widget.existingEvent!.medicationName;
+      _dosageController.text = widget.existingEvent!.dosage;
+      _notesController.text = widget.existingEvent!.description;
+      _selectedTime = TimeOfDay.fromDateTime(widget.existingEvent!.dateTime);
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _dosageController.dispose();
-    _instructionsController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ModernBottomSheet(
+    return Container(
+      padding: EdgeInsets.all(AppTheme.spacing4),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius4)),
+      ),
       child: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ModernModalHeader(
-              title: widget.existingEvent == null
-                  ? 'Add Medication'
-                  : 'Edit Medication',
-              icon: Icons.medication,
-              iconColor: const Color(0xFF10B981),
+            Text(
+              widget.existingEvent == null ? 'New Medication' : 'Edit Medication',
+              style: TextStyle(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w600,
+                color: context.textPrimary,
+              ),
             ),
-            const SizedBox(height: 24),
-            ModernModalTextField(
+            Gap(AppTheme.spacing4),
+            TextFormField(
               controller: _nameController,
-              label: 'Medication Name',
-              hint: 'Heartworm pill, Flea drops',
-              icon: Icons.medical_services,
+              decoration: InputDecoration(
+                labelText: 'Medication Name',
+                hintText: 'e.g., Antibiotics',
+                prefixIcon: Icon(Icons.medication_outlined),
+              ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) {
+                if (value == null || value.isEmpty) {
                   return 'Please enter medication name';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
+            Gap(AppTheme.spacing3),
+            TextFormField(
               controller: _dosageController,
-              label: 'Dosage',
-              hint: '1 tablet, 5mg, 2ml',
-              icon: Icons.local_pharmacy,
+              decoration: InputDecoration(
+                labelText: 'Dosage',
+                hintText: 'e.g., 1 tablet',
+                prefixIcon: Icon(Icons.local_pharmacy_outlined),
+              ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) {
+                if (value == null || value.isEmpty) {
                   return 'Please enter dosage';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              controller: _instructionsController,
-              label: 'Instructions (Optional)',
-              hint: 'With food, morning only, etc.',
-              icon: Icons.info_outline,
-              maxLines: 2,
+            Gap(AppTheme.spacing3),
+            GFListTile(
+              avatar: Icon(Icons.access_time, color: context.textPrimary),
+              title: Text('Time', style: TextStyle(color: context.textSecondary, fontSize: 12.sp)),
+              subTitle: Text(
+                _selectedTime.format(context),
+                style: TextStyle(color: context.textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w500),
+              ),
+              onTap: () async {
+                final time = await showTimePicker(
+                  context: context,
+                  initialTime: _selectedTime,
+                );
+                if (time != null) {
+                  setState(() => _selectedTime = time);
+                }
+              },
             ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              readOnly: true,
-              label: 'Start Date & Time',
-              hint:
-                  '${DateFormat('MMM dd, yyyy').format(_startDate)} • ${_startTime.format(context)}',
-              icon: Icons.calendar_today,
-              onTap: _selectStartDateTime,
+            Gap(AppTheme.spacing3),
+            TextFormField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: 'Notes (optional)',
+                hintText: 'Additional information',
+                prefixIcon: Icon(Icons.notes_outlined),
+              ),
+              maxLines: 3,
             ),
-            const SizedBox(height: 16),
-            ModernModalDropdown<String>(
-              label: 'Frequency',
-              value: _recurrencePattern,
-              icon: Icons.repeat,
-              items: const [
-                DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+            Gap(AppTheme.spacing4),
+            Row(
+              children: [
+                Expanded(
+                  child: GFButton(
+                    onPressed: () => Navigator.pop(context),
+                    text: 'Cancel',
+                    type: GFButtonType.outline2x,
+                    size: GFSize.LARGE,
+                  ),
+                ),
+                Gap(AppTheme.spacing2),
+                Expanded(
+                  child: GFButton(
+                    onPressed: _isSubmitting ? null : _submitForm,
+                    text: widget.existingEvent == null ? 'Add' : 'Update',
+                    color: AppTheme.neutral800,
+                    size: GFSize.LARGE,
+                    icon: _isSubmitting
+                        ? SizedBox(
+                            width: 16.w,
+                            height: 16.h,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : null,
+                  ),
+                ),
               ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _recurrencePattern = value);
-                }
-              },
             ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              readOnly: true,
-              label: 'End Date',
-              hint: _endDate != null
-                  ? DateFormat('MMM dd, yyyy').format(_endDate!)
-                  : 'Select end date',
-              icon: Icons.event,
-              onTap: _selectEndDate,
-            ),
-            const SizedBox(height: 24),
-            ModernModalButton(
-              text: widget.existingEvent == null
-                  ? 'Create Schedule'
-                  : 'Update Schedule',
-              isLoading: _isLoading,
-              onPressed: _saveMedication,
-              color: const Color(0xFF10B981),
-              icon: widget.existingEvent == null ? Icons.add : Icons.check,
-            ),
+            Gap(AppTheme.spacing2),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _selectStartDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (date != null && mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: _startTime,
-      );
-
-      if (time != null && mounted) {
-        setState(() {
-          _startDate = date;
-          _startTime = time;
-        });
-      }
-    }
-  }
-
-  Future<void> _selectEndDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _endDate ?? _startDate.add(const Duration(days: 30)),
-      firstDate: _startDate,
-      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-    );
-
-    if (date != null && mounted) {
-      setState(() {
-        _endDate = date;
-      });
-    }
-  }
-
-  Future<void> _saveMedication() async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() => _isSubmitting = true);
 
     try {
+      final dateTime = DateTime(
+        widget.selectedDate.year,
+        widget.selectedDate.month,
+        widget.selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
+
+      final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final now = DateTime.now();
+      
+      final event = MedicationEvent(
+        id: widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _nameController.text.trim(),
+        description: _notesController.text.trim().isEmpty ? 'Medication reminder' : _notesController.text.trim(),
+        dateTime: dateTime,
+        medicationName: _nameController.text.trim(),
+        dosage: _dosageController.text.trim(),
+        frequency: 'once',
+        petId: widget.petId ?? widget.existingEvent?.petId,
+        userId: userId,
+        createdAt: widget.existingEvent?.createdAt ?? now,
+        updatedAt: now,
+      );
+
       final eventProvider = context.read<EventProvider>();
-
-      String frequencyString = 'Every ';
-      frequencyString +=
-          '$_recurrenceInterval ${_recurrencePattern == 'daily'
-              ? (_recurrenceInterval == 1 ? 'day' : 'days')
-              : _recurrencePattern == 'weekly'
-              ? (_recurrenceInterval == 1 ? 'week' : 'weeks')
-              : (_recurrenceInterval == 1 ? 'month' : 'months')}';
-
-      final DateTime effectiveEnd = _endDate ?? _startDate;
-      final DateTime startDateTime = DateTime(
-        _startDate.year,
-        _startDate.month,
-        _startDate.day,
-        _startTime.hour,
-        _startTime.minute,
-      );
-      final occurrences = _generateOccurrences(
-        startDateTime,
-        effectiveEnd,
-        _recurrencePattern,
-        _recurrenceInterval,
-      );
-
-      final String seriesId = CalendarEvent.generateId();
-      for (final dt in occurrences) {
-        final medication = MedicationEvent(
-          id: CalendarEvent.generateId(),
-          title: _nameController.text.trim(),
-          description: '${_dosageController.text.trim()} - $frequencyString',
-          dateTime: dt,
-          petId: _selectedPetId,
-          userId: eventProvider.currentUserId ?? '',
-          seriesId: seriesId,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          medicationName: _nameController.text.trim(),
-          dosage: _dosageController.text.trim(),
-          frequency: frequencyString,
-          endDate: effectiveEnd,
-          isRecurring: true,
-          recurrencePattern: _recurrencePattern,
-          recurrenceInterval: _recurrenceInterval,
-          customIntervalMinutes: null,
-          remainingDoses: null,
-          requiresNotification: true,
-          lastTaken: null,
-          nextDose: dt,
-          instructions: _instructionsController.text.trim().isEmpty
-              ? null
-              : _instructionsController.text.trim(),
-        );
-        await eventProvider.createEvent(medication);
-      }
-
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving medication: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  List<DateTime> _generateOccurrences(
-    DateTime start,
-    DateTime end,
-    String pattern,
-    int interval,
-  ) {
-    final List<DateTime> result = [];
-    DateTime current = DateTime(
-      start.year,
-      start.month,
-      start.day,
-      start.hour,
-      start.minute,
-    );
-    final DateTime endDay = DateTime(
-      end.year,
-      end.month,
-      end.day,
-      end.hour,
-      end.minute,
-    );
-
-    while (!current.isAfter(endDay)) {
-      result.add(current);
-      if (pattern == 'daily') {
-        current = current.add(Duration(days: interval));
-      } else if (pattern == 'weekly') {
-        current = current.add(Duration(days: 7 * interval));
-      } else {
-        int y = current.year;
-        int m = current.month + interval;
-        while (m > 12) {
-          y += 1;
-          m -= 12;
-        }
-        final int day = current.day;
-        final int lastDayOfTarget = DateTime(y, m + 1, 0).day;
-        final int d = day > lastDayOfTarget ? lastDayOfTarget : day;
-        current = DateTime(y, m, d, current.hour, current.minute);
-      }
-    }
-
-    return result;
-  }
-}
-
-class SimpleNoteForm extends StatefulWidget {
-  final DateTime selectedDate;
-  final String? petId;
-  final NoteEvent? existingEvent;
-
-  const SimpleNoteForm({
-    super.key,
-    required this.selectedDate,
-    this.petId,
-    this.existingEvent,
-  });
-
-  @override
-  State<SimpleNoteForm> createState() => _SimpleNoteFormState();
-}
-
-class _SimpleNoteFormState extends State<SimpleNoteForm> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
-  late final TextEditingController _noteController;
-  late DateTime _selectedDateTime;
-  String? _selectedPetId;
-  bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(
-      text: widget.existingEvent?.title ?? '',
-    );
-    _noteController = TextEditingController(
-      text: widget.existingEvent?.description ?? '',
-    );
-    _selectedDateTime = widget.existingEvent?.dateTime ?? widget.selectedDate;
-    _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ModernBottomSheet(
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ModernModalHeader(
-              title: widget.existingEvent == null ? 'Add Note' : 'Edit Note',
-              icon: Icons.note_outlined,
-              iconColor: const Color(0xFFF59E0B),
-            ),
-            const SizedBox(height: 24),
-            ModernModalTextField(
-              controller: _titleController,
-              label: 'Title',
-              hint: 'Reminder, observation, etc.',
-              icon: Icons.title,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              controller: _noteController,
-              label: 'Note',
-              hint: 'Add details...',
-              icon: Icons.note_outlined,
-              maxLines: 4,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a note';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            ModernModalTextField(
-              readOnly: true,
-              label: 'Date & Time',
-              hint: DateFormat(
-                'MMM dd, yyyy • h:mm a',
-              ).format(_selectedDateTime),
-              icon: Icons.calendar_today,
-              onTap: _selectDateTime,
-            ),
-            const SizedBox(height: 24),
-            ModernModalButton(
-              text: widget.existingEvent == null ? 'Add Note' : 'Update Note',
-              isLoading: _isLoading,
-              onPressed: _saveNote,
-              color: const Color(0xFFF59E0B),
-              icon: widget.existingEvent == null ? Icons.add : Icons.check,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _selectDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDateTime,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (date != null && mounted) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
-      );
-
-      if (time != null && mounted) {
-        setState(() {
-          _selectedDateTime = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
-    }
-  }
-
-  Future<void> _saveNote() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final eventProvider = context.read<EventProvider>();
-
-      final note = NoteEvent(
-        id: widget.existingEvent?.id ?? CalendarEvent.generateId(),
-        title: _titleController.text.trim(),
-        description: _noteController.text.trim(),
-        dateTime: _selectedDateTime,
-        petId: _selectedPetId,
-        userId: eventProvider.currentUserId ?? '',
-        createdAt: widget.existingEvent?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-        tags: widget.existingEvent?.tags ?? [],
-      );
-
       if (widget.existingEvent == null) {
-        await eventProvider.createEvent(note);
+        await eventProvider.createEvent(event);
       } else {
-        await eventProvider.updateEvent(note.id, note);
+        await eventProvider.updateEvent(event.id, event);
       }
 
       if (mounted) {
-        Navigator.pop(context, true);
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Medication ${widget.existingEvent == null ? 'added' : 'updated'}')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving note: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isSubmitting = false);
       }
     }
   }

@@ -122,7 +122,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
             title: Text(
               widget.isCreating ? 'Create Clinic' : 'Clinic Settings',
             ),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
             actions: [
               if (!widget.isCreating && !_isEditing)
@@ -189,7 +189,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _saveClinic,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryBlue,
+                                backgroundColor: AppTheme.neutral700,
                                 foregroundColor: Colors.white,
                               ),
                               child: _isLoading

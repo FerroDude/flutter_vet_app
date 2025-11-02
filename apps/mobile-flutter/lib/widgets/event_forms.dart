@@ -32,21 +32,21 @@ class AddEventDialog extends StatelessWidget {
             _EventTypeButton(
               icon: Icons.event,
               label: 'Appointment',
-              color: AppTheme.primaryBlue,
+              color: AppTheme.neutral700,
               onTap: () => _showAppointmentForm(context),
             ),
             const SizedBox(height: 12),
             _EventTypeButton(
               icon: Icons.medication,
               label: 'Medication',
-              color: AppTheme.primaryGreen,
+              color: AppTheme.neutral600,
               onTap: () => _showMedicationForm(context),
             ),
             const SizedBox(height: 12),
             _EventTypeButton(
               icon: Icons.note,
               label: 'Note/Reminder',
-              color: AppTheme.accentCoral,
+              color: AppTheme.neutral500,
               onTap: () => _showNoteForm(context),
             ),
             const SizedBox(height: 24),
@@ -308,7 +308,7 @@ class _AppointmentFormState extends State<AppointmentForm> {
                           onChanged: (value) =>
                               setState(() => _isConfirmed = value),
                           tileColor: _isConfirmed
-                              ? AppTheme.primaryGreen.withOpacity(0.1)
+                              ? AppTheme.neutral500.withOpacity(0.1)
                               : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -593,7 +593,7 @@ class _MedicationFormState extends State<MedicationForm> {
                           onChanged: (value) =>
                               setState(() => _requiresNotification = value),
                           tileColor: _requiresNotification
-                              ? AppTheme.primaryGreen.withOpacity(0.1)
+                              ? AppTheme.neutral500.withOpacity(0.1)
                               : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -809,7 +809,8 @@ class _NoteFormState extends State<NoteForm> {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          initialValue: _categories.contains(_categoryController.text)
+                          initialValue:
+                              _categories.contains(_categoryController.text)
                               ? _categoryController.text
                               : _categories[0],
                           decoration: const InputDecoration(
@@ -840,7 +841,7 @@ class _NoteFormState extends State<NoteForm> {
                                     ? Icons.star
                                     : Icons.star_border,
                                 color: index < _priority
-                                    ? AppTheme.primaryGreen
+                                    ? AppTheme.neutral500
                                     : AppTheme.textSecondary,
                               ),
                             );

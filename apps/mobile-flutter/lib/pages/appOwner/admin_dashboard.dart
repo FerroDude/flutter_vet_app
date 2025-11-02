@@ -7,7 +7,8 @@ import '../../models/clinic_models.dart';
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
 import 'app_owner_stats.dart';
-import '../../main.dart' show ProfilePage;
+import '../petOwners/profile_page.dart';
+import '../petOwners/settings_page.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -35,16 +36,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('App Owner Dashboard'),
-            backgroundColor: AppTheme.primaryBlue,
-            foregroundColor: Colors.white,
-            elevation: 0,
             actions: [
               IconButton(
-                onPressed: () => _showAppSettings(context),
-                icon: const Icon(Icons.settings),
-                tooltip: 'App Settings',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SettingsPage(injectedUserProvider: userProvider),
+                    ),
+                  );
+                },
+                tooltip: 'Settings',
               ),
               IconButton(
+                icon: const Icon(Icons.person_outline),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -54,17 +61,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ),
                   );
                 },
-                icon: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.white24,
-                  child: Text(
-                    _getUserInitial(userProvider),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
                 tooltip: 'Profile',
               ),
             ],
@@ -80,7 +76,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             currentIndex: _selectedIndex,
             onTap: (index) => setState(() => _selectedIndex = index),
             type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppTheme.primaryBlue,
+            selectedItemColor: AppTheme.neutral700,
             unselectedItemColor: Colors.grey[600],
             backgroundColor: Colors.white,
             elevation: 8,
@@ -120,14 +116,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.flash_on, color: AppTheme.primaryBlue, size: 28),
+                    Icon(Icons.flash_on, color: AppTheme.neutral700, size: 28),
                     const SizedBox(width: 12),
                     Text(
                       'Actions',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryBlue,
+                            color: AppTheme.neutral700,
                           ),
                     ),
                   ],
@@ -177,7 +173,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Icon(
                   Icons.admin_panel_settings,
-                  color: AppTheme.accentCoral,
+                  color: AppTheme.neutral500,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
@@ -185,7 +181,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   'Clinic Admins',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.accentCoral,
+                    color: AppTheme.neutral500,
                   ),
                 ),
               ],
@@ -200,13 +196,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // Quick Stats Preview
             Row(
               children: [
-                Icon(Icons.trending_up, color: AppTheme.primaryGreen, size: 28),
+                Icon(Icons.trending_up, color: AppTheme.neutral600, size: 28),
                 const SizedBox(width: 12),
                 Text(
                   'Overview',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
+                    color: AppTheme.neutral600,
                   ),
                 ),
               ],
@@ -235,13 +231,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // Detailed Statistics Header
             Row(
               children: [
-                Icon(Icons.analytics, color: AppTheme.warningAmber, size: 28),
+                Icon(Icons.analytics, color: AppTheme.neutral400, size: 28),
                 const SizedBox(width: 12),
                 Text(
                   'Analytics',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.warningAmber,
+                    color: AppTheme.neutral400,
                   ),
                 ),
                 const Spacer(),
@@ -293,7 +289,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _buildActionCard(
         icon: Icons.add_business,
         title: 'Create Clinic',
-        color: AppTheme.primaryBlue,
+        color: AppTheme.neutral700,
         onTap: () {
           developer.log('Create Clinic button tapped!', name: 'AdminDashboard');
           _showCreateClinicAdminDialog(context);
@@ -302,13 +298,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _buildActionCard(
         icon: Icons.business,
         title: 'Manage Clinics',
-        color: AppTheme.primaryGreen,
+        color: AppTheme.neutral600,
         onTap: () => _showAllClinicsDialog(context),
       ),
       _buildActionCard(
         icon: Icons.analytics,
         title: 'Analytics',
-        color: AppTheme.warningAmber,
+        color: AppTheme.neutral400,
         onTap: () {
           Navigator.push(
             context,
@@ -324,7 +320,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _buildActionCard(
         icon: Icons.people_alt,
         title: 'Manage Vets',
-        color: AppTheme.primaryGreen,
+        color: AppTheme.neutral600,
         onTap: () {
           Navigator.push(
             context,
@@ -340,7 +336,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _buildActionCard(
         icon: Icons.settings,
         title: 'Settings',
-        color: AppTheme.accentCoral,
+        color: AppTheme.neutral500,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('App settings coming soon')),
@@ -484,7 +480,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     return Card(
       elevation: 8,
-      shadowColor: AppTheme.primaryBlue.withOpacity(0.3),
+      shadowColor: AppTheme.neutral700.withOpacity(0.3),
       color: isDark ? Colors.grey[900] : Colors.grey[50],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -499,10 +495,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primaryBlue,
-              AppTheme.primaryBlue.withOpacity(0.8),
-            ],
+            colors: [AppTheme.neutral700, AppTheme.neutral700.withOpacity(0.8)],
           ),
         ),
         padding: const EdgeInsets.all(24),
@@ -624,15 +617,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  // Get user initial for avatar
-  String _getUserInitial(UserProvider userProvider) {
-    final displayName = userProvider.currentUser?.displayName;
-    if (displayName != null && displayName.isNotEmpty) {
-      return displayName.substring(0, 1).toUpperCase();
-    }
-    return 'A';
-  }
-
   // Format date helper method
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -664,36 +648,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
   }
-
-  void _showAppSettings(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('App Settings'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('App settings will be implemented here.'),
-            SizedBox(height: 16),
-            Text('Features to come:'),
-            Text('• Email notification preferences'),
-            Text('• Theme customization'),
-            Text('• Data export settings'),
-            Text('• System configuration'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToProfile() {}
 
   // Temporary method to fix clinic admin linking
   void _showCheckClinicDialog(BuildContext context) {
@@ -757,9 +711,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
 
     try {
-      // Add timeout to prevent infinite loading
-      final timeout = Future.delayed(const Duration(seconds: 10));
-
       // Check for clinics with this email
       final clinicQueryFuture = FirebaseFirestore.instance
           .collection('clinics')
@@ -1509,48 +1460,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  void _handleProfileAction(String action, UserProvider userProvider) {
-    switch (action) {
-      case 'profile':
-        // Navigate to the same ProfilePage that normal users use
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                ProfilePage(injectedUserProvider: userProvider),
-          ),
-        );
-        break;
-      case 'logout':
-        _showLogoutDialog(context, userProvider);
-        break;
-    }
-  }
-
-  void _showLogoutDialog(BuildContext context, UserProvider userProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: Implement logout functionality
-              developer.log('Logout requested', name: 'AdminDashboard');
-            },
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showAllClinicsDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -1602,7 +1511,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     'Users',
                     totalUsers.toString(),
                     Icons.people,
-                    AppTheme.primaryGreen,
+                    AppTheme.neutral600,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1611,7 +1520,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     'Clinics',
                     activeClinics.toString(),
                     Icons.business,
-                    AppTheme.primaryBlue,
+                    AppTheme.neutral700,
                   ),
                 ),
               ],
@@ -1713,17 +1622,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.business,
-                      color: AppTheme.primaryGreen,
-                      size: 24,
-                    ),
+                    Icon(Icons.business, color: AppTheme.neutral600, size: 24),
                     const SizedBox(width: 12),
                     Text(
                       'Clinics',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
+                        color: AppTheme.neutral600,
                       ),
                     ),
                   ],
@@ -1741,19 +1646,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       title: 'Total',
                       value: totalClinics.toString(),
                       icon: Icons.business,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.neutral700,
                     ),
                     _buildStatCard(
                       title: 'Active',
                       value: activeClinics.toString(),
                       icon: Icons.check_circle,
-                      color: AppTheme.primaryGreen,
+                      color: AppTheme.neutral600,
                     ),
                     _buildStatCard(
                       title: 'Inactive',
                       value: inactiveClinics.toString(),
                       icon: Icons.pause_circle,
-                      color: AppTheme.warningAmber,
+                      color: AppTheme.neutral400,
                     ),
                   ],
                 ),
@@ -1803,13 +1708,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.people, color: AppTheme.primaryBlue, size: 24),
+                    Icon(Icons.people, color: AppTheme.neutral700, size: 24),
                     const SizedBox(width: 12),
                     Text(
                       'Users',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.neutral700,
                       ),
                     ),
                   ],
@@ -1827,25 +1732,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       title: 'Users',
                       value: totalUsers.toString(),
                       icon: Icons.people,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.neutral700,
                     ),
                     _buildStatCard(
                       title: 'Owners',
                       value: petOwners.toString(),
                       icon: Icons.pets,
-                      color: AppTheme.primaryGreen,
+                      color: AppTheme.neutral600,
                     ),
                     _buildStatCard(
                       title: 'Vets',
                       value: vets.toString(),
                       icon: Icons.medical_services,
-                      color: AppTheme.warningAmber,
+                      color: AppTheme.neutral400,
                     ),
                     _buildStatCard(
                       title: 'Admins',
                       value: clinicAdmins.toString(),
                       icon: Icons.admin_panel_settings,
-                      color: AppTheme.accentCoral,
+                      color: AppTheme.neutral500,
                     ),
                   ],
                 ),
@@ -1868,13 +1773,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
           children: [
             Row(
               children: [
-                Icon(Icons.timeline, color: AppTheme.accentCoral, size: 24),
+                Icon(Icons.timeline, color: AppTheme.neutral500, size: 24),
                 const SizedBox(width: 12),
                 Text(
                   'Activity',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.accentCoral,
+                    color: AppTheme.neutral500,
                   ),
                 ),
               ],
@@ -1934,12 +1839,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withOpacity(0.1),
+                          color: AppTheme.neutral600.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           Icons.business,
-                          color: AppTheme.primaryGreen,
+                          color: AppTheme.neutral600,
                           size: 20,
                         ),
                       ),
@@ -2035,7 +1940,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: clinic.isActive
-                      ? AppTheme.primaryGreen
+                      ? AppTheme.neutral600
                       : Colors.grey,
                   child: const Icon(Icons.business, color: Colors.white),
                 ),
@@ -2168,7 +2073,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primaryBlue.withOpacity(
+                                        color: AppTheme.neutral700.withOpacity(
                                           0.1,
                                         ),
                                         borderRadius: BorderRadius.circular(12),
@@ -2176,7 +2081,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                       child: Text(
                                         'Primary: $primaryAdminName',
                                         style: TextStyle(
-                                          color: AppTheme.primaryBlue,
+                                          color: AppTheme.neutral700,
                                           fontWeight: FontWeight.w500,
                                           fontSize: 12,
                                         ),
@@ -2204,13 +2109,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                                  color: AppTheme.neutral600.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   '${admins.length - 1} additional admin${admins.length > 2 ? 's' : ''}',
                                   style: TextStyle(
-                                    color: AppTheme.primaryGreen,
+                                    color: AppTheme.neutral600,
                                     fontWeight: FontWeight.w500,
                                     fontSize: 12,
                                   ),
@@ -2322,7 +2227,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.business, color: AppTheme.primaryBlue),
+            Icon(Icons.business, color: AppTheme.neutral700),
             const SizedBox(width: 8),
             Text(clinic.name),
           ],
@@ -2431,7 +2336,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         builder: (context) => AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.admin_panel_settings, color: AppTheme.primaryBlue),
+              Icon(Icons.admin_panel_settings, color: AppTheme.neutral700),
               const SizedBox(width: 8),
               Text('Admin Details'),
             ],
@@ -2455,10 +2360,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                  color: AppTheme.neutral700.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.primaryBlue.withOpacity(0.3),
+                    color: AppTheme.neutral700.withOpacity(0.3),
                   ),
                 ),
                 child: Column(
@@ -2468,7 +2373,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       'Managing Clinic:',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.neutral700,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -3074,7 +2979,7 @@ class _AllClinicsDialog extends StatelessWidget {
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: clinic.isActive
-                        ? AppTheme.primaryGreen
+                        ? AppTheme.neutral600
                         : Colors.grey,
                     child: const Icon(Icons.business, color: Colors.white),
                   ),
@@ -3233,7 +3138,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
               children: [
                 Icon(
                   Icons.admin_panel_settings,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
@@ -3242,7 +3147,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                     'Manage Admins - ${widget.clinic.name}',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.neutral700,
                     ),
                   ),
                 ),
@@ -3265,7 +3170,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                     _buildSectionHeader(
                       'Current Admin',
                       Icons.person,
-                      AppTheme.primaryBlue,
+                      AppTheme.neutral700,
                     ),
                     const SizedBox(height: 12),
                     _buildCurrentAdminCard(),
@@ -3276,7 +3181,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                     _buildSectionHeader(
                       'Add Additional Admin',
                       Icons.person_add,
-                      AppTheme.primaryGreen,
+                      AppTheme.neutral600,
                     ),
                     const SizedBox(height: 12),
                     _buildAddAdminCard(),
@@ -3287,7 +3192,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                     _buildSectionHeader(
                       'Additional Admins',
                       Icons.people,
-                      AppTheme.warningAmber,
+                      AppTheme.neutral400,
                     ),
                     const SizedBox(height: 12),
                     _buildAdditionalAdminsCard(),
@@ -3366,7 +3271,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                 Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: AppTheme.primaryBlue,
+                      backgroundColor: AppTheme.neutral700,
                       child: Text(
                         adminName.isNotEmpty ? adminName[0].toUpperCase() : 'A',
                         style: const TextStyle(
@@ -3407,7 +3312,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue,
+                    color: AppTheme.neutral700,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Text(
@@ -3463,7 +3368,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                     : const Icon(Icons.add),
                 label: Text(_isLoading ? 'Adding...' : 'Add Admin'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen,
+                  backgroundColor: AppTheme.neutral600,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -3562,7 +3467,7 @@ class _ManageAdminsDialogState extends State<_ManageAdminsDialog> {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: AppTheme.primaryGreen,
+                              backgroundColor: AppTheme.neutral600,
                               child: Text(
                                 adminName.isNotEmpty
                                     ? adminName[0].toUpperCase()

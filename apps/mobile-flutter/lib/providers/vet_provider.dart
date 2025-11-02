@@ -16,7 +16,7 @@ class VetProvider extends ChangeNotifier {
 
   // Data
   List<UserProfile> _patients = [];
-  Map<String, List<Pet>> _ownerIdToPets = {};
+  final Map<String, List<Pet>> _ownerIdToPets = {};
 
   // Streams
   StreamSubscription<List<UserProfile>>? _patientsSub;

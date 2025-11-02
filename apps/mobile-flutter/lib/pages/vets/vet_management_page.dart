@@ -32,7 +32,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Vet Management'),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
             actions: [
               IconButton(
@@ -85,7 +85,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               icon: const Icon(Icons.add),
               label: const Text('Add Vet'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
+                backgroundColor: AppTheme.neutral700,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -122,7 +122,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
       children: [
         Row(
           children: [
-            Icon(Icons.mail_outline, color: AppTheme.primaryBlue),
+            Icon(Icons.mail_outline, color: AppTheme.neutral700),
             const SizedBox(width: 8),
             Text(
               'Pending Invites',
@@ -192,7 +192,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryBlue.withOpacity(0.08),
+                                color: AppTheme.neutral700.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -200,7 +200,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12,
-                                  color: AppTheme.primaryBlue,
+                                  color: AppTheme.neutral700,
                                 ),
                               ),
                             ),
@@ -314,10 +314,10 @@ class _VetManagementPageState extends State<VetManagementPage> {
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+          backgroundColor: AppTheme.neutral600.withOpacity(0.1),
           child: const Icon(
             Icons.medical_services,
-            color: AppTheme.primaryGreen,
+            color: AppTheme.neutral600,
           ),
         ),
         title: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -542,7 +542,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
+                backgroundColor: AppTheme.neutral700,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Add Vet'),
@@ -659,7 +659,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
+                backgroundColor: AppTheme.neutral700,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Update'),

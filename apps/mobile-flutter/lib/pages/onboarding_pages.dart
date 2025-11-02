@@ -32,7 +32,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
                 'Welcome to VetPlus!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.primary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -56,7 +56,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
                     'I want to manage my pet\'s health and appointments',
                 icon: Icons.pets,
                 userType: UserType.petOwner,
-                color: AppTheme.primaryGreen,
+                color: AppTheme.primary,
               ),
 
               const SizedBox(height: 32),
@@ -96,7 +96,7 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _continue,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
+                  backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -253,7 +253,7 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Choose Your Clinic'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
       body: Padding(
@@ -353,10 +353,10 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: AppTheme.primaryBlue.withOpacity(0.1),
+            color: AppTheme.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(25),
           ),
-          child: const Icon(Icons.local_hospital, color: AppTheme.primaryBlue),
+          child: const Icon(Icons.local_hospital, color: AppTheme.primary),
         ),
         title: Text(
           clinic.name,

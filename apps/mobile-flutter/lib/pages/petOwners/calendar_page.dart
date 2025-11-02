@@ -14,20 +14,20 @@ import '../../widgets/simple_event_forms.dart';
 import '../../widgets/calendar_view.dart';
 import '../../widgets/modern_modals.dart';
 import '../../services/pet_service.dart';
-import '../add_symptom_sheet.dart';
+import 'add_symptom_sheet.dart';
 
 /// Clean, professional calendar page
-class ModernCalendarPage extends StatefulWidget {
-  const ModernCalendarPage({super.key});
+class CalendarPage extends StatefulWidget {
+  const CalendarPage({super.key});
 
   @override
-  State<ModernCalendarPage> createState() => ModernCalendarPageState();
+  State<CalendarPage> createState() => CalendarPageState();
 }
 
 // Global key for FAB access
-final modernCalendarPageKey = GlobalKey<ModernCalendarPageState>();
+final calendarPageKey = GlobalKey<CalendarPageState>();
 
-class ModernCalendarPageState extends State<ModernCalendarPage>
+class CalendarPageState extends State<CalendarPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController = TabController(
     length: 4,
@@ -129,29 +129,26 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
 
     return Scaffold(
       backgroundColor: context.surfacePrimary,
-      appBar: AppBar(
-        title: Text('Calendar'),
-        backgroundColor: context.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(64),
-          child: Container(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: Container(
+          decoration: BoxDecoration(
             color: isDark ? context.surfaceSecondary : Colors.white,
-            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing2),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: context.primaryColor,
-              unselectedLabelColor: context.secondaryTextColor,
-              indicatorColor: context.primaryColor,
-              indicatorWeight: 3,
-              tabs: const [
-                Tab(icon: Icon(Icons.calendar_month, size: 32)),
-                Tab(icon: Icon(Icons.event, size: 32)),
-                Tab(icon: Icon(Icons.medication, size: 32)),
-                Tab(icon: Icon(Icons.healing, size: 32)),
-              ],
-            ),
+            border: Border(bottom: BorderSide(color: context.border, width: 1)),
+          ),
+          padding: EdgeInsets.symmetric(vertical: AppTheme.spacing2),
+          child: TabBar(
+            controller: _tabController,
+            labelColor: AppTheme.neutral700,
+            unselectedLabelColor: context.secondaryTextColor,
+            indicatorColor: AppTheme.neutral700,
+            indicatorWeight: 3,
+            tabs: const [
+              Tab(icon: Icon(Icons.calendar_month, size: 32)),
+              Tab(icon: Icon(Icons.event, size: 32)),
+              Tab(icon: Icon(Icons.medication, size: 32)),
+              Tab(icon: Icon(Icons.healing, size: 32)),
+            ],
           ),
         ),
       ),
@@ -180,7 +177,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: context.primaryColor),
+          CircularProgressIndicator(color: AppTheme.neutral700),
           SizedBox(height: AppTheme.spacing4),
           Text(
             'Loading calendar...',
@@ -284,13 +281,13 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: context.primaryColor.withOpacity(0.1),
+                    color: AppTheme.neutral700.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${selectedEvents.length}',
                     style: TextStyle(
-                      color: context.primaryColor,
+                      color: AppTheme.neutral700,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -474,13 +471,13 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: context.primaryColor.withOpacity(0.1),
+                color: AppTheme.neutral700.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.event_available,
                 size: 40,
-                color: context.primaryColor,
+                color: AppTheme.neutral700,
               ),
             ),
             const SizedBox(height: 24),
@@ -557,7 +554,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                   headerDate,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: context.primaryColor,
+                    color: AppTheme.neutral700,
                   ),
                 ),
               ),
@@ -755,13 +752,13 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppTheme.primaryGreen),
+          Icon(icon, size: 18, color: AppTheme.neutral600),
           SizedBox(width: AppTheme.spacing2),
           Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryGreen,
+              color: AppTheme.neutral600,
             ),
           ),
         ],
@@ -781,10 +778,10 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
     return Container(
       margin: EdgeInsets.only(bottom: AppTheme.spacing3),
       decoration: BoxDecoration(
-        color: AppTheme.primaryGreen.withOpacity(0.05),
+        color: AppTheme.neutral600.withOpacity(0.05),
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
         border: Border.all(
-          color: AppTheme.primaryGreen.withOpacity(0.2),
+          color: AppTheme.neutral600.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -811,7 +808,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen,
+                        color: AppTheme.neutral600,
                         borderRadius: BorderRadius.circular(
                           AppTheme.radiusMedium,
                         ),
@@ -852,7 +849,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.15),
+                        color: AppTheme.neutral600.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(
                           AppTheme.radiusSmall,
                         ),
@@ -863,13 +860,13 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                           Icon(
                             Icons.layers,
                             size: 14,
-                            color: AppTheme.primaryGreen,
+                            color: AppTheme.neutral600,
                           ),
                           SizedBox(width: 4),
                           Text(
                             '${items.length}',
                             style: TextStyle(
-                              color: AppTheme.primaryGreen,
+                              color: AppTheme.neutral600,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -880,7 +877,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                     SizedBox(width: AppTheme.spacing2),
                     Icon(
                       isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: AppTheme.primaryGreen,
+                      color: AppTheme.neutral600,
                     ),
                   ],
                 ),
@@ -897,7 +894,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
               ),
               child: Column(
                 children: [
-                  Divider(color: AppTheme.primaryGreen.withOpacity(0.2)),
+                  Divider(color: AppTheme.neutral600.withOpacity(0.2)),
                   SizedBox(height: AppTheme.spacing2),
                   ...items.asMap().entries.map((entry) {
                     final med = entry.value;
@@ -909,7 +906,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryGreen.withOpacity(0.7),
+                              color: AppTheme.neutral600.withOpacity(0.7),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -1044,10 +1041,10 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: context.primaryColor.withOpacity(0.1),
+                color: AppTheme.neutral700.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 40, color: context.primaryColor),
+              child: Icon(icon, size: 40, color: AppTheme.neutral700),
             ),
             const SizedBox(height: 24),
             Text(
@@ -1162,7 +1159,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please sign in first'),
-          backgroundColor: AppTheme.errorRed,
+          backgroundColor: AppTheme.error,
         ),
       );
       return null;
@@ -1181,7 +1178,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Please add a pet first'),
-          backgroundColor: AppTheme.warningAmber,
+          backgroundColor: AppTheme.warning,
         ),
       );
       return null;
@@ -1380,7 +1377,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                             Icon(
                               Icons.pets,
                               size: 18,
-                              color: AppTheme.accentCoral,
+                              color: AppTheme.neutral500,
                             ),
                             SizedBox(width: AppTheme.spacing2),
                             Text(
@@ -1388,7 +1385,7 @@ class ModernCalendarPageState extends State<ModernCalendarPage>
                               style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: AppTheme.accentCoral,
+                                    color: AppTheme.neutral500,
                                   ),
                             ),
                             Spacer(),

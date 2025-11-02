@@ -6,18 +6,15 @@ class NotificationService {
   NotificationService._internal();
 
   Future<void> initialize() async {
-    // TODO: Implement notification system with compatible plugin
-    // For now, notifications are disabled to get the app running
+    // Notifications are disabled to get the app running
     // Recommended plugins: awesome_notifications (v0.8.3) or custom implementation
-    print('Notification service initialized (placeholder)');
   }
 
   Future<void> scheduleEventNotification(
     CalendarEvent event, {
     Duration advanceNotice = const Duration(minutes: 15),
   }) async {
-    // TODO: Implement notification scheduling with compatible plugin
-    print('Notification scheduled for event: ${event.title}');
+    // Notification scheduling not yet implemented
   }
 
   Future<void> scheduleMedicationNotification(
@@ -46,13 +43,11 @@ class NotificationService {
   }
 
   Future<void> cancelNotification(String eventId) async {
-    // TODO: Implement notification cancellation
-    print('Notification cancelled for event: $eventId');
+    // Notification cancellation not yet implemented
   }
 
   Future<void> cancelAllNotifications() async {
-    // TODO: Implement cancel all notifications
-    print('All notifications cancelled');
+    // Cancel all notifications not yet implemented
   }
 
   Future<void> showImmediateNotification({
@@ -60,17 +55,15 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
-    // TODO: Implement immediate notification
-    print('Immediate notification: $title - $body');
+    // Immediate notification not yet implemented
   }
 
   Future<void> scheduleDailyReminderCheck() async {
-    // TODO: Implement daily reminder scheduling
-    print('Daily reminder scheduled');
+    // Daily reminder scheduling not yet implemented
   }
 
   Future<List<String>> getPendingNotifications() async {
-    // TODO: Implement get pending notifications
+    // Get pending notifications not yet implemented
     return [];
   }
 

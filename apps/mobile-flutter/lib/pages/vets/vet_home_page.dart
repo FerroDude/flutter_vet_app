@@ -4,7 +4,8 @@ import '../../providers/user_provider.dart';
 import '../../providers/vet_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../main.dart' show ProfilePage, SettingsPage;
+import '../petOwners/profile_page.dart';
+import '../petOwners/settings_page.dart';
 import 'vet_patients_page.dart';
 import '../petOwners/chat_page.dart';
 
@@ -19,7 +20,7 @@ class VetHomePage extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Vet Home'),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
             actions: [
               IconButton(
@@ -29,7 +30,7 @@ class VetHomePage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const SettingsPage(),
+                      builder: (context) => SettingsPage(injectedUserProvider: userProvider),
                     ),
                   );
                 },
@@ -156,7 +157,7 @@ class _QuickTile extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: AppTheme.primaryBlue),
+              Icon(icon, color: AppTheme.neutral700),
               const SizedBox(height: 8),
               Text(label),
             ],

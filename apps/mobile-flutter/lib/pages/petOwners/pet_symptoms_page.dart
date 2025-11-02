@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+import 'package:getwidget/getwidget.dart';
+import 'package:intl/intl.dart';
 import '../../models/symptom_models.dart';
 import '../../services/pet_service.dart';
 import '../../theme/app_theme.dart';
@@ -23,19 +26,25 @@ class _PetSymptomsPageState extends State<PetSymptomsPage> {
   Widget build(BuildContext context) {
     final ownerId = FirebaseAuth.instance.currentUser?.uid;
     if (ownerId == null) {
-      return const Scaffold(body: Center(child: Text('Not authenticated')));
+      return Scaffold(
+        body: Center(
+          child: Text(
+            'Not authenticated',
+            style: TextStyle(fontSize: 14.sp, color: context.textSecondary),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
+      backgroundColor: context.background,
       appBar: AppBar(
         title: const Text('Symptoms'),
-        backgroundColor: AppTheme.primaryBlue,
-        foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_alt),
+          GFIconButton(
+            icon: Icon(Icons.filter_alt, color: context.textPrimary),
+            type: GFButtonType.transparent,
             onPressed: _pickFilters,
-            tooltip: 'Filters',
           ),
         ],
       ),
@@ -50,31 +59,100 @@ class _PetSymptomsPageState extends State<PetSymptomsPage> {
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: GFLoader(type: GFLoaderType.circle));
           }
+
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: TextStyle(fontSize: 14.sp, color: Colors.red),
+              ),
+            );
           }
           final items = snapshot.data ?? const <PetSymptom>[];
+
           if (items.isEmpty) {
-            return const Center(child: Text('No symptoms recorded'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.monitor_heart_outlined,
+                    size: 64.sp,
+                    color: context.textSecondary,
+                  ),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'No symptoms recorded',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: context.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
+
+          return ListView.builder(
+            padding: EdgeInsets.all(AppTheme.spacing4),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
-              final s = items[index];
-              return Card(
-                child: ListTile(
-                  leading: const Icon(Icons.monitor_heart),
-                  title: Text(_labelFor(s.type)),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(DateFormat('yyyy-MM-dd HH:mm').format(s.timestamp)),
-                      if (s.note?.isNotEmpty == true) Text(s.note!),
-                    ],
+              final symptom = items[index];
+              return Padding(
+                padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                child: GFCard(
+                  elevation: 0,
+                  color: context.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    side: BorderSide(color: context.border),
+                  ),
+                  content: GFListTile(
+                    avatar: GFAvatar(
+                      backgroundColor: _getSymptomColor(
+                        symptom.type,
+                      ).withOpacity(0.1),
+                      child: Icon(
+                        _getSymptomIcon(symptom.type),
+                        color: _getSymptomColor(symptom.type),
+                        size: 20.sp,
+                      ),
+                    ),
+                    title: Text(
+                      _labelFor(symptom.type),
+                      style: TextStyle(
+                        fontSize: 15.sp,
+                        fontWeight: FontWeight.w500,
+                        color: context.textPrimary,
+                      ),
+                    ),
+                    subTitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Gap(AppTheme.spacing1),
+                        Text(
+                          DateFormat(
+                            'MMM d, yyyy • h:mm a',
+                          ).format(symptom.timestamp),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: context.textSecondary,
+                          ),
+                        ),
+                        if (symptom.note?.isNotEmpty == true) ...[
+                          Gap(AppTheme.spacing1),
+                          Text(
+                            symptom.note!,
+                            style: TextStyle(
+                              fontSize: 13.sp,
+                              color: context.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -88,164 +166,198 @@ class _PetSymptomsPageState extends State<PetSymptomsPage> {
   Future<void> _pickFilters() async {
     await showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      backgroundColor: context.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radius4),
+        ),
+      ),
       builder: (context) {
-        SymptomType? localType = _filterType;
-        DateTime? localStart = _start;
-        DateTime? localEnd = _end;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Filters',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<SymptomType?>(
-                  value: localType,
-                  decoration: const InputDecoration(
-                    labelText: 'Symptom',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    const DropdownMenuItem<SymptomType?>(
-                      value: null,
-                      child: Text('Any'),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Filter Symptoms',
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: context.textPrimary,
                     ),
-                    ...SymptomType.values.map(
-                      (t) => DropdownMenuItem<SymptomType?>(
-                        value: t,
-                        child: Text(_labelFor(t)),
+                  ),
+                  Gap(AppTheme.spacing4),
+                  Text(
+                    'Type',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing2),
+                  Wrap(
+                    spacing: AppTheme.spacing2,
+                    children: [
+                      GFButton(
+                        onPressed: () =>
+                            setModalState(() => _filterType = null),
+                        text: 'All',
+                        color: _filterType == null
+                            ? AppTheme.primary
+                            : Colors.grey,
+                        size: GFSize.SMALL,
                       ),
-                    ),
-                  ],
-                  onChanged: (v) => localType = v,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final d = await showDatePicker(
-                            context: context,
-                            initialDate:
-                                localStart ??
-                                DateTime.now().subtract(
-                                  const Duration(days: 30),
-                                ),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                          );
-                          if (d != null) localStart = d;
+                      ...SymptomType.values.map((type) {
+                        return GFButton(
+                          onPressed: () =>
+                              setModalState(() => _filterType = type),
+                          text: _labelFor(type),
+                          color: _filterType == type
+                              ? AppTheme.primary
+                              : Colors.grey,
+                          size: GFSize.SMALL,
+                        );
+                      }),
+                    ],
+                  ),
+                  Gap(AppTheme.spacing4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _filterType = null;
+                            _start = null;
+                            _end = null;
+                          });
+                          Navigator.pop(context);
                         },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Start date',
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            localStart == null
-                                ? 'Any'
-                                : DateFormat('yyyy-MM-dd').format(localStart),
-                          ),
-                        ),
+                        child: const Text('Clear'),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final d = await showDatePicker(
-                            context: context,
-                            initialDate: localEnd ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                          );
-                          if (d != null) localEnd = d;
+                      Gap(AppTheme.spacing2),
+                      GFButton(
+                        onPressed: () {
+                          setState(() {});
+                          Navigator.pop(context);
                         },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'End date',
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            localEnd == null
-                                ? 'Any'
-                                : DateFormat('yyyy-MM-dd').format(localEnd),
-                          ),
-                        ),
+                        text: 'Apply',
+                        color: AppTheme.primary,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _filterType = localType;
-                        _start = localStart;
-                        _end = localEnd;
-                      });
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Apply'),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
   }
-}
 
-String _labelFor(SymptomType t) {
-  switch (t) {
-    case SymptomType.vomiting:
-      return 'Vomiting';
-    case SymptomType.diarrhea:
-      return 'Diarrhea';
-    case SymptomType.cough:
-      return 'Cough';
-    case SymptomType.sneezing:
-      return 'Sneezing';
-    case SymptomType.choking:
-      return 'Choking';
-    case SymptomType.seizure:
-      return 'Seizure';
-    case SymptomType.disorientation:
-      return 'Disorientation';
-    case SymptomType.circling:
-      return 'Circling';
-    case SymptomType.restlessness:
-      return 'Restlessness';
-    case SymptomType.limping:
-      return 'Limping';
-    case SymptomType.jointDiscomfort:
-      return 'Joint discomfort';
-    case SymptomType.itching:
-      return 'Itching';
-    case SymptomType.ocularDischarge:
-      return 'Ocular discharge';
-    case SymptomType.vaginalDischarge:
-      return 'Vaginal discharge';
-    case SymptomType.estrus:
-      return 'Estrus';
-    case SymptomType.other:
-      return 'Other';
+  String _labelFor(SymptomType t) {
+    switch (t) {
+      case SymptomType.vomiting:
+        return 'Vomiting';
+      case SymptomType.diarrhea:
+        return 'Diarrhea';
+      case SymptomType.cough:
+        return 'Cough';
+      case SymptomType.sneezing:
+        return 'Sneezing';
+      case SymptomType.choking:
+        return 'Choking';
+      case SymptomType.seizure:
+        return 'Seizure';
+      case SymptomType.disorientation:
+        return 'Disorientation';
+      case SymptomType.circling:
+        return 'Circling';
+      case SymptomType.restlessness:
+        return 'Restlessness';
+      case SymptomType.limping:
+        return 'Limping';
+      case SymptomType.jointDiscomfort:
+        return 'Joint Discomfort';
+      case SymptomType.itching:
+        return 'Itching';
+      case SymptomType.ocularDischarge:
+        return 'Ocular Discharge';
+      case SymptomType.vaginalDischarge:
+        return 'Vaginal Discharge';
+      case SymptomType.estrus:
+        return 'Estrus';
+      case SymptomType.other:
+        return 'Other';
+    }
+  }
+
+  IconData _getSymptomIcon(SymptomType t) {
+    switch (t) {
+      case SymptomType.vomiting:
+        return Icons.sick;
+      case SymptomType.diarrhea:
+        return Icons.report_problem;
+      case SymptomType.cough:
+        return Icons.air;
+      case SymptomType.sneezing:
+        return Icons.masks;
+      case SymptomType.choking:
+        return Icons.warning;
+      case SymptomType.seizure:
+        return Icons.emergency;
+      case SymptomType.disorientation:
+        return Icons.psychology;
+      case SymptomType.circling:
+        return Icons.rotate_right;
+      case SymptomType.restlessness:
+        return Icons.run_circle;
+      case SymptomType.limping:
+        return Icons.accessible;
+      case SymptomType.jointDiscomfort:
+        return Icons.healing;
+      case SymptomType.itching:
+        return Icons.pets;
+      case SymptomType.ocularDischarge:
+        return Icons.visibility;
+      case SymptomType.vaginalDischarge:
+        return Icons.female;
+      case SymptomType.estrus:
+        return Icons.favorite;
+      case SymptomType.other:
+        return Icons.monitor_heart;
+    }
+  }
+
+  Color _getSymptomColor(SymptomType t) {
+    switch (t) {
+      case SymptomType.vomiting:
+      case SymptomType.diarrhea:
+        return Colors.red;
+      case SymptomType.choking:
+      case SymptomType.seizure:
+        return Colors.red.shade700;
+      case SymptomType.cough:
+      case SymptomType.sneezing:
+        return Colors.blue;
+      case SymptomType.disorientation:
+      case SymptomType.circling:
+      case SymptomType.restlessness:
+        return Colors.orange;
+      case SymptomType.limping:
+      case SymptomType.jointDiscomfort:
+        return Colors.purple;
+      case SymptomType.itching:
+      case SymptomType.ocularDischarge:
+        return Colors.pink;
+      case SymptomType.vaginalDischarge:
+      case SymptomType.estrus:
+        return Colors.teal;
+      case SymptomType.other:
+        return Colors.grey;
+    }
   }
 }

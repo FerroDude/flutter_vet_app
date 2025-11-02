@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'models/event_model.dart';
 
 import 'firebase_options.dart';
@@ -20,15 +21,12 @@ import 'services/chat_service.dart';
 
 import 'shared/widgets/list_placeholder.dart';
 import 'core/auth/auth_wrapper.dart';
-import 'pages/add_symptom_sheet.dart';
-import 'pages/petOwners/modern_dashboard_page.dart';
-import 'pages/petOwners/modern_pets_page.dart';
-import 'pages/petOwners/modern_calendar_page.dart';
-import 'pages/petOwners/modern_chat_page.dart';
-import 'pages/petOwners/modern_settings_page.dart';
-import 'pages/petOwners/modern_profile_page.dart';
+import 'pages/petOwners/add_symptom_sheet.dart';
+import 'pages/petOwners/calendar_page.dart';
+import 'pages/petOwners/chat_page.dart';
+import 'pages/petOwners/settings_page.dart';
+import 'pages/petOwners/profile_page.dart';
 
-// Global navigator key for app-wide navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -59,28 +57,34 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => ThemeManager()),
-        Provider<CacheService>.value(value: cacheService),
-        Provider<NotificationService>.value(value: notificationService),
-        Provider<ClinicService>(create: (context) => ClinicService()),
-        Provider<ChatService>(create: (context) => ChatService()),
-        // EventProvider, UserProvider, and ChatProvider will be created with user context in AuthWrapper
-      ],
-      child: Consumer<ThemeManager>(
-        builder: (context, themeManager, child) {
-          return MaterialApp(
-            title: 'Peton',
-            navigatorKey: navigatorKey,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeManager.themeMode,
-            home: const AuthWrapper(),
-            debugShowCheckedModeBanner: false,
-          );
-        },
-      ),
+    return ScreenUtilInit(
+      designSize: const Size(375, 812),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (context) => ThemeManager()),
+            Provider<CacheService>.value(value: cacheService),
+            Provider<NotificationService>.value(value: notificationService),
+            Provider<ClinicService>(create: (context) => ClinicService()),
+            Provider<ChatService>(create: (context) => ChatService()),
+          ],
+          child: Consumer<ThemeManager>(
+            builder: (context, themeManager, child) {
+              return MaterialApp(
+                title: 'Peton',
+                navigatorKey: navigatorKey,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: themeManager.themeMode,
+                home: const AuthWrapper(),
+                debugShowCheckedModeBanner: false,
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -98,10 +102,10 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const ModernDashboardPage(),
-    const ModernPetsPage(),
-    const ModernCalendarPageWrapper(),
-    const ModernChatPageWrapper(),
+    const DashboardPage(),
+    const PetsPage(),
+    const CalendarPageWrapper(),
+    const ChatPageWrapper(),
   ];
 
   @override
@@ -119,7 +123,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   MaterialPageRoute(builder: (context) => const PetFormPage()),
                 );
               },
-              backgroundColor: AppTheme.primaryBlue,
+              backgroundColor: AppTheme.neutral700,
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
@@ -131,7 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
             _selectedIndex = index;
           });
         },
-        selectedItemColor: AppTheme.primaryBlue,
+        selectedItemColor: AppTheme.neutral700,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
@@ -286,8 +290,10 @@ class _DashboardPageState extends State<DashboardPage> {
         .get();
 
     if (!mounted) return;
+    if (!context.mounted) return;
 
     if (petsSnapshot.docs.isEmpty) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please add a pet first before tracking symptoms'),
@@ -319,7 +325,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: AppTheme.primaryBlue,
+                      backgroundColor: AppTheme.neutral700,
                       child: Text(
                         petName[0].toUpperCase(),
                         style: const TextStyle(color: Colors.white),
@@ -342,6 +348,7 @@ class _DashboardPageState extends State<DashboardPage> {
         );
 
     if (selectedPetDoc != null && mounted) {
+      if (!context.mounted) return;
       // Show the add symptom sheet
       showModalBottomSheet(
         context: context,
@@ -460,17 +467,22 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: AppTheme.neutral700,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-            icon: const Icon(Icons.settings, color: Colors.white),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, _) => IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        SettingsPage(injectedUserProvider: userProvider),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.settings, color: Colors.white),
+            ),
           ),
           Consumer<UserProvider>(
             builder: (context, userProvider, _) => IconButton(
@@ -486,7 +498,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 );
               },
               icon: CircleAvatar(
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
                 radius: 16,
                 child: const Icon(Icons.person, color: Colors.white, size: 16),
               ),
@@ -568,10 +580,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   ? Icons.event
                   : (isMedication ? Icons.medication : Icons.note);
               final Color color = isAppointment
-                  ? AppTheme.primaryBlue
-                  : (isMedication
-                        ? AppTheme.primaryGreen
-                        : AppTheme.accentCoral);
+                  ? AppTheme.neutral700
+                  : (isMedication ? AppTheme.neutral600 : AppTheme.neutral500);
 
               final bool isCompact = seriesCount != null && seriesCount > 1;
 
@@ -708,10 +718,10 @@ class _DashboardPageState extends State<DashboardPage> {
                                                   Flexible(
                                                     child: Text(
                                                       (e).location!,
-                                                      style: const TextStyle(
+                                                      style: TextStyle(
                                                         fontSize: 11,
-                                                        color: AppTheme
-                                                            .textTertiary,
+                                                        color: context
+                                                            .textSecondary,
                                                       ),
                                                       overflow:
                                                           TextOverflow.ellipsis,
@@ -755,13 +765,13 @@ class _DashboardPageState extends State<DashboardPage> {
                                           const Icon(
                                             Icons.layers,
                                             size: 14,
-                                            color: AppTheme.primaryGreen,
+                                            color: AppTheme.neutral600,
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             '$seriesCount',
                                             style: const TextStyle(
-                                              color: AppTheme.primaryGreen,
+                                              color: AppTheme.neutral600,
                                               fontWeight: FontWeight.w600,
                                               fontSize: 13,
                                             ),
@@ -783,14 +793,14 @@ class _DashboardPageState extends State<DashboardPage> {
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryGreen.withValues(
+                                    color: AppTheme.neutral600.withValues(
                                       alpha: 0.1,
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(
                                     Icons.check_circle,
-                                    color: AppTheme.primaryGreen,
+                                    color: AppTheme.neutral600,
                                     size: 16,
                                   ),
                                 )
@@ -976,7 +986,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                               ),
                         ),
                         const SizedBox(height: 4),
@@ -996,10 +1006,10 @@ class _DashboardPageState extends State<DashboardPage> {
                   margin: const EdgeInsets.only(bottom: 24),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                    color: AppTheme.neutral700.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      color: AppTheme.neutral700.withValues(alpha: 0.1),
                     ),
                   ),
                   child: Column(
@@ -1010,7 +1020,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           Icon(
                             Icons.flash_on,
                             size: 18,
-                            color: AppTheme.primaryBlue,
+                            color: AppTheme.neutral700,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -1018,7 +1028,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.primaryBlue,
+                                  color: AppTheme.neutral700,
                                 ),
                           ),
                         ],
@@ -1032,7 +1042,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryBlue.withValues(
+                                    color: AppTheme.neutral700.withValues(
                                       alpha: 0.1,
                                     ),
                                     blurRadius: 4,
@@ -1057,7 +1067,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 icon: const Icon(Icons.event, size: 18),
                                 label: const Text('Add Appointment'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryBlue,
+                                  backgroundColor: AppTheme.neutral700,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1076,7 +1086,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryGreen.withValues(
+                                    color: AppTheme.neutral600.withValues(
                                       alpha: 0.1,
                                     ),
                                     blurRadius: 4,
@@ -1101,7 +1111,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 icon: const Icon(Icons.medication, size: 18),
                                 label: const Text('Add Medication'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryGreen,
+                                  backgroundColor: AppTheme.neutral600,
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 12,
@@ -1122,9 +1132,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.accentCoral.withValues(
-                                alpha: 0.1,
-                              ),
+                              color: AppTheme.neutral500.withValues(alpha: 0.1),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -1136,7 +1144,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           icon: const Icon(Icons.medical_information, size: 18),
                           label: const Text('Add Symptom'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accentCoral,
+                            backgroundColor: AppTheme.neutral500,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -1152,13 +1160,13 @@ class _DashboardPageState extends State<DashboardPage> {
                 // Today's Events Section
                 Row(
                   children: [
-                    Icon(Icons.today, size: 18, color: AppTheme.primaryBlue),
+                    Icon(Icons.today, size: 18, color: AppTheme.neutral700),
                     const SizedBox(width: 8),
                     Text(
                       "Today's Events",
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.neutral700,
                       ),
                     ),
                   ],
@@ -1264,13 +1272,13 @@ class _DashboardPageState extends State<DashboardPage> {
                 // Upcoming Events Section
                 Row(
                   children: [
-                    Icon(Icons.upcoming, size: 18, color: AppTheme.primaryBlue),
+                    Icon(Icons.upcoming, size: 18, color: AppTheme.neutral700),
                     const SizedBox(width: 8),
                     Text(
                       'Upcoming (next 7 days)',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.neutral700,
                       ),
                     ),
                   ],
@@ -1391,17 +1399,22 @@ class PetsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Pets'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: AppTheme.neutral700,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-            icon: const Icon(Icons.settings, color: Colors.white),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, _) => IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        SettingsPage(injectedUserProvider: userProvider),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.settings, color: Colors.white),
+            ),
           ),
           Consumer<UserProvider>(
             builder: (context, userProvider, _) => IconButton(
@@ -1417,7 +1430,7 @@ class PetsPage extends StatelessWidget {
                 );
               },
               icon: CircleAvatar(
-                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
                 radius: 16,
                 child: const Icon(Icons.person, color: Colors.white, size: 16),
               ),
@@ -1472,7 +1485,7 @@ class PetsPageContent extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryBlue,
+                  backgroundColor: AppTheme.neutral700,
                   child: Text(
                     (pet['name'] as String? ?? 'P')[0].toUpperCase(),
                     style: const TextStyle(
@@ -1649,7 +1662,7 @@ class _PetFormPageState extends State<PetFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.petRef == null ? 'Add Pet' : 'Edit Pet'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: AppTheme.neutral700,
         foregroundColor: Colors.white,
       ),
       body: Form(
@@ -1664,7 +1677,7 @@ class _PetFormPageState extends State<PetFormPage> {
                 'Basic Information',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                 ),
               ),
               const SizedBox(height: 16),
@@ -1831,7 +1844,7 @@ class _PetFormPageState extends State<PetFormPage> {
                 'Medical Information',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                 ),
               ),
               const SizedBox(height: 16),
@@ -1876,7 +1889,7 @@ class _PetFormPageState extends State<PetFormPage> {
                 'Emergency Contact',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                 ),
               ),
               const SizedBox(height: 16),
@@ -1900,7 +1913,7 @@ class _PetFormPageState extends State<PetFormPage> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _savePet,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
+                    backgroundColor: AppTheme.neutral700,
                     foregroundColor: Colors.white,
                   ),
                   child: _isLoading
@@ -1934,7 +1947,7 @@ class PetDetailsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pet Details'),
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: AppTheme.neutral700,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -1998,7 +2011,7 @@ class PetDetailsPage extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 30,
-                              backgroundColor: AppTheme.primaryBlue,
+                              backgroundColor: AppTheme.neutral700,
                               child: Text(
                                 (pet['name'] ?? 'P')[0].toUpperCase(),
                                 style: const TextStyle(
@@ -2032,7 +2045,7 @@ class PetDetailsPage extends StatelessWidget {
                                           .textTheme
                                           .bodyMedium
                                           ?.copyWith(
-                                            color: AppTheme.primaryBlue,
+                                            color: AppTheme.neutral700,
                                             fontWeight: FontWeight.w500,
                                           ),
                                     ),
@@ -2060,7 +2073,7 @@ class PetDetailsPage extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                               ),
                         ),
                         const SizedBox(height: 12),
@@ -2096,7 +2109,7 @@ class PetDetailsPage extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryBlue,
+                                  color: AppTheme.neutral700,
                                 ),
                           ),
                           const SizedBox(height: 12),
@@ -2130,7 +2143,7 @@ class PetDetailsPage extends StatelessWidget {
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryBlue,
+                                  color: AppTheme.neutral700,
                                 ),
                           ),
                           const SizedBox(height: 12),
@@ -2154,7 +2167,7 @@ class PetDetailsPage extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                               ),
                         ),
                         const SizedBox(height: 12),
@@ -2180,7 +2193,7 @@ class PetDetailsPage extends StatelessWidget {
                                 icon: const Icon(Icons.calendar_today),
                                 label: const Text('Add Appointment'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryBlue,
+                                  backgroundColor: AppTheme.neutral700,
                                   foregroundColor: Colors.white,
                                 ),
                               ),
@@ -2232,7 +2245,7 @@ class PetDetailsPage extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.neutral700,
                               ),
                         ),
                         const SizedBox(height: 12),
@@ -2284,10 +2297,10 @@ class PetDetailsPage extends StatelessWidget {
                                           ? Icons.medication
                                           : Icons.note);
                                 final color = isAppointment
-                                    ? AppTheme.primaryBlue
+                                    ? AppTheme.neutral700
                                     : (isMedication
-                                          ? AppTheme.primaryGreen
-                                          : AppTheme.accentCoral);
+                                          ? AppTheme.neutral600
+                                          : AppTheme.neutral500);
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 8),
@@ -2352,7 +2365,7 @@ class PetDetailsPage extends StatelessWidget {
                                       if (isMedication && (event).isCompleted)
                                         Icon(
                                           Icons.check_circle,
-                                          color: AppTheme.primaryGreen,
+                                          color: AppTheme.neutral600,
                                           size: 20,
                                         ),
                                     ],
@@ -2442,24 +2455,24 @@ class _DashboardPetBadge extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(
-            color: AppTheme.primaryBlue.withOpacity(0.12),
+            color: AppTheme.neutral700.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppTheme.primaryBlue.withOpacity(0.3),
+              color: AppTheme.neutral700.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(_getPetIcon(species), size: 12, color: AppTheme.primaryBlue),
+              Icon(_getPetIcon(species), size: 12, color: AppTheme.neutral700),
               const SizedBox(width: 4),
               Text(
                 petName,
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.neutral700,
                 ),
               ),
             ],
@@ -2487,60 +2500,70 @@ class _DashboardPetBadge extends StatelessWidget {
   }
 }
 
-// Settings Page - Wrapper for modern implementation
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const ModernSettingsPage();
-  }
-}
-
-// Profile Page - Wrapper for modern implementation
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.injectedUserProvider});
-
-  final UserProvider injectedUserProvider;
-
-  @override
-  Widget build(BuildContext context) {
-    return ModernProfilePage(injectedUserProvider: injectedUserProvider);
-  }
-}
-
 // Wrapper for AppointmentsPage to ensure proper app bar
-class ModernCalendarPageWrapper extends StatefulWidget {
-  const ModernCalendarPageWrapper({super.key});
+class CalendarPageWrapper extends StatefulWidget {
+  const CalendarPageWrapper({super.key});
 
   @override
-  State<ModernCalendarPageWrapper> createState() =>
-      _ModernCalendarPageWrapperState();
+  State<CalendarPageWrapper> createState() => _CalendarPageWrapperState();
 }
 
-class _ModernCalendarPageWrapperState extends State<ModernCalendarPageWrapper> {
+class _CalendarPageWrapperState extends State<CalendarPageWrapper> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ModernCalendarPage(key: modernCalendarPageKey),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          modernCalendarPageKey.currentState?.handleFabAction();
-        },
-        backgroundColor: AppTheme.primaryBlue,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, _) {
+        return Scaffold(
+          appBar: AppBar(
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SettingsPage(injectedUserProvider: userProvider),
+                    ),
+                  );
+                },
+                tooltip: 'Settings',
+              ),
+              IconButton(
+                icon: const Icon(Icons.person_outline),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProfilePage(injectedUserProvider: userProvider),
+                    ),
+                  );
+                },
+                tooltip: 'Profile',
+              ),
+            ],
+          ),
+          body: CalendarPage(key: calendarPageKey),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              calendarPageKey.currentState?.handleFabAction();
+            },
+            backgroundColor: AppTheme.neutral700,
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        );
+      },
     );
   }
 }
 
 // Chat Page with proper profile access
-class ModernChatPageWrapper extends StatelessWidget {
-  const ModernChatPageWrapper({super.key});
+class ChatPageWrapper extends StatelessWidget {
+  const ChatPageWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Modern chat page already has its own scaffold
-    return const ModernChatPage();
+    return const ChatPage();
   }
 }

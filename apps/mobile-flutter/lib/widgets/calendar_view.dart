@@ -55,11 +55,11 @@ class _CalendarViewState extends State<CalendarView> {
       calendarStyle: CalendarStyle(
         outsideDaysVisible: false,
         selectedDecoration: BoxDecoration(
-          color: AppTheme.primaryBlue,
+          color: AppTheme.neutral700,
           shape: BoxShape.circle,
         ),
         todayDecoration: BoxDecoration(
-          color: AppTheme.primaryBlue.withOpacity(0.3),
+          color: AppTheme.neutral700.withOpacity(0.3),
           shape: BoxShape.circle,
         ),
         defaultTextStyle: TextStyle(
@@ -72,14 +72,14 @@ class _CalendarViewState extends State<CalendarView> {
               ? AppTheme.darkTextSecondary
               : AppTheme.textSecondary,
         ),
-        holidayTextStyle: TextStyle(color: AppTheme.primaryBlue),
+        holidayTextStyle: TextStyle(color: AppTheme.neutral700),
       ),
       headerStyle: HeaderStyle(
         formatButtonVisible: true,
         titleCentered: true,
         formatButtonShowsNext: false,
         formatButtonDecoration: BoxDecoration(
-          color: AppTheme.primaryBlue,
+          color: AppTheme.neutral700,
           borderRadius: BorderRadius.circular(12.0),
         ),
         formatButtonTextStyle: const TextStyle(color: Colors.white),
@@ -98,9 +98,9 @@ class _CalendarViewState extends State<CalendarView> {
               children: displayEvents.map((event) {
                 Color dotColor;
                 if (event is AppointmentEvent) {
-                  dotColor = AppTheme.primaryBlue;
+                  dotColor = AppTheme.neutral700;
                 } else if (event is MedicationEvent) {
-                  dotColor = AppTheme.primaryGreen;
+                  dotColor = AppTheme.neutral600;
                 } else if (event is NoteEvent) {
                   dotColor = Colors.orange;
                 } else {
@@ -238,8 +238,8 @@ class _DashboardStyleEventCard extends StatelessWidget {
         ? Icons.event
         : (isMedication ? Icons.medication : Icons.note);
     final Color baseColor = isAppointment
-        ? AppTheme.primaryBlue
-        : (isMedication ? AppTheme.primaryGreen : AppTheme.accentCoral);
+        ? AppTheme.neutral700
+        : (isMedication ? AppTheme.neutral600 : AppTheme.neutral500);
 
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
@@ -284,27 +284,27 @@ class _DashboardStyleEventCard extends StatelessWidget {
         addChip(
           _getAppointmentTypeIcon(appointment.appointmentType),
           appointment.appointmentType,
-          color: AppTheme.primaryBlue,
+          color: AppTheme.neutral700,
         );
       }
       if ((appointment.location ?? '').trim().isNotEmpty) {
         addChip(
           Icons.place_outlined,
           appointment.location,
-          color: AppTheme.primaryBlue,
+          color: AppTheme.neutral700,
         );
       }
       if ((appointment.vetName ?? '').trim().isNotEmpty) {
         addChip(
           Icons.person_outline,
           appointment.vetName,
-          color: AppTheme.primaryBlue,
+          color: AppTheme.neutral700,
         );
       }
       addDetail(
         appointment.contactInfo,
         icon: Icons.call,
-        color: AppTheme.primaryBlue,
+        color: AppTheme.neutral700,
       );
     }
 
@@ -312,39 +312,39 @@ class _DashboardStyleEventCard extends StatelessWidget {
       addChip(
         Icons.vaccines_outlined,
         medication.dosage,
-        color: AppTheme.primaryGreen,
+        color: AppTheme.neutral600,
       );
       addChip(
         Icons.calendar_today_outlined,
         _formatMedicationFrequency(medication),
-        color: AppTheme.primaryGreen,
+        color: AppTheme.neutral600,
       );
       if (medication.nextDose != null) {
         addChip(
           Icons.arrow_forward,
           'Next: ${DateFormat('MMM d, h:mm a').format(medication.nextDose!)}',
-          color: AppTheme.primaryGreen,
+          color: AppTheme.neutral600,
         );
       }
       if (medication.remainingDoses != null) {
         addChip(
           Icons.inventory_2_outlined,
           '${medication.remainingDoses} left',
-          color: AppTheme.primaryGreen,
+          color: AppTheme.neutral600,
         );
       }
       if (medication.lastTaken != null) {
         addChip(
           Icons.check_circle_outline,
           'Last: ${DateFormat('MMM d, h:mm a').format(medication.lastTaken!)}',
-          color: AppTheme.primaryGreen,
+          color: AppTheme.neutral600,
         );
       }
       if (medication.requiresNotification) {
         addChip(
           Icons.notifications_active,
           'Reminders on',
-          color: AppTheme.primaryGreen,
+          color: AppTheme.neutral600,
         );
       }
       final instructions = medication.instructions?.trim();
@@ -354,7 +354,7 @@ class _DashboardStyleEventCard extends StatelessWidget {
         addDetail(
           instructions,
           icon: Icons.info_outline,
-          color: AppTheme.primaryGreen,
+          color: AppTheme.neutral600,
         );
       }
     }
@@ -364,31 +364,31 @@ class _DashboardStyleEventCard extends StatelessWidget {
         addChip(
           Icons.folder_outlined,
           note.category,
-          color: AppTheme.accentCoral,
+          color: AppTheme.neutral500,
         );
       }
       if (note.reminderDateTime != null) {
         addChip(
           Icons.alarm,
           'Reminder: ${DateFormat('MMM d, h:mm a').format(note.reminderDateTime!)}',
-          color: AppTheme.accentCoral,
+          color: AppTheme.neutral500,
         );
       }
       if (note.isCompleted) {
-        addChip(Icons.check_circle, 'Completed', color: AppTheme.primaryGreen);
+        addChip(Icons.check_circle, 'Completed', color: AppTheme.neutral600);
       }
       if (note.tags != null && note.tags!.isNotEmpty) {
         final tags = note.tags!;
         final int limit = tags.length > 3 ? 3 : tags.length;
         for (final tag in tags.take(limit)) {
-          addChip(Icons.sell_outlined, tag, color: AppTheme.accentCoral);
+          addChip(Icons.sell_outlined, tag, color: AppTheme.neutral500);
         }
         final int extraCount = tags.length - limit;
         if (extraCount > 0) {
           addChip(
             Icons.sell_outlined,
             '+$extraCount more',
-            color: AppTheme.accentCoral,
+            color: AppTheme.neutral500,
           );
         }
       }
@@ -399,12 +399,12 @@ class _DashboardStyleEventCard extends StatelessWidget {
       trailing = Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+          color: AppTheme.neutral600.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(
           Icons.check_circle,
-          color: AppTheme.primaryGreen,
+          color: AppTheme.neutral600,
           size: 16,
         ),
       );
@@ -682,12 +682,12 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 2,
-      shadowColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+      shadowColor: AppTheme.neutral700.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         side: BorderSide(
           color: isDark
-              ? AppTheme.accentCoral.withValues(alpha: 0.3)
+              ? AppTheme.neutral500.withValues(alpha: 0.3)
               : AppTheme.borderLight,
           width: 1.5,
         ),
@@ -746,10 +746,10 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withValues(alpha: 0.15),
+                          color: AppTheme.neutral600.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppTheme.primaryGreen.withValues(alpha: 0.5),
+                            color: AppTheme.neutral600.withValues(alpha: 0.5),
                           ),
                         ),
                         child: Row(
@@ -757,13 +757,13 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                             const Icon(
                               Icons.layers,
                               size: 14,
-                              color: AppTheme.primaryGreen,
+                              color: AppTheme.neutral600,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '${widget.count}',
                               style: const TextStyle(
-                                color: AppTheme.primaryGreen,
+                                color: AppTheme.neutral600,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -775,7 +775,7 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                         Icon(
                           isExpanded ? Icons.expand_less : Icons.expand_more,
                           size: 20,
-                          color: AppTheme.primaryGreen,
+                          color: AppTheme.neutral600,
                         ),
                       ],
                     ],
@@ -790,7 +790,7 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
               child: Column(
                 children: [
                   Divider(
-                    color: AppTheme.primaryGreen.withValues(alpha: 0.2),
+                    color: AppTheme.neutral600.withValues(alpha: 0.2),
                     height: 1,
                   ),
                   const SizedBox(height: 12),
@@ -820,7 +820,7 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                               width: isNext ? 8 : 6,
                               height: isNext ? 8 : 6,
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryGreen.withValues(
+                                color: AppTheme.neutral600.withValues(
                                   alpha: isNext ? 1.0 : (isPast ? 0.4 : 0.7),
                                 ),
                                 shape: BoxShape.circle,
@@ -839,7 +839,7 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.primaryGreen
+                                          color: AppTheme.neutral600
                                               .withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(
                                             8,
@@ -851,7 +851,7 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                                               .textTheme
                                               .bodySmall
                                               ?.copyWith(
-                                                color: AppTheme.primaryGreen,
+                                                color: AppTheme.neutral600,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -931,15 +931,15 @@ class _EventIcon extends StatelessWidget {
     switch (eventType) {
       case EventType.appointment:
         icon = Icons.event;
-        color = AppTheme.primaryBlue;
+        color = AppTheme.neutral700;
         break;
       case EventType.medication:
         icon = Icons.medication;
-        color = AppTheme.primaryGreen;
+        color = AppTheme.neutral600;
         break;
       case EventType.note:
         icon = Icons.note;
-        color = AppTheme.accentCoral;
+        color = AppTheme.neutral500;
         break;
     }
 
@@ -981,7 +981,7 @@ class _PetBadge extends StatelessWidget {
         final petName = petData['name'] as String? ?? 'Pet';
         final species = petData['species'] as String? ?? '';
 
-        final color = badgeColor ?? AppTheme.primaryGreen;
+        final color = badgeColor ?? AppTheme.neutral600;
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1040,7 +1040,7 @@ class _EmptyEventsView extends StatelessWidget {
           Icon(
             Icons.event_note_outlined,
             size: 64,
-            color: AppTheme.accentCoral,
+            color: AppTheme.neutral500,
           ),
           SizedBox(height: 16),
           Text(

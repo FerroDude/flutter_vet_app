@@ -132,7 +132,7 @@ class _ModernAppointmentFormState extends State<ModernAppointmentForm> {
       text: widget.existingEvent?.location ?? '',
     );
     _notesController = TextEditingController(
-      text: widget.existingEvent?.notes ?? '',
+      text: widget.existingEvent?.description ?? '',
     );
     _selectedDateTime = widget.existingEvent?.dateTime ?? widget.selectedDate;
     _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
@@ -335,6 +335,7 @@ class _ModernAppointmentFormState extends State<ModernAppointmentForm> {
     setState(() => _isLoading = true);
 
     try {
+      final eventProvider = context.read<EventProvider>();
       final event = AppointmentEvent(
         id:
             widget.existingEvent?.id ??
@@ -342,21 +343,22 @@ class _ModernAppointmentFormState extends State<ModernAppointmentForm> {
         petId: _selectedPetId!,
         dateTime: _selectedDateTime,
         title: _titleController.text.trim(),
+        description: _notesController.text.trim(),
+        userId: eventProvider.currentUserId ?? '',
+        createdAt: widget.existingEvent?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
         vetName: _vetNameController.text.trim().isEmpty
             ? null
             : _vetNameController.text.trim(),
         location: _locationController.text.trim().isEmpty
             ? null
             : _locationController.text.trim(),
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
       );
 
       if (widget.existingEvent != null) {
-        await context.read<EventProvider>().updateEvent(event);
+        await eventProvider.updateEvent(event.id, event);
       } else {
-        await context.read<EventProvider>().addEvent(event);
+        await eventProvider.createEvent(event);
       }
 
       if (mounted) {
@@ -403,7 +405,9 @@ class _ModernAppointmentFormState extends State<ModernAppointmentForm> {
 
     if (confirmed == true && mounted) {
       try {
-        await context.read<EventProvider>().removeEvent(widget.existingEvent!);
+        await context.read<EventProvider>().deleteEvent(
+          widget.existingEvent!.id,
+        );
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -464,7 +468,7 @@ class _ModernMedicationFormState extends State<ModernMedicationForm> {
       text: widget.existingEvent?.dosage ?? '',
     );
     _notesController = TextEditingController(
-      text: widget.existingEvent?.notes ?? '',
+      text: widget.existingEvent?.instructions ?? '',
     );
     _selectedDateTime = widget.existingEvent?.dateTime ?? widget.selectedDate;
     _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
@@ -680,24 +684,30 @@ class _ModernMedicationFormState extends State<ModernMedicationForm> {
     setState(() => _isLoading = true);
 
     try {
+      final eventProvider = context.read<EventProvider>();
       final event = MedicationEvent(
         id:
             widget.existingEvent?.id ??
             'med_${DateTime.now().millisecondsSinceEpoch}',
         petId: _selectedPetId!,
         dateTime: _selectedDateTime,
+        title: 'Medication: ${_nameController.text.trim()}',
+        description: _notesController.text.trim(),
+        userId: eventProvider.currentUserId ?? '',
+        createdAt: widget.existingEvent?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
         medicationName: _nameController.text.trim(),
         dosage: _dosageController.text.trim(),
         frequency: _frequency,
-        notes: _notesController.text.trim().isEmpty
+        instructions: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
       );
 
       if (widget.existingEvent != null) {
-        await context.read<EventProvider>().updateEvent(event);
+        await eventProvider.updateEvent(event.id, event);
       } else {
-        await context.read<EventProvider>().addEvent(event);
+        await eventProvider.createEvent(event);
       }
 
       if (mounted) {
@@ -744,7 +754,9 @@ class _ModernMedicationFormState extends State<ModernMedicationForm> {
 
     if (confirmed == true && mounted) {
       try {
-        await context.read<EventProvider>().removeEvent(widget.existingEvent!);
+        await context.read<EventProvider>().deleteEvent(
+          widget.existingEvent!.id,
+        );
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -800,7 +812,7 @@ class _ModernNoteFormState extends State<ModernNoteForm> {
       text: widget.existingEvent?.title ?? '',
     );
     _contentController = TextEditingController(
-      text: widget.existingEvent?.content ?? '',
+      text: widget.existingEvent?.description ?? '',
     );
     _selectedDateTime = widget.existingEvent?.dateTime ?? widget.selectedDate;
     _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
@@ -976,6 +988,7 @@ class _ModernNoteFormState extends State<ModernNoteForm> {
     setState(() => _isLoading = true);
 
     try {
+      final eventProvider = context.read<EventProvider>();
       final event = NoteEvent(
         id:
             widget.existingEvent?.id ??
@@ -983,13 +996,16 @@ class _ModernNoteFormState extends State<ModernNoteForm> {
         petId: _selectedPetId,
         dateTime: _selectedDateTime,
         title: _titleController.text.trim(),
-        content: _contentController.text.trim(),
+        description: _contentController.text.trim(),
+        userId: eventProvider.currentUserId ?? '',
+        createdAt: widget.existingEvent?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       if (widget.existingEvent != null) {
-        await context.read<EventProvider>().updateEvent(event);
+        await eventProvider.updateEvent(event.id, event);
       } else {
-        await context.read<EventProvider>().addEvent(event);
+        await eventProvider.createEvent(event);
       }
 
       if (mounted) {
@@ -1034,7 +1050,9 @@ class _ModernNoteFormState extends State<ModernNoteForm> {
 
     if (confirmed == true && mounted) {
       try {
-        await context.read<EventProvider>().removeEvent(widget.existingEvent!);
+        await context.read<EventProvider>().deleteEvent(
+          widget.existingEvent!.id,
+        );
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(

@@ -43,7 +43,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       final refreshedUser = FirebaseAuth.instance.currentUser;
 
       if (refreshedUser != null && refreshedUser.emailVerified) {
-        if (mounted) {
+        if (mounted && context.mounted) {
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -75,7 +75,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     try {
       await widget.user.sendEmailVerification();
 
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Verification email sent! Please check your inbox.'),
@@ -84,7 +84,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to send verification email: $e'),
@@ -117,7 +117,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         (route) => false,
       );
     } catch (e) {
-      if (mounted) {
+      if (mounted && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error signing out: $e'),
@@ -136,10 +136,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.primaryBlue,
-              AppTheme.primaryBlue.withOpacity(0.8),
-            ],
+            colors: [AppTheme.primary, AppTheme.primary.withValues(alpha: 0.8)],
           ),
         ),
         child: SafeArea(
@@ -159,7 +156,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                     child: Icon(
                       Icons.mark_email_unread,
                       size: 60,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.primary,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -177,7 +174,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                   Text(
                     'We\'ve sent a verification email to:',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -205,7 +202,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                           Icon(
                             Icons.info_outline,
                             size: 48,
-                            color: AppTheme.primaryBlue,
+                            color: AppTheme.primary,
                           ),
                           const SizedBox(height: 16),
 
@@ -224,7 +221,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: AppTheme.primaryBlue,
+                                    color: AppTheme.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -269,7 +266,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                                 _isLoading ? 'Sending...' : 'Resend Email',
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryBlue,
+                                backgroundColor: AppTheme.primary,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
@@ -290,8 +287,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                               icon: const Icon(Icons.check_circle_outline),
                               label: const Text('I\'ve Verified My Email'),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: AppTheme.primaryBlue,
-                                side: BorderSide(color: AppTheme.primaryBlue),
+                                foregroundColor: AppTheme.primary,
+                                side: BorderSide(color: AppTheme.primary),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 12,
                                 ),

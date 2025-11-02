@@ -34,7 +34,7 @@ class PatientDetailPage extends StatelessWidget {
             title: Text(
               owner.displayName.isEmpty ? owner.email : owner.displayName,
             ),
-            backgroundColor: AppTheme.primaryBlue,
+            backgroundColor: AppTheme.neutral700,
             foregroundColor: Colors.white,
             actions: [
               IconButton(
@@ -110,7 +110,7 @@ class PatientDetailPage extends StatelessWidget {
                 ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               )
             else
-              ...pets.map((p) => _buildPetTile(p)).toList(),
+              ...pets.map((p) => _buildPetTile(p)),
           ],
         ),
       ),
