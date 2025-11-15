@@ -9,11 +9,11 @@ import 'package:getwidget/getwidget.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
-import 'add_symptom_sheet.dart';
-import '../../widgets/simple_event_forms.dart';
 import '../../theme/app_theme.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
+import 'pet_details_page.dart';
+import 'pet_form_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -39,9 +39,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             slivers: [
               SliverToBoxAdapter(child: _buildHeader(context)),
-              SliverToBoxAdapter(child: _buildQuickAdd(context)),
+              SliverToBoxAdapter(child: _buildMyPetsSection(context)),
               SliverToBoxAdapter(child: _buildTodaySection(context)),
-              SliverToBoxAdapter(child: _buildUpcomingSection(context)),
               SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
             ],
           ),
@@ -105,81 +104,98 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildQuickAdd(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Add',
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w600,
-              color: context.textPrimary,
-            ),
-          ),
-          Gap(AppTheme.spacing3),
-          Row(
+  Widget _buildMyPetsSection(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: _QuickActionButton(
-                  icon: Icons.event_outlined,
-                  label: 'Appointment',
-                  onTap: () => _showPetSelectionDialog(
-                    context,
-                    (petId) => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => SimpleAppointmentForm(
-                        selectedDate: DateTime.now(),
-                        petId: petId,
-                      ),
-                    ),
-                  ),
+              Text(
+                'My Pets',
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: context.textPrimary,
                 ),
               ),
-              Gap(AppTheme.spacing2),
-              Expanded(
-                child: _QuickActionButton(
-                  icon: Icons.medication_outlined,
-                  label: 'Medication',
-                  onTap: () => _showPetSelectionDialog(
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
                     context,
-                    (petId) => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => SimpleMedicationForm(
-                        selectedDate: DateTime.now(),
-                        petId: petId,
-                      ),
+                    MaterialPageRoute(
+                      builder: (context) => const PetFormPage(),
                     ),
-                  ),
-                ),
-              ),
-              Gap(AppTheme.spacing2),
-              Expanded(
-                child: _QuickActionButton(
-                  icon: Icons.favorite_outline,
-                  label: 'Health Log',
-                  onTap: () => _showPetSelectionDialog(
-                    context,
-                    (petId) => showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => AddSymptomSheet(petId: petId),
-                    ),
+                  );
+                },
+                child: Text(
+                  'Add Pet',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.neutral700,
                   ),
                 ),
               ),
             ],
           ),
-          Gap(AppTheme.spacing6),
-        ],
-      ),
+        ),
+        Gap(AppTheme.spacing3),
+        SizedBox(
+          height: 220.h,
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .collection('pets')
+                .orderBy('order')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: GFLoader(type: GFLoaderType.circle));
+              }
+
+              final pets = snapshot.data?.docs ?? [];
+
+              if (pets.isEmpty) {
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+                  child: Center(
+                    child: Text(
+                      'No pets yet',
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: context.textSecondary,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.only(left: AppTheme.spacing4),
+                itemCount: pets.length,
+                itemBuilder: (context, index) {
+                  final petDoc = pets[index];
+                  final isLast = index == pets.length - 1;
+                  return _PetCard(
+                    petId: petDoc.id,
+                    petData: petDoc.data(),
+                    isLast: isLast,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        Gap(AppTheme.spacing6),
+      ],
     );
   }
 
@@ -191,8 +207,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final events = eventProvider.events;
     final todayEvents = events.where((event) {
-      return event.dateTime.isAfter(todayStart) &&
+      final isToday =
+          event.dateTime.isAfter(todayStart) &&
           event.dateTime.isBefore(todayEnd);
+      final isRelevantType =
+          event is AppointmentEvent || event is MedicationEvent;
+      return isToday && isRelevantType;
     }).toList();
 
     todayEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
@@ -228,7 +248,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   Gap(AppTheme.spacing2),
                   Text(
-                    'No events today',
+                    'No appointments or medications today',
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: context.textSecondary,
@@ -249,217 +269,169 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
-
-  Widget _buildUpcomingSection(BuildContext context) {
-    final eventProvider = context.watch<EventProvider>();
-    final now = DateTime.now();
-    final todayEnd = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).add(const Duration(days: 1));
-
-    final events = eventProvider.events;
-    final upcomingEvents = events.where((event) {
-      return event.dateTime.isAfter(todayEnd);
-    }).toList();
-
-    upcomingEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-    final limitedEvents = upcomingEvents.take(5).toList();
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Upcoming',
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w600,
-              color: context.textPrimary,
-            ),
-          ),
-          Gap(AppTheme.spacing3),
-          if (limitedEvents.isEmpty)
-            Container(
-              padding: EdgeInsets.all(AppTheme.spacing4),
-              decoration: BoxDecoration(
-                color: context.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radius3),
-                border: Border.all(color: context.border),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.calendar_month_outlined,
-                    size: 20.sp,
-                    color: context.textSecondary,
-                  ),
-                  Gap(AppTheme.spacing2),
-                  Text(
-                    'No upcoming events',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: context.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ...limitedEvents.map(
-              (event) => Padding(
-                padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-                child: _UpcomingEventCard(event: event),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showPetSelectionDialog(
-    BuildContext parentContext,
-    Function(String petId) onPetSelected,
-  ) {
-    showModalBottomSheet(
-      context: parentContext,
-      backgroundColor: parentContext.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppTheme.radius4),
-        ),
-      ),
-      builder: (modalContext) => Container(
-        padding: EdgeInsets.all(AppTheme.spacing4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Select Pet',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                color: modalContext.textPrimary,
-              ),
-            ),
-            Gap(AppTheme.spacing4),
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(FirebaseAuth.instance.currentUser?.uid)
-                  .collection('pets')
-                  .orderBy('order')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: GFLoader(type: GFLoaderType.circle));
-                }
-
-                final pets = snapshot.data!.docs;
-
-                if (pets.isEmpty) {
-                  return Padding(
-                    padding: EdgeInsets.all(AppTheme.spacing4),
-                    child: Text(
-                      'No pets found. Add a pet first.',
-                      style: TextStyle(color: context.textSecondary),
-                    ),
-                  );
-                }
-
-                return Column(
-                  children: pets.map((doc) {
-                    final pet = doc.data();
-                    return GFListTile(
-                      avatar: GFAvatar(
-                        backgroundColor: context.isDark
-                            ? Color(0xFF2F2F2F)
-                            : AppTheme.neutral100,
-                        child: Icon(
-                          Icons.pets,
-                          size: 20.sp,
-                          color: context.textPrimary,
-                        ),
-                      ),
-                      title: Text(
-                        pet['name'] ?? 'Unknown',
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                          color: context.textPrimary,
-                        ),
-                      ),
-                      subTitle: Text(
-                        pet['breed'] ?? pet['species'] ?? '',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: context.textSecondary,
-                        ),
-                      ),
-                      onTap: () {
-                        final petId = doc.id;
-                        Navigator.pop(modalContext);
-                        Future.delayed(const Duration(milliseconds: 300), () {
-                          onPetSelected(petId);
-                        });
-                      },
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
-class _QuickActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+class _PetCard extends StatelessWidget {
+  final String petId;
+  final Map<String, dynamic> petData;
+  final bool isLast;
 
-  const _QuickActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
+  const _PetCard({
+    required this.petId,
+    required this.petData,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppTheme.radius3),
-      child: Container(
-        height: 80.h,
-        decoration: BoxDecoration(
-          color: context.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radius3),
-          border: Border.all(color: context.border),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 28.sp, color: AppTheme.neutral700),
-            Gap(AppTheme.spacing2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w500,
-                color: context.textPrimary,
+    final name = petData['name'] ?? 'Unknown';
+    final dateOfBirth = petData['dateOfBirth'] != null
+        ? (petData['dateOfBirth'] as Timestamp).toDate()
+        : null;
+
+    String getAge() {
+      if (dateOfBirth == null) return 'Age unknown';
+      final now = DateTime.now();
+      final difference = now.difference(dateOfBirth);
+      final years = difference.inDays ~/ 365;
+      final months = (difference.inDays % 365) ~/ 30;
+
+      if (years > 0) {
+        return '$years ${years == 1 ? 'year' : 'years'}';
+      } else if (months > 0) {
+        return '$months ${months == 1 ? 'month' : 'months'}';
+      } else {
+        return 'Less than a month';
+      }
+    }
+
+    return Container(
+      width: 160.w,
+      height: 220.h,
+      margin: EdgeInsets.only(
+        right: isLast ? AppTheme.spacing4 : AppTheme.spacing3,
+      ),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        border: Border.all(color: context.border),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 1,
+            child: ClipRRect(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(AppTheme.radius3),
+                topRight: Radius.circular(AppTheme.radius3),
               ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: context.isDark
+                      ? Color(0xFF2F2F2F)
+                      : AppTheme.neutral100,
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.pets,
+                    size: 32.sp,
+                    color: context.textSecondary,
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: AppTheme.spacing2,
+                right: AppTheme.spacing2,
+                top: AppTheme.spacing1,
+                bottom: 2.h,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: context.textPrimary,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    getAge(),
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      color: context.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 6.h),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 36.h,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final userId = FirebaseAuth.instance.currentUser?.uid;
+                        if (userId != null) {
+                          final petRef = FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(userId)
+                              .collection('pets')
+                              .doc(petId);
+
+                          // Reuse the existing EventProvider instance for this route
+                          final eventProvider = context.read<EventProvider>();
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ChangeNotifierProvider.value(
+                                    value: eventProvider,
+                                    child: PetDetailsPage(petRef: petRef),
+                                  ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius2),
+                        ),
+                      ),
+                      child: Text(
+                        'See More',
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -469,6 +441,18 @@ class _EventCard extends StatelessWidget {
   final CalendarEvent event;
 
   const _EventCard({required this.event});
+
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _loadPetDocument() async {
+    final petId = event.petId;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (petId == null || userId == null) return null;
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('pets')
+        .doc(petId)
+        .get();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -482,6 +466,7 @@ class _EventCard extends StatelessWidget {
         side: BorderSide(color: context.border),
       ),
       content: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 4.w,
@@ -548,91 +533,49 @@ class _EventCard extends StatelessWidget {
               ],
             ),
           ),
-          GFBadge(
-            text: 'Today',
-            color: AppTheme.neutral800,
-            size: GFSize.SMALL,
-            textStyle: TextStyle(fontSize: 10.sp),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          SizedBox(width: AppTheme.spacing2),
+          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>?>(
+            future: _loadPetDocument(),
+            builder: (context, snapshot) {
+              String label = 'Unknown pet';
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                label = 'Loading...';
+              } else if (snapshot.hasData && snapshot.data != null) {
+                final data = snapshot.data!.data();
+                if (data != null && data['name'] is String) {
+                  label = data['name'] as String;
+                }
+              }
 
-class _UpcomingEventCard extends StatelessWidget {
-  final CalendarEvent event;
-
-  const _UpcomingEventCard({required this.event});
-
-  @override
-  Widget build(BuildContext context) {
-    return GFCard(
-      elevation: 0,
-      color: context.surface,
-      borderOnForeground: true,
-      boxFit: BoxFit.cover,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius3),
-        side: BorderSide(color: context.border),
-      ),
-      content: Row(
-        children: [
-          Column(
-            children: [
-              Text(
-                DateFormat('EEE').format(event.dateTime).toUpperCase(),
-                style: TextStyle(
-                  fontSize: 11.sp,
-                  color: context.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                DateFormat('dd').format(event.dateTime),
-                style: TextStyle(
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.w600,
-                  color: context.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          Gap(AppTheme.spacing3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: context.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Gap(AppTheme.spacing1),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 12.sp,
-                      color: context.textSecondary,
+              return SizedBox(
+                height: 48.h,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: 120.w),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacing2,
+                      vertical: 4.h,
                     ),
-                    Gap(AppTheme.spacing1),
-                    Text(
-                      DateFormat('h:mm a').format(event.dateTime),
+                    decoration: BoxDecoration(
+                      color: AppTheme.neutral800,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Text(
+                      label,
                       style: TextStyle(
-                        fontSize: 12.sp,
-                        color: context.textSecondary,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
                     ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),

@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/event_model.dart';
 import '../repositories/event_repository.dart';
-
 import '../models/notification_service.dart';
 
 class EventProvider extends ChangeNotifier {
@@ -75,6 +75,7 @@ class EventProvider extends ChangeNotifier {
     _setupStreams();
     await loadEvents();
     await loadEventCounts();
+    await cleanupOrphanEvents();
   }
 
   void _setupStreams() {
@@ -304,6 +305,45 @@ class EventProvider extends ChangeNotifier {
       await refresh();
     } catch (e) {
       developer.log('Error syncing offline events: $e', name: 'EventProvider');
+    }
+  }
+
+  /// Cleanup events that reference pets which no longer exist
+  Future<void> cleanupOrphanEvents() async {
+    try {
+      final userId = currentUserId;
+      if (userId == null) return;
+
+      // Load current pets for the user
+      final petsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('pets')
+          .get();
+
+      final validPetIds = petsSnapshot.docs.map((doc) => doc.id).toSet();
+
+      // Find events whose petId no longer exists
+      final orphanEvents = _events.where((event) {
+        final petId = event.petId;
+        return petId != null && !validPetIds.contains(petId);
+      }).toList();
+
+      if (orphanEvents.isEmpty) return;
+
+      developer.log(
+        'Cleaning up ${orphanEvents.length} orphan events',
+        name: 'EventProvider',
+      );
+
+      for (final event in orphanEvents) {
+        await deleteEvent(event.id);
+      }
+    } catch (e) {
+      developer.log(
+        'Error cleaning up orphan events: $e',
+        name: 'EventProvider',
+      );
     }
   }
 

@@ -42,8 +42,9 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Patients'),
-            backgroundColor: AppTheme.neutral700,
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.neutral700,
+            elevation: 0,
           ),
           body: clinic == null
               ? _buildNoClinic()
@@ -144,6 +145,7 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
       itemBuilder: (context, index) {
         final owner = patients[index];
         final pets = vetProvider.petsForOwner(owner.id);
+
         return Card(
           child: ListTile(
             leading: CircleAvatar(
@@ -173,12 +175,23 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
                 const Icon(Icons.chevron_right),
               ],
             ),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PatientDetailPage(ownerId: owner.id),
-              ),
-            ),
+            onTap: () {
+              final userProvider = context.read<UserProvider>();
+              final vetProv = context.read<VetProvider>();
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MultiProvider(
+                    providers: [
+                      ChangeNotifierProvider.value(value: userProvider),
+                      ChangeNotifierProvider.value(value: vetProv),
+                    ],
+                    child: PatientDetailPage(ownerId: owner.id),
+                  ),
+                ),
+              );
+            },
           ),
         );
       },

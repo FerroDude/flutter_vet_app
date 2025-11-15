@@ -4,9 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
-import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -44,9 +44,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<ChatProvider, UserProvider>(
-      builder: (context, chatProvider, userProvider, child) {
-        final currentChatRoom = chatProvider.currentChatRoom ?? widget.chatRoom;
+    return Consumer<ChatProvider>(
+      builder: (context, chatProvider, child) {
+        final currentChatRoom =
+            chatProvider.currentChatRoom ?? widget.chatRoom;
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        final isPetOwner = currentUserId == currentChatRoom.petOwnerId;
+        final isPendingAndPetOwner =
+            isPetOwner && currentChatRoom.status == ChatRoomStatus.pending;
+        final titleText = isPetOwner
+            ? (currentChatRoom.vetName.isNotEmpty
+                ? currentChatRoom.vetName
+                : 'Clinic')
+            : currentChatRoom.petOwnerName;
 
         return Scaffold(
           backgroundColor: context.background,
@@ -56,9 +66,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  userProvider.isPetOwner
-                      ? userProvider.connectedClinic?.name ?? 'Clinic'
-                      : currentChatRoom.petOwnerName,
+                  titleText,
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
@@ -77,8 +85,16 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           ),
           body: Column(
             children: [
-              Expanded(child: _buildMessagesList(chatProvider, userProvider)),
-              _buildMessageInput(chatProvider, userProvider),
+              Expanded(
+                child: _buildMessagesList(
+                  chatProvider,
+                  isPendingAndPetOwner: isPendingAndPetOwner,
+                ),
+              ),
+              if (isPendingAndPetOwner)
+                _buildPendingNotice()
+              else
+                _buildMessageInput(chatProvider),
             ],
           ),
         );
@@ -87,10 +103,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   Widget _buildMessagesList(
-    ChatProvider chatProvider,
-    UserProvider userProvider,
-  ) {
+    ChatProvider chatProvider, {
+    required bool isPendingAndPetOwner,
+  }) {
     final messages = chatProvider.currentMessages;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     if (messages.isEmpty) {
       return Center(
@@ -104,7 +121,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             ),
             Gap(AppTheme.spacing2),
             Text(
-              'No messages yet',
+              isPendingAndPetOwner
+                  ? 'Waiting for a vet to open the chat'
+                  : 'No messages yet',
               style: TextStyle(fontSize: 14.sp, color: context.textSecondary),
             ),
           ],
@@ -118,7 +137,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       itemCount: messages.length,
       itemBuilder: (context, index) {
         final message = messages[index];
-        final isMe = message.senderId == userProvider.currentUser?.id;
+        final isMe = message.senderId == currentUserId;
 
         return Padding(
           padding: EdgeInsets.only(bottom: AppTheme.spacing2),
@@ -168,9 +187,38 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 
+  Widget _buildPendingNotice() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(AppTheme.spacing3),
+      decoration: BoxDecoration(
+        color: context.surface,
+        border: Border(top: BorderSide(color: context.border)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 20.sp,
+            color: context.textSecondary,
+          ),
+          Gap(AppTheme.spacing2),
+          Expanded(
+            child: Text(
+              'Waiting for a vet to open the chat. You can start messaging once your request is accepted.',
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: context.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageInput(
     ChatProvider chatProvider,
-    UserProvider userProvider,
   ) {
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing3),
@@ -211,7 +259,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             color: AppTheme.primary,
             type: GFButtonType.solid,
             shape: GFIconButtonShape.circle,
-            onPressed: () => _sendMessage(chatProvider, userProvider),
+            onPressed: () => _sendMessage(chatProvider),
           ),
         ],
       ),
@@ -220,8 +268,25 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   Future<void> _sendMessage(
     ChatProvider chatProvider,
-    UserProvider userProvider,
   ) async {
+    final chatRoom = chatProvider.currentChatRoom ?? widget.chatRoom;
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final isPetOwner = currentUserId == chatRoom.petOwnerId;
+
+    // Extra safety: prevent sending messages while the request is still pending
+    if (isPetOwner && chatRoom.status == ChatRoomStatus.pending) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Waiting for a vet to open the chat. You can start messaging once your request is accepted.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 

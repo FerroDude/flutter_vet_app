@@ -111,8 +111,15 @@ class ProfilePage extends StatelessWidget {
     User? authUser,
     dynamic profile,
   ) {
-    final displayName = profile?.displayName ?? authUser?.displayName ?? 'User';
+    final rawDisplayName =
+        profile?.displayName ?? authUser?.displayName ?? '';
     final email = profile?.email ?? authUser?.email ?? '';
+
+    // Ensure we always have a non-empty name to display and to derive initials
+    final displayName = rawDisplayName.isNotEmpty
+        ? rawDisplayName
+        : (email.isNotEmpty ? email : 'User');
+    final initialSource = displayName.isNotEmpty ? displayName : 'U';
 
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing6),
@@ -126,7 +133,7 @@ class ProfilePage extends StatelessWidget {
             radius: 48.r,
             backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
             child: Text(
-              displayName[0].toUpperCase(),
+              initialSource[0].toUpperCase(),
               style: TextStyle(
                 color: AppTheme.primary,
                 fontSize: 40.sp,

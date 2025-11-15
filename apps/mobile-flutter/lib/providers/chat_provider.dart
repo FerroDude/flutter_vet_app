@@ -11,6 +11,7 @@ class ChatProvider extends ChangeNotifier {
   List<ChatRoom> _chatRooms = [];
   ChatRoom? _currentChatRoom;
   List<ChatMessage> _currentMessages = [];
+  List<ChatRoom> _pendingRequests = [];
   bool _isLoading = false;
   String? _error;
   int _totalUnreadCount = 0;
@@ -18,6 +19,7 @@ class ChatProvider extends ChangeNotifier {
   // Streams
   Stream<List<ChatRoom>>? _chatRoomsStream;
   Stream<List<ChatMessage>>? _messagesStream;
+  Stream<List<ChatRoom>>? _pendingRequestsStream;
 
   ChatProvider(this._chatService);
 
@@ -25,6 +27,7 @@ class ChatProvider extends ChangeNotifier {
   List<ChatRoom> get chatRooms => _chatRooms;
   ChatRoom? get currentChatRoom => _currentChatRoom;
   List<ChatMessage> get currentMessages => _currentMessages;
+  List<ChatRoom> get pendingRequests => _pendingRequests;
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get totalUnreadCount => _totalUnreadCount;
@@ -53,16 +56,26 @@ class ChatProvider extends ChangeNotifier {
     bool isAdmin = false,
   }) async {
     try {
+      // Clear any previous errors before starting a fresh initialization
+      _setError(null);
       _setLoading(true);
 
       if (isAdmin && clinicId != null) {
-        // Initialize for clinic admin - see all clinic chats
+        // Initialize for clinic admin - see all clinic chats and requests
         _chatRoomsStream = _chatService.clinicChatRoomsStream(clinicId);
+        _pendingRequestsStream = _chatService.clinicChatRequestsStream(
+          clinicId,
+        );
         _chatRooms = await _chatService.getClinicChatRooms(clinicId);
-      } else if (vetId != null) {
-        // Initialize for vet - see only their own chats
+        _pendingRequests = await _chatService.getClinicChatRequests(clinicId);
+      } else if (vetId != null && clinicId != null) {
+        // Initialize for vet - see own chats + clinic pending requests
         _chatRoomsStream = _chatService.vetChatRoomsStream(vetId);
+        _pendingRequestsStream = _chatService.clinicChatRequestsStream(
+          clinicId,
+        );
         _chatRooms = await _chatService.getVetChatRooms(vetId);
+        _pendingRequests = await _chatService.getClinicChatRequests(clinicId);
       } else if (petOwnerId != null) {
         // Initialize for pet owner
         _chatRoomsStream = _chatService.petOwnerChatRoomsStream(petOwnerId);
@@ -73,6 +86,14 @@ class ChatProvider extends ChangeNotifier {
       await _updateTotalUnreadCount();
 
       _setLoading(false);
+
+      // Listen to streams if available
+      if (_chatRoomsStream != null) {
+        _chatRoomsStream!.listen(updateChatRoomsFromStream);
+      }
+      if (_pendingRequestsStream != null) {
+        _pendingRequestsStream!.listen(updatePendingRequestsFromStream);
+      }
     } catch (e) {
       _setError('Failed to initialize chat rooms: $e');
       _setLoading(false);
@@ -229,6 +250,94 @@ class ChatProvider extends ChangeNotifier {
 
   /// VET MANAGEMENT ///
 
+  /// Create a new chat request (pet owner -> clinic)
+  Future<String?> createChatRequest({
+    required String clinicId,
+    required String petOwnerId,
+    required String petOwnerName,
+    required String title,
+    String? description,
+    List<String>? petIds,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      // Ensure there is at most one pending request per pet owner (per clinic)
+      final existingRequest = await _chatService.getPendingRequestForPetOwner(
+        clinicId: clinicId,
+        petOwnerId: petOwnerId,
+      );
+
+      if (existingRequest != null) {
+        _setLoading(false);
+        _setError(
+          'You already have a pending chat request. '
+          'Please cancel it before creating a new one.',
+        );
+        return null;
+      }
+
+      final chatRoomId = await _chatService.createChatRequest(
+        clinicId: clinicId,
+        petOwnerId: petOwnerId,
+        petOwnerName: petOwnerName,
+        title: title,
+        description: description,
+        petIds: petIds,
+      );
+
+      _setLoading(false);
+      return chatRoomId;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Failed to create chat request: $e');
+      return null;
+    }
+  }
+
+  /// Pet owner cancels an existing pending chat request.
+  Future<bool> deleteChatRequest(String chatRoomId) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      await _chatService.deleteChatRequest(chatRoomId);
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Failed to delete chat request: $e');
+      return false;
+    }
+  }
+
+  /// Vet accepts a pending chat request and becomes the assigned vet
+  Future<bool> acceptChatRequest({
+    required String chatRoomId,
+    required String vetId,
+    required String vetName,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      await _chatService.acceptChatRequest(
+        chatRoomId: chatRoomId,
+        vetId: vetId,
+        vetName: vetName,
+      );
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Failed to accept chat request: $e');
+      return false;
+    }
+  }
+
   /// UTILITY METHODS ///
 
   // Update total unread count
@@ -277,6 +386,12 @@ class ChatProvider extends ChangeNotifier {
   // Update messages from stream
   void updateMessagesFromStream(List<ChatMessage> messages) {
     _currentMessages = messages;
+    notifyListeners();
+  }
+
+  // Update pending requests from stream
+  void updatePendingRequestsFromStream(List<ChatRoom> requests) {
+    _pendingRequests = requests;
     notifyListeners();
   }
 

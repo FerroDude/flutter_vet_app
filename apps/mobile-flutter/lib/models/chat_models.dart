@@ -4,6 +4,18 @@ enum MessageType { text, image, appointment, medication }
 
 enum MessageStatus { sent, delivered, read }
 
+/// Status of a chat room lifecycle
+enum ChatRoomStatus {
+  /// Request created by pet owner, waiting for vet to accept
+  pending,
+
+  /// Active conversation between pet owner and a specific vet
+  active,
+
+  /// Conversation closed / archived (not used yet, reserved for future)
+  closed,
+}
+
 class ChatMessage {
   final String id;
   final String chatId;
@@ -127,6 +139,8 @@ class ChatRoom {
   final DateTime updatedAt;
   final bool isActive;
   final String? topic; // Optional chat topic
+  final ChatRoomStatus status;
+  final String? requestDescription; // optional long description from pet owner
 
   const ChatRoom({
     required this.id,
@@ -142,9 +156,18 @@ class ChatRoom {
     required this.updatedAt,
     this.isActive = true,
     this.topic,
+    this.status = ChatRoomStatus.active,
+    this.requestDescription,
   });
 
   factory ChatRoom.fromJson(Map<String, dynamic> json, String id) {
+    final int rawStatus = json['status'] is int
+        ? json['status'] as int
+        : ChatRoomStatus.active.index;
+    final safeStatus = (rawStatus >= 0 && rawStatus < ChatRoomStatus.values.length)
+        ? ChatRoomStatus.values[rawStatus]
+        : ChatRoomStatus.active;
+
     return ChatRoom(
       id: id,
       clinicId: json['clinicId'],
@@ -164,6 +187,8 @@ class ChatRoom {
       updatedAt: ChatMessage._parseDateTime(json['updatedAt']),
       isActive: json['isActive'] ?? true,
       topic: json['topic'],
+      status: safeStatus,
+      requestDescription: json['requestDescription'],
     );
   }
 
@@ -181,6 +206,8 @@ class ChatRoom {
       'updatedAt': updatedAt.millisecondsSinceEpoch,
       'isActive': isActive,
       'topic': topic,
+      'status': status.index,
+      'requestDescription': requestDescription,
     };
   }
 
@@ -197,6 +224,8 @@ class ChatRoom {
     DateTime? updatedAt,
     bool? isActive,
     String? topic,
+    ChatRoomStatus? status,
+    String? requestDescription,
   }) {
     return ChatRoom(
       id: id,
@@ -212,6 +241,8 @@ class ChatRoom {
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
       topic: topic ?? this.topic,
+      status: status ?? this.status,
+      requestDescription: requestDescription ?? this.requestDescription,
     );
   }
 

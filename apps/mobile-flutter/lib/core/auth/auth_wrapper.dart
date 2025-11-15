@@ -170,7 +170,7 @@ class AuthWrapper extends StatelessWidget {
                         }
 
                         // Pet owners and vets use the main app experience
-                        return const MyHomePage(title: 'VetPlus');
+                        return MyHomePage(key: homePageKey, title: 'VetPlus');
                       },
                     ),
                   );

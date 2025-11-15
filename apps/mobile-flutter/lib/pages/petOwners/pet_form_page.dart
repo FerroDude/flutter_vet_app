@@ -148,8 +148,9 @@ class _PetFormPageState extends State<PetFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.petRef == null ? 'Add Pet' : 'Edit Pet'),
-        backgroundColor: AppTheme.neutral700,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: AppTheme.neutral700,
+        elevation: 0,
       ),
       body: Form(
         key: _formKey,

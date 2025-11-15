@@ -260,7 +260,7 @@ service cloud.firestore {
       }
     }
 
-    // Chat rooms and messages (1:1: petOwnerId <-> vetId)
+    // Chat rooms and messages (1:1: petOwnerId <-> vetId or pending clinic requests)
     match /chatRooms/{chatRoomId} {
       // Create: requester must be one of the participants
       allow create: if isSignedIn() && (
@@ -268,10 +268,35 @@ service cloud.firestore {
         request.resource.data.vetId == request.auth.uid
       );
 
-      // Read/update/delete: only participants may access the room
-      allow read, update, delete: if isSignedIn() && (
+      // Read: participants can always read. Additionally, clinic members
+      // (vets/admins) can read pending chat requests for their clinic so they
+      // can see and accept them.
+      //
+      // ChatRoomStatus enum indices (see lib/models/chat_models.dart):
+      // pending=0, active=1, closed=2
+      allow read: if isSignedIn() && (
         resource.data.petOwnerId == request.auth.uid ||
-        resource.data.vetId == request.auth.uid
+        resource.data.vetId == request.auth.uid ||
+        (
+          resource.data.status == 0 && // pending request
+          isClinicMember(resource.data.clinicId)
+        )
+      );
+
+      // Update/delete:
+      // - Participants can update/delete their own rooms.
+      // - Clinic members can transition a pending request to an active chat
+      //   by assigning themselves as the vet (accepting the request).
+      allow update, delete: if isSignedIn() && (
+        // Existing participants
+        resource.data.petOwnerId == request.auth.uid ||
+        resource.data.vetId == request.auth.uid ||
+        // Accepting a pending request: status 0 -> 1 and vetId becomes caller
+        (
+          resource.data.status == 0 && // currently pending
+          isClinicMember(resource.data.clinicId) &&
+          request.resource.data.vetId == request.auth.uid
+        )
       );
 
       match /messages/{messageId} {

@@ -25,6 +25,8 @@ class ChatService {
     required String vetName,
     required List<String> petIds,
     String? topic,
+    ChatRoomStatus status = ChatRoomStatus.active,
+    String? requestDescription,
   }) async {
     try {
       final now = DateTime.now();
@@ -40,6 +42,8 @@ class ChatService {
         createdAt: now,
         updatedAt: now,
         topic: topic,
+        status: status,
+        requestDescription: requestDescription,
       );
 
       final docRef = await _chatRoomsCollection.add(chatRoom.toJson());
@@ -73,7 +77,7 @@ class ChatService {
         return existingChat.docs.first.id;
       }
 
-      // Create new chat room
+      // Create new chat room (immediately active)
       return await createChatRoom(
         clinicId: clinicId,
         petOwnerId: petOwnerId,
@@ -82,6 +86,7 @@ class ChatService {
         vetName: vetName,
         petIds: petIds ?? [],
         topic: topic,
+        status: ChatRoomStatus.active,
       );
     } catch (e) {
       throw Exception('Failed to find or create chat: $e');
@@ -145,6 +150,165 @@ class ChatService {
           .toList();
     } catch (e) {
       throw Exception('Failed to get pet owner chat rooms: $e');
+    }
+  }
+
+  /// Get an existing pending chat request for a given pet owner + clinic, if any.
+  ///
+  /// We intentionally avoid `orderBy` here so this works without a composite index.
+  Future<ChatRoom?> getPendingRequestForPetOwner({
+    required String clinicId,
+    required String petOwnerId,
+  }) async {
+    try {
+      final snapshot = await _chatRoomsCollection
+          .where('clinicId', isEqualTo: clinicId)
+          .where('petOwnerId', isEqualTo: petOwnerId)
+          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: ChatRoomStatus.pending.index)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+
+      final doc = snapshot.docs.first;
+      return ChatRoom.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+    } catch (e) {
+      throw Exception('Failed to check existing chat request: $e');
+    }
+  }
+
+  /// Get pending chat requests for a clinic (status == pending)
+  Future<List<ChatRoom>> getClinicChatRequests(String clinicId) async {
+    try {
+      final snapshot = await _chatRoomsCollection
+          .where('clinicId', isEqualTo: clinicId)
+          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: ChatRoomStatus.pending.index)
+          .get();
+
+      final rooms = snapshot.docs
+          .map(
+            (doc) =>
+                ChatRoom.fromJson(doc.data() as Map<String, dynamic>, doc.id),
+          )
+          .toList();
+
+      // Sort newest requests first on the client to avoid needing a composite index
+      rooms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return rooms;
+    } catch (e) {
+      throw Exception('Failed to get clinic chat requests: $e');
+    }
+  }
+
+  Stream<List<ChatRoom>> clinicChatRequestsStream(String clinicId) {
+    return _chatRoomsCollection
+        .where('clinicId', isEqualTo: clinicId)
+        .where('isActive', isEqualTo: true)
+        .where('status', isEqualTo: ChatRoomStatus.pending.index)
+        .snapshots()
+        .map(
+          (snap) {
+            final rooms = snap.docs
+                .map(
+                  (doc) => ChatRoom.fromJson(
+                    doc.data() as Map<String, dynamic>,
+                    doc.id,
+                  ),
+                )
+                .toList();
+
+            rooms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return rooms;
+          },
+        );
+  }
+
+  /// Create a new chat request from a pet owner to a clinic (no vet assigned yet)
+  Future<String> createChatRequest({
+    required String clinicId,
+    required String petOwnerId,
+    required String petOwnerName,
+    required String title,
+    String? description,
+    List<String>? petIds,
+  }) async {
+    try {
+      // For requests, vet is not yet assigned; store empty ids/names.
+      return await createChatRoom(
+        clinicId: clinicId,
+        petOwnerId: petOwnerId,
+        petOwnerName: petOwnerName,
+        vetId: '',
+        vetName: '',
+        petIds: petIds ?? [],
+        topic: title,
+        status: ChatRoomStatus.pending,
+        requestDescription: description,
+      );
+    } catch (e) {
+      throw Exception('Failed to create chat request: $e');
+    }
+  }
+
+  /// Vet accepts a pending chat request and becomes the assigned vet
+  Future<void> acceptChatRequest({
+    required String chatRoomId,
+    required String vetId,
+    required String vetName,
+  }) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final roomRef = _chatRoomsCollection.doc(chatRoomId);
+        final snapshot = await transaction.get(roomRef);
+        if (!snapshot.exists) {
+          throw Exception('Chat room no longer exists');
+        }
+
+        final data = snapshot.data() as Map<String, dynamic>;
+        final currentStatusIndex =
+            (data['status'] ?? ChatRoomStatus.active.index) as int;
+
+        if (currentStatusIndex != ChatRoomStatus.pending.index) {
+          // Someone else already accepted or room is active; do nothing.
+          throw Exception('Chat request already accepted or closed');
+        }
+
+        transaction.update(roomRef, {
+          'vetId': vetId,
+          'vetName': vetName,
+          'status': ChatRoomStatus.active.index,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      throw Exception('Failed to accept chat request: $e');
+    }
+  }
+
+  /// Delete a pending chat request (pet owner cancels before a vet accepts).
+  Future<void> deleteChatRequest(String chatRoomId) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final roomRef = _chatRoomsCollection.doc(chatRoomId);
+        final snapshot = await transaction.get(roomRef);
+        if (!snapshot.exists) {
+          throw Exception('Chat room no longer exists');
+        }
+
+        final data = snapshot.data() as Map<String, dynamic>;
+        final currentStatusIndex =
+            (data['status'] ?? ChatRoomStatus.active.index) as int;
+
+        if (currentStatusIndex != ChatRoomStatus.pending.index) {
+          throw Exception('Only pending chat requests can be deleted');
+        }
+
+        transaction.delete(roomRef);
+      });
+    } catch (e) {
+      throw Exception('Failed to delete chat request: $e');
     }
   }
 
@@ -216,8 +380,12 @@ class ChatService {
         final otherParticipantId = chatRoom.getOtherParticipantId(
           currentUser.uid,
         );
-        updatedUnreadCounts[otherParticipantId] =
-            (updatedUnreadCounts[otherParticipantId] ?? 0) + 1;
+        // Firestore does not allow empty field names; skip if we don't yet
+        // have a valid other participant (e.g. pending chat request without vet)
+        if (otherParticipantId.isNotEmpty) {
+          updatedUnreadCounts[otherParticipantId] =
+              (updatedUnreadCounts[otherParticipantId] ?? 0) + 1;
+        }
 
         batch.update(chatRoomRef, {
           'lastMessage': message.toJson(),

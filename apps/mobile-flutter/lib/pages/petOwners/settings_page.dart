@@ -202,6 +202,12 @@ class SettingsPage extends StatelessWidget {
     User user,
     UserProvider userProvider,
   ) {
+    final rawName = user.displayName ?? '';
+    final email = user.email ?? '';
+    final displayName =
+        rawName.isNotEmpty ? rawName : (email.isNotEmpty ? email : 'User');
+    final initialSource = displayName.isNotEmpty ? displayName : 'U';
+
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing4),
       decoration: BoxDecoration(
@@ -214,7 +220,7 @@ class SettingsPage extends StatelessWidget {
             radius: 32.r,
             backgroundColor: AppTheme.neutral800.withValues(alpha:0.1),
             child: Text(
-              (user.displayName ?? user.email ?? 'U')[0].toUpperCase(),
+              initialSource[0].toUpperCase(),
               style: TextStyle(
                 color: AppTheme.neutral800,
                 fontSize: 24.sp,
@@ -228,7 +234,7 @@ class SettingsPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user.displayName ?? 'User',
+                  displayName,
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
@@ -237,7 +243,7 @@ class SettingsPage extends StatelessWidget {
                 ),
                 Gap(AppTheme.spacing1),
                 Text(
-                  user.email ?? '',
+                  email,
                   style: TextStyle(
                     fontSize: 14.sp,
                     color: context.textSecondary,

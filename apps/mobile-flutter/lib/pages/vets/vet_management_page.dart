@@ -22,7 +22,12 @@ class _VetManagementPageState extends State<VetManagementPage> {
       builder: (context, userProvider, child) {
         if (!userProvider.canManageVets) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Vet Management')),
+            appBar: AppBar(
+              title: const Text('Vet Management'),
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.neutral700,
+              elevation: 0,
+            ),
             body: const Center(
               child: Text('Access denied. Admin privileges required.'),
             ),
@@ -32,8 +37,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Vet Management'),
-            backgroundColor: AppTheme.neutral700,
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.neutral700,
+            elevation: 0,
             actions: [
               IconButton(
                 onPressed: () => _showAddVetDialog(context, userProvider),

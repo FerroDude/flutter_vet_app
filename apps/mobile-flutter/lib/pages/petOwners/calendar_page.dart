@@ -68,13 +68,19 @@ class CalendarPageState extends State<CalendarPage>
 
   int get currentTabIndex => _tabController.index;
 
+  void switchToAppointmentsTab() {
+    if (mounted && _tabController.index != 1) {
+      _tabController.animateTo(1);
+    }
+  }
+
   void handleFabAction() {
     switch (_tabController.index) {
       case 0:
         showAddEventDialog();
         break;
       case 1:
-        _showAppointmentFormWithPetSelection();
+        showAppointmentFormWithPetSelection();
         break;
       case 2:
         _showMedicationFormWithPetSelection();
@@ -98,7 +104,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void showAppointmentForm() {
-    _showAppointmentFormWithPetSelection();
+    showAppointmentFormWithPetSelection();
   }
 
   void showMedicationForm() {
@@ -1208,7 +1214,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  void _showAppointmentFormWithPetSelection() async {
+  void showAppointmentFormWithPetSelection() async {
     // Capture the provider before async operation
     final eventProvider = context.read<EventProvider>();
     final selectedPet = await _showPetSelectionDialog();

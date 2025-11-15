@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
@@ -114,12 +115,14 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
   final _locationController = TextEditingController();
   final _notesController = TextEditingController();
   late TimeOfDay _selectedTime;
+  String? _selectedPetId;
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _selectedTime = TimeOfDay.fromDateTime(widget.selectedDate);
+    _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
     if (widget.existingEvent != null) {
       _titleController.text = widget.existingEvent!.title;
       _locationController.text = widget.existingEvent!.location ?? '';
@@ -142,7 +145,9 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
       padding: EdgeInsets.all(AppTheme.spacing4),
       decoration: BoxDecoration(
         color: context.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius4)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radius4),
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -151,7 +156,9 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              widget.existingEvent == null ? 'New Appointment' : 'Edit Appointment',
+              widget.existingEvent == null
+                  ? 'New Appointment'
+                  : 'Edit Appointment',
               style: TextStyle(
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w600,
@@ -174,6 +181,8 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
               },
             ),
             Gap(AppTheme.spacing3),
+            _buildPetSelector(),
+            Gap(AppTheme.spacing3),
             TextFormField(
               controller: _locationController,
               decoration: InputDecoration(
@@ -185,10 +194,17 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
             Gap(AppTheme.spacing3),
             GFListTile(
               avatar: Icon(Icons.access_time, color: context.textPrimary),
-              title: Text('Time', style: TextStyle(color: context.textSecondary, fontSize: 12.sp)),
+              title: Text(
+                'Time',
+                style: TextStyle(color: context.textSecondary, fontSize: 12.sp),
+              ),
               subTitle: Text(
                 _selectedTime.format(context),
-                style: TextStyle(color: context.textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: context.textPrimary,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               onTap: () async {
                 final time = await showTimePicker(
@@ -232,7 +248,10 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
                         ? SizedBox(
                             width: 16.w,
                             height: 16.h,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : null,
                   ),
@@ -262,14 +281,20 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
 
       final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
       final now = DateTime.now();
-      
+
       final event = AppointmentEvent(
-        id: widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        id:
+            widget.existingEvent?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
-        description: _notesController.text.trim().isEmpty ? 'Appointment' : _notesController.text.trim(),
+        description: _notesController.text.trim().isEmpty
+            ? 'Appointment'
+            : _notesController.text.trim(),
         dateTime: dateTime,
-        location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
-        petId: widget.petId ?? widget.existingEvent?.petId,
+        location: _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
+        petId: _selectedPetId ?? widget.petId ?? widget.existingEvent?.petId,
         userId: userId,
         createdAt: widget.existingEvent?.createdAt ?? now,
         updatedAt: now,
@@ -285,20 +310,107 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Appointment ${widget.existingEvent == null ? 'added' : 'updated'}')),
+          SnackBar(
+            content: Text(
+              'Appointment ${widget.existingEvent == null ? 'added' : 'updated'}',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  Widget _buildPetSelector() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('pets')
+          .orderBy('order')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Pet',
+              hintText: 'Loading pets...',
+              prefixIcon: Icon(Icons.pets),
+            ),
+            items: [],
+            onChanged: null,
+          );
+        }
+
+        final pets = snapshot.data!.docs;
+        if (pets.isEmpty) {
+          return DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Pet',
+              hintText: 'No pets found',
+              prefixIcon: Icon(Icons.pets),
+            ),
+            items: [],
+            onChanged: null,
+          );
+        }
+
+        // Ensure the selected pet ID is valid, fallback to first pet if needed
+        String? selectedValue = _selectedPetId;
+        if (selectedValue == null ||
+            !pets.any((doc) => doc.id == selectedValue)) {
+          if (pets.isNotEmpty) {
+            selectedValue = pets.first.id;
+            // Update state if needed
+            if (_selectedPetId != selectedValue) {
+              Future.microtask(() {
+                if (mounted) {
+                  setState(() => _selectedPetId = selectedValue);
+                }
+              });
+            }
+          }
+        }
+
+        return DropdownButtonFormField<String>(
+          decoration: InputDecoration(
+            labelText: 'Pet',
+            prefixIcon: Icon(Icons.pets),
+          ),
+          initialValue: selectedValue,
+          items: pets.map((doc) {
+            final pet = doc.data();
+            return DropdownMenuItem<String>(
+              value: doc.id,
+              child: Text(pet['name'] ?? 'Unknown'),
+            );
+          }).toList(),
+          onChanged: (value) {
+            setState(() => _selectedPetId = value);
+          },
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please select a pet';
+            }
+            return null;
+          },
+        );
+      },
+    );
   }
 }
 
@@ -325,6 +437,10 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
   final _notesController = TextEditingController();
   late TimeOfDay _selectedTime;
   bool _isSubmitting = false;
+  String _frequency = 'once'; // once or daily
+  final TextEditingController _durationController = TextEditingController(
+    text: '7',
+  ); // default 7 days
 
   @override
   void initState() {
@@ -343,6 +459,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
     _nameController.dispose();
     _dosageController.dispose();
     _notesController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
@@ -352,7 +469,9 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
       padding: EdgeInsets.all(AppTheme.spacing4),
       decoration: BoxDecoration(
         color: context.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius4)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radius4),
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -361,7 +480,9 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              widget.existingEvent == null ? 'New Medication' : 'Edit Medication',
+              widget.existingEvent == null
+                  ? 'New Medication'
+                  : 'Edit Medication',
               style: TextStyle(
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w600,
@@ -399,12 +520,58 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
               },
             ),
             Gap(AppTheme.spacing3),
+            DropdownButtonFormField<String>(
+              value: _frequency,
+              decoration: const InputDecoration(
+                labelText: 'Frequency',
+                prefixIcon: Icon(Icons.schedule),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'once', child: Text('One time')),
+                DropdownMenuItem(value: 'daily', child: Text('Every day')),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _frequency = value);
+              },
+            ),
+            if (_frequency == 'daily') ...[
+              Gap(AppTheme.spacing3),
+              TextFormField(
+                controller: _durationController,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (days)',
+                  hintText: 'e.g., 7',
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (_frequency != 'daily') return null;
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter duration in days';
+                  }
+                  final days = int.tryParse(value);
+                  if (days == null || days <= 0) {
+                    return 'Enter a valid number of days';
+                  }
+                  return null;
+                },
+              ),
+            ],
+            Gap(AppTheme.spacing3),
             GFListTile(
               avatar: Icon(Icons.access_time, color: context.textPrimary),
-              title: Text('Time', style: TextStyle(color: context.textSecondary, fontSize: 12.sp)),
+              title: Text(
+                'Time',
+                style: TextStyle(color: context.textSecondary, fontSize: 12.sp),
+              ),
               subTitle: Text(
                 _selectedTime.format(context),
-                style: TextStyle(color: context.textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: context.textPrimary,
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               onTap: () async {
                 final time = await showTimePicker(
@@ -448,7 +615,10 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
                         ? SizedBox(
                             width: 16.w,
                             height: 16.h,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : null,
                   ),
@@ -478,39 +648,91 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
 
       final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
       final now = DateTime.now();
-      
-      final event = MedicationEvent(
-        id: widget.existingEvent?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _nameController.text.trim(),
-        description: _notesController.text.trim().isEmpty ? 'Medication reminder' : _notesController.text.trim(),
-        dateTime: dateTime,
-        medicationName: _nameController.text.trim(),
-        dosage: _dosageController.text.trim(),
-        frequency: 'once',
-        petId: widget.petId ?? widget.existingEvent?.petId,
-        userId: userId,
-        createdAt: widget.existingEvent?.createdAt ?? now,
-        updatedAt: now,
-      );
-
       final eventProvider = context.read<EventProvider>();
-      if (widget.existingEvent == null) {
-        await eventProvider.createEvent(event);
+
+      // Editing existing medication - keep single event behavior
+      if (widget.existingEvent != null) {
+        final existing = widget.existingEvent!;
+        final updatedEvent = existing.copyWith(
+          title: _nameController.text.trim(),
+          description: _notesController.text.trim().isEmpty
+              ? 'Medication reminder'
+              : _notesController.text.trim(),
+          dateTime: dateTime,
+          medicationName: _nameController.text.trim(),
+          dosage: _dosageController.text.trim(),
+          updatedAt: now,
+        );
+
+        await eventProvider.updateEvent(updatedEvent.id, updatedEvent);
       } else {
-        await eventProvider.updateEvent(event.id, event);
+        // New medication - support one-time or daily course over multiple days
+        final isDailyCourse = _frequency == 'daily';
+        int totalDays = 1;
+        if (isDailyCourse) {
+          totalDays = int.tryParse(_durationController.text) ?? 1;
+          if (totalDays <= 0) totalDays = 1;
+        }
+
+        final title = _nameController.text.trim();
+        final description = _notesController.text.trim().isEmpty
+            ? 'Medication reminder'
+            : _notesController.text.trim();
+        final dosage = _dosageController.text.trim();
+        final petId = widget.petId ?? widget.existingEvent?.petId;
+
+        final seriesId = isDailyCourse ? CalendarEvent.generateId() : null;
+        final firstDateTime = dateTime;
+        final endDate = isDailyCourse
+            ? firstDateTime.add(Duration(days: totalDays - 1))
+            : null;
+
+        for (int i = 0; i < totalDays; i++) {
+          final occurrenceDate = firstDateTime.add(Duration(days: i));
+
+          final event = MedicationEvent(
+            id: CalendarEvent.generateId(),
+            title: title,
+            description: description,
+            dateTime: occurrenceDate,
+            medicationName: title,
+            dosage: dosage,
+            frequency: isDailyCourse ? 'daily' : 'once',
+            petId: petId,
+            userId: userId,
+            seriesId: seriesId,
+            isRecurring: isDailyCourse,
+            recurrencePattern: isDailyCourse ? 'daily' : null,
+            recurrenceInterval: isDailyCourse ? 1 : null,
+            endDate: endDate,
+            remainingDoses: isDailyCourse ? totalDays : null,
+            createdAt: firstDateTime,
+            updatedAt: now,
+          );
+
+          await eventProvider.createEvent(event);
+        }
       }
 
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Medication ${widget.existingEvent == null ? 'added' : 'updated'}')),
+          SnackBar(
+            content: Text(
+              widget.existingEvent == null
+                  ? (_frequency == 'daily'
+                        ? 'Medication course added'
+                        : 'Medication added')
+                  : 'Medication updated',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) {

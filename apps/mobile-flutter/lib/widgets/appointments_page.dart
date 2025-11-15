@@ -460,6 +460,13 @@ class AppointmentsPageState extends State<AppointmentsPage>
                       Text('Dosage: ${event.dosage}'),
                       const SizedBox(height: 4),
                       Text('Frequency: ${event.frequency}'),
+                      if (event.isRecurring && event.endDate != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Course: daily until '
+                          '${DateFormat('MMM dd, yyyy').format(event.endDate!)}',
+                        ),
+                      ],
                       if (event.instructions != null) ...[
                         const SizedBox(height: 4),
                         Text('Instructions: ${event.instructions}'),

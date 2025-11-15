@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
@@ -7,6 +8,7 @@ import '../../providers/event_provider.dart';
 import '../../models/event_model.dart';
 import '../../widgets/simple_event_forms.dart';
 import 'pet_form_page.dart';
+import 'add_symptom_sheet.dart';
 
 class PetDetailsPage extends StatelessWidget {
   const PetDetailsPage({super.key, required this.petRef});
@@ -17,8 +19,9 @@ class PetDetailsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pet Details'),
-        backgroundColor: AppTheme.neutral700,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: AppTheme.neutral700,
+        elevation: 0,
         actions: [
           IconButton(
             onPressed: () async {
@@ -35,6 +38,71 @@ class PetDetailsPage extends StatelessWidget {
               }
             },
             icon: const Icon(Icons.edit),
+          ),
+          IconButton(
+            onPressed: () async {
+              final shouldDelete = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) {
+                  return AlertDialog(
+                    title: const Text('Delete Pet'),
+                    content: const Text(
+                      'Are you sure you want to delete this pet? '
+                      'This action cannot be undone.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop(false);
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop(true);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (shouldDelete == true && context.mounted) {
+                try {
+                  // Delete all events linked to this pet for the current user
+                  final userId = FirebaseAuth.instance.currentUser?.uid;
+                  if (userId != null) {
+                    final eventsQuery = FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .collection('events')
+                        .where('petId', isEqualTo: petRef.id);
+
+                    final eventsSnapshot = await eventsQuery.get();
+                    for (final doc in eventsSnapshot.docs) {
+                      await doc.reference.delete();
+                    }
+                  }
+
+                  await petRef.delete();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Pet deleted')),
+                  );
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to delete pet: $e')),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.delete_outline),
           ),
         ],
       ),
@@ -242,57 +310,96 @@ class PetDetailsPage extends StatelessWidget {
                               ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
+                        Column(
                           children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  final eventProvider = context
-                                      .read<EventProvider>();
-                                  showDialog(
-                                    context: context,
-                                    builder: (dialogContext) =>
-                                        ChangeNotifierProvider.value(
-                                          value: eventProvider,
-                                          child: SimpleAppointmentForm(
-                                            selectedDate: DateTime.now(),
-                                            petId: petRef.id,
-                                          ),
-                                        ),
-                                  );
-                                },
-                                icon: const Icon(Icons.calendar_today),
-                                label: const Text('Add Appointment'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.neutral700,
-                                  foregroundColor: Colors.white,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                          final eventProvider =
+                                              context.read<EventProvider>();
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (dialogContext) =>
+                                            ChangeNotifierProvider.value(
+                                              value: eventProvider,
+                                              child: SimpleAppointmentForm(
+                                                selectedDate: DateTime.now(),
+                                                petId: petRef.id,
+                                              ),
+                                            ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text('Add Appointment'),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      final eventProvider =
+                                          context.read<EventProvider>();
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (dialogContext) =>
+                                            ChangeNotifierProvider.value(
+                                              value: eventProvider,
+                                              child: SimpleMedicationForm(
+                                                selectedDate: DateTime.now(),
+                                                petId: petRef.id,
+                                              ),
+                                            ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: const Text('Add Medication'),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
                                 onPressed: () {
-                                  final eventProvider = context
-                                      .read<EventProvider>();
-                                  showDialog(
+                                  showModalBottomSheet(
                                     context: context,
-                                    builder: (dialogContext) =>
-                                        ChangeNotifierProvider.value(
-                                          value: eventProvider,
-                                          child: SimpleMedicationForm(
-                                            selectedDate: DateTime.now(),
-                                            petId: petRef.id,
-                                          ),
-                                        ),
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (context) => AddSymptomSheet(
+                                      petId: petRef.id,
+                                    ),
                                   );
                                 },
-                                icon: const Icon(Icons.medication),
-                                label: const Text('Add Medication'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: Colors.black,
                                   foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
+                                child: const Text('Add Symptom'),
                               ),
                             ),
                           ],
@@ -439,6 +546,80 @@ class PetDetailsPage extends StatelessWidget {
                                           color: AppTheme.neutral600,
                                           size: 20,
                                         ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 20,
+                                        ),
+                                        color: Colors.redAccent,
+                                        onPressed: () async {
+                                          final confirmed =
+                                              await showDialog<bool>(
+                                            context: context,
+                                            builder: (dialogContext) {
+                                              return AlertDialog(
+                                                title:
+                                                    const Text('Delete Event'),
+                                                content: const Text(
+                                                  'Are you sure you want to delete this event?',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(
+                                                        dialogContext,
+                                                      ).pop(false);
+                                                    },
+                                                    child:
+                                                        const Text('Cancel'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(
+                                                        dialogContext,
+                                                      ).pop(true);
+                                                    },
+                                                    style:
+                                                        TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                    child:
+                                                        const Text('Delete'),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+
+                                          if (confirmed == true &&
+                                              context.mounted) {
+                                            final success =
+                                                await eventProvider
+                                                    .deleteEvent(event.id);
+                                            if (success && context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Event deleted',
+                                                  ),
+                                                ),
+                                              );
+                                            } else if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Failed to delete event',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                      ),
                                     ],
                                   ),
                                 );

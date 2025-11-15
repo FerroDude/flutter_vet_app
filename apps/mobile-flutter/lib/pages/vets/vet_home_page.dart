@@ -20,8 +20,9 @@ class VetHomePage extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Vet Home'),
-            backgroundColor: AppTheme.neutral700,
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.neutral700,
+            elevation: 0,
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings),
