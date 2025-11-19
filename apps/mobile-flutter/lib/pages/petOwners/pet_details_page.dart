@@ -320,7 +320,7 @@ class PetDetailsPage extends StatelessWidget {
                                     onPressed: () async {
                                       final eventProvider = context
                                           .read<EventProvider>();
-R
+
                                       // Try to get clinic name, but don't fail if provider is unavailable
                                       String? clinicName;
                                       try {
@@ -329,13 +329,7 @@ R
                                         final clinic =
                                             userProvider.connectedClinic;
                                         clinicName = clinic?.name;
-                                        print(
-                                          'DEBUG: PetDetailsPage - Connected Clinic: ${clinic?.id}, Name: ${clinic?.name}',
-                                        );
                                       } catch (e) {
-                                        print(
-                                          'DEBUG: PetDetailsPage - UserProvider error: $e',
-                                        );
                                         clinicName = null;
                                       }
 

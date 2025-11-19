@@ -19,33 +19,44 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  String? _lastClinicId;
+  String? _lastPetOwnerId;
+
   @override
-  void initState() {
-    super.initState();
-    _initializeChats();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkAndInitializeChats();
   }
 
-  void _initializeChats() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = context.read<UserProvider>();
-      final chatProvider = context.read<ChatProvider>();
+  void _checkAndInitializeChats() {
+    final userProvider = Provider.of<UserProvider>(context);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-      if (userProvider.isPetOwner) {
+    if (userProvider.isLoading) return;
+
+    if (userProvider.isPetOwner) {
+      final petOwnerId = userProvider.currentUser?.id;
+      if (petOwnerId != null && petOwnerId != _lastPetOwnerId) {
+        _lastPetOwnerId = petOwnerId;
         if (userProvider.hasClinicConnection) {
-          chatProvider.initializeChatRooms(
-            petOwnerId: userProvider.currentUser?.id,
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            chatProvider.initializeChatRooms(petOwnerId: petOwnerId);
+          });
         }
-      } else if (userProvider.isVet || userProvider.isClinicAdmin) {
-        if (userProvider.connectedClinic?.id != null) {
+      }
+    } else if (userProvider.isVet || userProvider.isClinicAdmin) {
+      final clinicId = userProvider.connectedClinic?.id;
+      if (clinicId != null && clinicId != _lastClinicId) {
+        _lastClinicId = clinicId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           chatProvider.initializeChatRooms(
-            clinicId: userProvider.connectedClinic?.id,
+            clinicId: clinicId,
             vetId: userProvider.isVet ? userProvider.currentUser?.id : null,
             isAdmin: userProvider.isClinicAdmin,
           );
-        }
+        });
       }
-    });
+    }
   }
 
   @override
@@ -142,7 +153,12 @@ class _ChatPageState extends State<ChatPage> {
 
     final chatRooms = chatProvider.chatRooms;
 
-    if (chatRooms.isEmpty) {
+    // For vets/admins, also show pending requests
+    final pendingRequests = userProvider.isVet || userProvider.isClinicAdmin
+        ? chatProvider.pendingRequests
+        : const <ChatRoom>[];
+
+    if (chatRooms.isEmpty && pendingRequests.isEmpty) {
       return AppEmptyState(
         icon: Icons.chat_bubble_outline,
         message: userProvider.isPetOwner
@@ -150,11 +166,6 @@ class _ChatPageState extends State<ChatPage> {
             : 'No conversations yet.',
       );
     }
-
-    // For vets/admins, also show pending requests
-    final pendingRequests = userProvider.isVet || userProvider.isClinicAdmin
-        ? chatProvider.pendingRequests
-        : const <ChatRoom>[];
 
     return ListView(
       padding: EdgeInsets.all(AppTheme.spacing4),

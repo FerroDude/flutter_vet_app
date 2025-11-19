@@ -149,9 +149,6 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
       if (widget.clinicName != null && widget.clinicName!.isNotEmpty) {
         _locationController.text = widget.clinicName!;
       }
-      print(
-        'DEBUG: SimpleAppointmentForm init. ClinicName passed: ${widget.clinicName}',
-      );
     }
   }
 
@@ -161,6 +158,59 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
     _locationController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Appointment'),
+        content: const Text(
+          'Are you sure you want to delete this appointment?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteEvent();
+    }
+  }
+
+  Future<void> _deleteEvent() async {
+    if (widget.existingEvent == null) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final eventProvider = context.read<EventProvider>();
+      await eventProvider.deleteEvent(widget.existingEvent!.id);
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Appointment deleted')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
@@ -326,6 +376,17 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
                 ),
               ],
             ),
+            if (widget.existingEvent != null) ...[
+              Gap(AppTheme.spacing3),
+              GFButton(
+                onPressed: _confirmDelete,
+                text: 'Delete Appointment',
+                type: GFButtonType.outline2x,
+                color: GFColors.DANGER,
+                size: GFSize.LARGE,
+                fullWidthButton: true,
+              ),
+            ],
             Gap(AppTheme.spacing2),
           ],
         ),
@@ -376,7 +437,7 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
       }
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

@@ -1050,8 +1050,10 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _editAppointment(AppointmentEvent appointment) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => ChangeNotifierProvider.value(
         value: this.context.read<EventProvider>(),
         child: SimpleAppointmentForm(
