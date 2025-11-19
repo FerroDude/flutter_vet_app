@@ -13,8 +13,6 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => MyHomePageState();
 }
 
-final GlobalKey<MyHomePageState> homePageKey = GlobalKey<MyHomePageState>();
-
 class MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
