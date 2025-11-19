@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
+import '../providers/user_provider.dart';
 import '../theme/app_theme.dart';
 
 class SimpleAddEventDialog extends StatelessWidget {
@@ -66,6 +67,8 @@ class SimpleAddEventDialog extends StatelessWidget {
 
   void _showAppointmentForm(BuildContext context) {
     final eventProvider = context.read<EventProvider>();
+    final userProvider = context.read<UserProvider>();
+    final clinicName = userProvider.connectedClinic?.name;
     Navigator.pop(context);
     showModalBottomSheet(
       context: context,
@@ -73,7 +76,11 @@ class SimpleAddEventDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: eventProvider,
-        child: SimpleAppointmentForm(selectedDate: selectedDate, petId: petId),
+        child: SimpleAppointmentForm(
+          selectedDate: selectedDate,
+          petId: petId,
+          clinicName: clinicName,
+        ),
       ),
     );
   }
@@ -97,12 +104,14 @@ class SimpleAppointmentForm extends StatefulWidget {
   final DateTime selectedDate;
   final String? petId;
   final AppointmentEvent? existingEvent;
+  final String? clinicName;
 
   const SimpleAppointmentForm({
     super.key,
     required this.selectedDate,
     this.petId,
     this.existingEvent,
+    this.clinicName,
   });
 
   @override
@@ -110,10 +119,15 @@ class SimpleAppointmentForm extends StatefulWidget {
 }
 
 class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
-  final _formKey = GlobalKey<FormState>();
+  // Use a static counter to ensure unique keys across multiple instances if any
+  static int _formKeyCounter = 0;
+  final _formKey = GlobalKey<FormState>(
+    debugLabel: 'SimpleAppointmentForm_${_formKeyCounter++}',
+  );
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
   final _notesController = TextEditingController();
+  late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   String? _selectedPetId;
   bool _isSubmitting = false;
@@ -121,13 +135,23 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
   @override
   void initState() {
     super.initState();
+    _selectedDate = widget.selectedDate;
     _selectedTime = TimeOfDay.fromDateTime(widget.selectedDate);
     _selectedPetId = widget.petId ?? widget.existingEvent?.petId;
     if (widget.existingEvent != null) {
       _titleController.text = widget.existingEvent!.title;
       _locationController.text = widget.existingEvent!.location ?? '';
       _notesController.text = widget.existingEvent!.description;
+      _selectedDate = widget.existingEvent!.dateTime;
       _selectedTime = TimeOfDay.fromDateTime(widget.existingEvent!.dateTime);
+    } else {
+      // Pre-fill clinic name if provided
+      if (widget.clinicName != null && widget.clinicName!.isNotEmpty) {
+        _locationController.text = widget.clinicName!;
+      }
+      print(
+        'DEBUG: SimpleAppointmentForm init. ClinicName passed: ${widget.clinicName}',
+      );
     }
   }
 
@@ -186,35 +210,79 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
             TextFormField(
               controller: _locationController,
               decoration: InputDecoration(
-                labelText: 'Location',
-                hintText: 'e.g., Vet Clinic Name',
-                prefixIcon: Icon(Icons.location_on_outlined),
+                labelText: 'Clinic',
+                hintText: 'Clinic name',
+                prefixIcon: Icon(Icons.local_hospital_outlined),
               ),
             ),
             Gap(AppTheme.spacing3),
-            GFListTile(
-              avatar: Icon(Icons.access_time, color: context.textPrimary),
-              title: Text(
-                'Time',
-                style: TextStyle(color: context.textSecondary, fontSize: 12.sp),
-              ),
-              subTitle: Text(
-                _selectedTime.format(context),
-                style: TextStyle(
-                  color: context.textPrimary,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
+            Row(
+              children: [
+                Expanded(
+                  child: GFListTile(
+                    avatar: Icon(
+                      Icons.calendar_today,
+                      color: context.textPrimary,
+                    ),
+                    title: Text(
+                      'Date',
+                      style: TextStyle(
+                        color: context.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    subTitle: Text(
+                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                      style: TextStyle(
+                        color: context.textPrimary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDate,
+                        firstDate: DateTime.now().subtract(Duration(days: 365)),
+                        lastDate: DateTime.now().add(Duration(days: 365 * 2)),
+                      );
+                      if (date != null) {
+                        setState(() => _selectedDate = date);
+                      }
+                    },
+                  ),
                 ),
-              ),
-              onTap: () async {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: _selectedTime,
-                );
-                if (time != null) {
-                  setState(() => _selectedTime = time);
-                }
-              },
+                Gap(AppTheme.spacing2),
+                Expanded(
+                  child: GFListTile(
+                    avatar: Icon(Icons.access_time, color: context.textPrimary),
+                    title: Text(
+                      'Time',
+                      style: TextStyle(
+                        color: context.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    subTitle: Text(
+                      _selectedTime.format(context),
+                      style: TextStyle(
+                        color: context.textPrimary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: _selectedTime,
+                      );
+                      if (time != null) {
+                        setState(() => _selectedTime = time);
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
             Gap(AppTheme.spacing3),
             TextFormField(
@@ -272,9 +340,9 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
 
     try {
       final dateTime = DateTime(
-        widget.selectedDate.year,
-        widget.selectedDate.month,
-        widget.selectedDate.day,
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
         _selectedTime.hour,
         _selectedTime.minute,
       );
@@ -292,7 +360,7 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
             : _notesController.text.trim(),
         dateTime: dateTime,
         location: _locationController.text.trim().isEmpty
-            ? null
+            ? 'Clinic'
             : _locationController.text.trim(),
         petId: _selectedPetId ?? widget.petId ?? widget.existingEvent?.petId,
         userId: userId,

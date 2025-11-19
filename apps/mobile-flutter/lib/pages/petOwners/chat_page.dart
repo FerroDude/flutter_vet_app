@@ -277,6 +277,9 @@ class _ChatPageState extends State<ChatPage> {
             ),
           );
         },
+        onLongPress: (userProvider.isVet || userProvider.isClinicAdmin)
+            ? () => _showChatOptionsMenu(chatRoom, chatProvider, userProvider)
+            : null,
         icon: userProvider.isPetOwner &&
                 chatRoom.status == ChatRoomStatus.pending
             ? TextButton(
@@ -284,7 +287,13 @@ class _ChatPageState extends State<ChatPage> {
                     _confirmCancelRequest(chatRoom, chatProvider),
                 child: const Text('Cancel'),
               )
-            : null,
+            : (userProvider.isVet || userProvider.isClinicAdmin)
+                ? IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () =>
+                        _showChatOptionsMenu(chatRoom, chatProvider, userProvider),
+                  )
+                : null,
       ),
     );
   }
@@ -455,6 +464,105 @@ class _ChatPageState extends State<ChatPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(chatProvider.error!),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showChatOptionsMenu(
+    ChatRoom chatRoom,
+    ChatProvider chatProvider,
+    UserProvider userProvider,
+  ) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Manage Chat'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Chat with ${chatRoom.petOwnerName}',
+                style: TextStyle(fontSize: 14.sp),
+              ),
+              if (chatRoom.topic != null)
+                Text(
+                  'Topic: ${chatRoom.topic}',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: context.textSecondary,
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('delete'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete Chat'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == 'delete') {
+      _confirmDeleteChat(chatRoom, chatProvider);
+    }
+  }
+
+  Future<void> _confirmDeleteChat(
+    ChatRoom chatRoom,
+    ChatProvider chatProvider,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Chat'),
+          content: const Text(
+            'Are you sure you want to delete this chat? '
+            'This will remove the conversation for both you and the pet owner. '
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      final success = await chatProvider.deleteChatRoom(chatRoom.id);
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chat deleted successfully'),
+          ),
+        );
+      } else if (chatProvider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(chatProvider.error!),
+            backgroundColor: Colors.red,
           ),
         );
       }

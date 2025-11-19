@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart' as rtdb;
 import '../models/chat_models.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final rtdb.FirebaseDatabase _database = rtdb.FirebaseDatabase.instance;
 
   // Collection references
   CollectionReference get _chatRoomsCollection =>
@@ -312,6 +314,30 @@ class ChatService {
     }
   }
 
+  /// Delete/close a chat room completely (removes for both participants)
+  /// This sets isActive to false rather than deleting, preserving data
+  Future<void> deleteChatRoom(String chatRoomId) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final roomRef = _chatRoomsCollection.doc(chatRoomId);
+        final snapshot = await transaction.get(roomRef);
+        if (!snapshot.exists) {
+          throw Exception('Chat room no longer exists');
+        }
+
+        // Set isActive to false to "soft delete" the chat room
+        // This removes it from both participants' chat lists
+        transaction.update(roomRef, {
+          'isActive': false,
+          'status': ChatRoomStatus.closed.index,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      throw Exception('Failed to delete chat room: $e');
+    }
+  }
+
   // Get a specific chat room
   Future<ChatRoom?> getChatRoom(String chatRoomId) async {
     try {
@@ -409,7 +435,7 @@ class ChatService {
     try {
       Query query = _getMessagesCollection(
         chatRoomId,
-      ).orderBy('timestamp', descending: true).limit(limit);
+      ).orderBy('timestamp', descending: false).limit(limit);
 
       if (startAfter != null) {
         query = query.startAfterDocument(startAfter);
@@ -508,7 +534,7 @@ class ChatService {
     int limit = 50,
   }) {
     return _getMessagesCollection(chatRoomId)
-        .orderBy('timestamp', descending: true)
+        .orderBy('timestamp', descending: false)
         .limit(limit)
         .snapshots()
         .map(
@@ -530,6 +556,59 @@ class ChatService {
         return ChatRoom.fromJson(doc.data() as Map<String, dynamic>, doc.id);
       }
       return null;
+    });
+  }
+
+  /// TYPING STATUS METHODS (using Firebase Realtime Database) ///
+
+  /// Update typing status for current user in a chat room
+  /// Sets typing status with timestamp in /typing/{chatRoomId}/{userId}
+  Future<void> updateTypingStatus(String chatRoomId, bool isTyping) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      final typingRef = _database.ref('typing/$chatRoomId/${currentUser.uid}');
+
+      if (isTyping) {
+        await typingRef.set({
+          'isTyping': true,
+          'timestamp': rtdb.ServerValue.timestamp,
+        });
+      } else {
+        // Remove typing status when user stops typing
+        await typingRef.remove();
+      }
+    } catch (e) {
+      // Silently fail for typing indicators - not critical
+      // ignore: avoid_print
+      print('Failed to update typing status: $e');
+    }
+  }
+
+  /// Stream typing status for another user in a chat room
+  /// Returns a stream that emits true when the other user is typing
+  /// Auto-expires after 3 seconds of inactivity
+  Stream<bool> typingStatusStream(String chatRoomId, String otherUserId) {
+    final typingRef = _database.ref('typing/$chatRoomId/$otherUserId');
+
+    return typingRef.onValue.map((event) {
+      if (!event.snapshot.exists) return false;
+
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data == null) return false;
+
+      final isTyping = data['isTyping'] as bool? ?? false;
+      final timestamp = data['timestamp'] as int? ?? 0;
+
+      if (!isTyping) return false;
+
+      // Check if typing status is stale (older than 3 seconds)
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final age = now - timestamp;
+      final isStale = age > 3000; // 3 seconds
+
+      return isTyping && !isStale;
     });
   }
 

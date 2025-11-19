@@ -122,8 +122,8 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
             title: Text(
               widget.isCreating ? 'Create Clinic' : 'Clinic Settings',
             ),
-            backgroundColor: AppTheme.neutral700,
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.neutral900,
             actions: [
               if (!widget.isCreating && !_isEditing)
                 IconButton(
@@ -140,16 +140,16 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
                       _loadClinicData();
                     }
                   },
-                  child: const Text(
+                  child: Text(
                     'Cancel',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppTheme.neutral900),
                   ),
                 ),
                 TextButton(
                   onPressed: _isLoading ? null : _saveClinic,
-                  child: const Text(
+                  child: Text(
                     'Save',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppTheme.neutral900),
                   ),
                 ),
               ],

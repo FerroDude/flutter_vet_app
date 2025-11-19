@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/event_provider.dart';
 import 'pet_details_page.dart';
 import 'pet_form_page.dart';
 import 'settings_page.dart';
@@ -322,10 +323,21 @@ class _PetCard extends StatelessWidget {
                 .doc(userId)
                 .collection('pets')
                 .doc(petId);
+            
+            // Pass providers to the new route
+            final eventProvider = context.read<EventProvider>();
+            final userProvider = context.read<UserProvider>();
+            
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => PetDetailsPage(petRef: petRef),
+                builder: (context) => MultiProvider(
+                  providers: [
+                    ChangeNotifierProvider.value(value: eventProvider),
+                    ChangeNotifierProvider.value(value: userProvider),
+                  ],
+                  child: PetDetailsPage(petRef: petRef),
+                ),
               ),
             );
           }

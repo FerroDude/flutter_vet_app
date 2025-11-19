@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/event_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../models/event_model.dart';
 import '../../widgets/simple_event_forms.dart';
 import 'pet_form_page.dart';
@@ -91,9 +92,9 @@ class PetDetailsPage extends StatelessWidget {
                   await petRef.delete();
                   if (!context.mounted) return;
                   Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Pet deleted')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Pet deleted')));
                 } catch (e) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -316,19 +317,41 @@ class PetDetailsPage extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: ElevatedButton(
-                                    onPressed: () {
-                                          final eventProvider =
-                                              context.read<EventProvider>();
-                                      showModalBottomSheet(
+                                    onPressed: () async {
+                                      final eventProvider = context
+                                          .read<EventProvider>();
+R
+                                      // Try to get clinic name, but don't fail if provider is unavailable
+                                      String? clinicName;
+                                      try {
+                                        final userProvider = context
+                                            .read<UserProvider>();
+                                        final clinic =
+                                            userProvider.connectedClinic;
+                                        clinicName = clinic?.name;
+                                        print(
+                                          'DEBUG: PetDetailsPage - Connected Clinic: ${clinic?.id}, Name: ${clinic?.name}',
+                                        );
+                                      } catch (e) {
+                                        print(
+                                          'DEBUG: PetDetailsPage - UserProvider error: $e',
+                                        );
+                                        clinicName = null;
+                                      }
+
+                                      await showModalBottomSheet(
                                         context: context,
                                         isScrollControlled: true,
                                         backgroundColor: Colors.transparent,
+                                        isDismissible: true,
+                                        enableDrag: true,
                                         builder: (dialogContext) =>
                                             ChangeNotifierProvider.value(
                                               value: eventProvider,
                                               child: SimpleAppointmentForm(
                                                 selectedDate: DateTime.now(),
                                                 petId: petRef.id,
+                                                clinicName: clinicName,
                                               ),
                                             ),
                                       );
@@ -336,7 +359,9 @@ class PetDetailsPage extends StatelessWidget {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.black,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -348,8 +373,8 @@ class PetDetailsPage extends StatelessWidget {
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () {
-                                      final eventProvider =
-                                          context.read<EventProvider>();
+                                      final eventProvider = context
+                                          .read<EventProvider>();
                                       showModalBottomSheet(
                                         context: context,
                                         isScrollControlled: true,
@@ -367,7 +392,9 @@ class PetDetailsPage extends StatelessWidget {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.black,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -386,15 +413,16 @@ class PetDetailsPage extends StatelessWidget {
                                     context: context,
                                     isScrollControlled: true,
                                     backgroundColor: Colors.transparent,
-                                    builder: (context) => AddSymptomSheet(
-                                      petId: petRef.id,
-                                    ),
+                                    builder: (context) =>
+                                        AddSymptomSheet(petId: petRef.id),
                                   );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.black,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -554,13 +582,13 @@ class PetDetailsPage extends StatelessWidget {
                                         ),
                                         color: Colors.redAccent,
                                         onPressed: () async {
-                                          final confirmed =
-                                              await showDialog<bool>(
+                                          final confirmed = await showDialog<bool>(
                                             context: context,
                                             builder: (dialogContext) {
                                               return AlertDialog(
-                                                title:
-                                                    const Text('Delete Event'),
+                                                title: const Text(
+                                                  'Delete Event',
+                                                ),
                                                 content: const Text(
                                                   'Are you sure you want to delete this event?',
                                                 ),
@@ -571,8 +599,7 @@ class PetDetailsPage extends StatelessWidget {
                                                         dialogContext,
                                                       ).pop(false);
                                                     },
-                                                    child:
-                                                        const Text('Cancel'),
+                                                    child: const Text('Cancel'),
                                                   ),
                                                   TextButton(
                                                     onPressed: () {
@@ -580,13 +607,11 @@ class PetDetailsPage extends StatelessWidget {
                                                         dialogContext,
                                                       ).pop(true);
                                                     },
-                                                    style:
-                                                        TextButton.styleFrom(
+                                                    style: TextButton.styleFrom(
                                                       foregroundColor:
                                                           Colors.red,
                                                     ),
-                                                    child:
-                                                        const Text('Delete'),
+                                                    child: const Text('Delete'),
                                                   ),
                                                 ],
                                               );
@@ -595,12 +620,12 @@ class PetDetailsPage extends StatelessWidget {
 
                                           if (confirmed == true &&
                                               context.mounted) {
-                                            final success =
-                                                await eventProvider
-                                                    .deleteEvent(event.id);
+                                            final success = await eventProvider
+                                                .deleteEvent(event.id);
                                             if (success && context.mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
                                                     'Event deleted',
@@ -608,8 +633,9 @@ class PetDetailsPage extends StatelessWidget {
                                                 ),
                                               );
                                             } else if (context.mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
                                                 const SnackBar(
                                                   content: Text(
                                                     'Failed to delete event',

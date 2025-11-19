@@ -25,7 +25,7 @@ class UserProvider extends ChangeNotifier {
   }
 
   /// Record a vet invitation by email for the connected clinic
-  Future<bool> inviteVetByEmail(String email, List<String> permissions) async {
+  Future<bool> inviteVetByEmail(String email) async {
     if (!canManageVets || _connectedClinic == null) return false;
 
     try {
@@ -35,7 +35,6 @@ class UserProvider extends ChangeNotifier {
       await _clinicService.createVetInvite(
         _connectedClinic!.id,
         normalizedEmail,
-        permissions,
       );
 
       // Provision an auth account (idempotent) and send a password reset email
@@ -159,7 +158,6 @@ class UserProvider extends ChangeNotifier {
       await _clinicService.applyVetInvite(
         clinicId: invite['clinicId'] as String,
         userId: firebaseUser.uid,
-        permissions: (invite['permissions'] as List<String>),
         inviteRef: invite['inviteRef'] as dynamic,
         normalizedEmailForCleanup: email,
       );
@@ -280,19 +278,11 @@ class UserProvider extends ChangeNotifier {
                 tempProfile.connectedClinicId != null) {
               final linkedClinicId = tempProfile.connectedClinicId!;
 
-              // Get permissions from the temp member document
-              final tempMember = await _clinicService.getClinicMember(
-                linkedClinicId,
-                tempVetId,
-              );
-              final permissions = tempMember?.permissions ?? [];
-
-              // Ensure membership
+              // Ensure membership - vets always have full access
               await _clinicService.ensureVetMembershipFor(
                 linkedClinicId,
                 _currentUser!.id,
                 tempVetId: tempVetId,
-                permissions: permissions,
               );
 
               // Upgrade profile to vet and connect clinic
@@ -457,18 +447,11 @@ class UserProvider extends ChangeNotifier {
           if (connectedClinicId != null) {
             developer.log('Ensuring real vet membership', name: 'UserProvider');
 
-            // Get permissions from the temp member document
-            final tempMember = await _clinicService.getClinicMember(
-              connectedClinicId,
-              tempVetId,
-            );
-            final permissions = tempMember?.permissions ?? [];
-
+            // Ensure membership - vets always have full access
             await _clinicService.ensureVetMembershipFor(
               connectedClinicId,
               userId,
               tempVetId: tempVetId,
-              permissions: permissions,
             );
 
             // Delete the invite document now that user has logged in for the first time
@@ -973,17 +956,16 @@ class UserProvider extends ChangeNotifier {
   // Add vet to clinic (admin only)
   Future<bool> addVetToClinic(
     String vetUserId,
-    List<String> permissions,
   ) async {
     if (!canManageVets || _connectedClinic == null) return false;
 
     try {
       _setLoading(true);
 
+      // Vets always have full access - no permissions tracking
       await _clinicService.addVetToClinic(
         _connectedClinic!.id,
         vetUserId,
-        permissions,
       );
 
       // Reload clinic members

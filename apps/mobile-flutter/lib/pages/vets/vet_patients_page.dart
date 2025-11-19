@@ -4,6 +4,8 @@ import '../../providers/vet_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
 import 'patient_detail_page.dart';
+import '../petOwners/profile_page.dart';
+import '../petOwners/settings_page.dart';
 
 class VetPatientsPage extends StatefulWidget {
   const VetPatientsPage({super.key});
@@ -45,6 +47,34 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
             backgroundColor: Colors.white,
             foregroundColor: AppTheme.neutral700,
             elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Settings',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SettingsPage(injectedUserProvider: userProvider),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.person_outline),
+                tooltip: 'Profile',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProfilePage(injectedUserProvider: userProvider),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           body: clinic == null
               ? _buildNoClinic()
@@ -149,7 +179,7 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: AppTheme.neutral700.withValues(alpha:0.1),
+              backgroundColor: AppTheme.neutral700.withValues(alpha: 0.1),
               child: const Icon(Icons.person, color: Colors.black87),
             ),
             title: Text(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,19 +22,44 @@ class ChatRoomPage extends StatefulWidget {
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  Timer? _typingTimer;
 
   @override
   void initState() {
     super.initState();
     _initializeChatRoom();
+    _setupTypingListener();
   }
 
   @override
   void dispose() {
+    _typingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     context.read<ChatProvider>().leaveChatRoom();
     super.dispose();
+  }
+
+  void _setupTypingListener() {
+    _messageController.addListener(() {
+      final chatProvider = context.read<ChatProvider>();
+      final text = _messageController.text;
+
+      if (text.isNotEmpty) {
+        // User is typing - set typing status to true
+        chatProvider.setTypingStatus(true);
+
+        // Reset the timer - will set typing to false after 3 seconds of no typing
+        _typingTimer?.cancel();
+        _typingTimer = Timer(const Duration(seconds: 3), () {
+          chatProvider.setTypingStatus(false);
+        });
+      } else {
+        // Text field is empty - stop typing status
+        _typingTimer?.cancel();
+        chatProvider.setTypingStatus(false);
+      }
+    });
   }
 
   void _initializeChatRoom() {
@@ -91,6 +117,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   isPendingAndPetOwner: isPendingAndPetOwner,
                 ),
               ),
+              if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
+                _buildTypingIndicator(),
               if (isPendingAndPetOwner)
                 _buildPendingNotice()
               else
@@ -133,10 +161,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
     return ListView.builder(
       controller: _scrollController,
+      reverse: true,
       padding: EdgeInsets.all(AppTheme.spacing4),
       itemCount: messages.length,
       itemBuilder: (context, index) {
-        final message = messages[index];
+        // Since reverse: true, we need to reverse the index
+        final reversedIndex = messages.length - 1 - index;
+        final message = messages[reversedIndex];
         final isMe = message.senderId == currentUserId;
 
         return Padding(
@@ -184,6 +215,40 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppTheme.spacing4,
+        vertical: AppTheme.spacing2,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacing3,
+              vertical: AppTheme.spacing2,
+            ),
+            decoration: BoxDecoration(
+              color: context.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radius3),
+              border: Border.all(color: context.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _TypingDot(delay: 0),
+                Gap(4.w),
+                _TypingDot(delay: 200),
+                Gap(4.w),
+                _TypingDot(delay: 400),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -294,11 +359,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
     await chatProvider.sendTextMessage(text);
 
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    // With reverse: true, scroll to 0 to show the latest message (at bottom)
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   String _formatTimestamp(DateTime timestamp) {
@@ -316,5 +384,62 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     } else {
       return DateFormat('MMM d, h:mm a').format(timestamp);
     }
+  }
+}
+
+/// Animated typing dot widget
+class _TypingDot extends StatefulWidget {
+  final int delay;
+
+  const _TypingDot({required this.delay});
+
+  @override
+  State<_TypingDot> createState() => _TypingDotState();
+}
+
+class _TypingDotState extends State<_TypingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+
+    // Delay the animation start
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) {
+        _controller.repeat(reverse: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        width: 6.w,
+        height: 6.w,
+        decoration: BoxDecoration(
+          color: context.textSecondary,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
   }
 }

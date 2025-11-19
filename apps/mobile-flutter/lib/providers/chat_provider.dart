@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'dart:developer' as developer;
 import '../models/chat_models.dart';
 import '../services/chat_service.dart';
@@ -15,11 +16,13 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   int _totalUnreadCount = 0;
+  bool _otherUserIsTyping = false;
 
   // Streams
   Stream<List<ChatRoom>>? _chatRoomsStream;
   Stream<List<ChatMessage>>? _messagesStream;
   Stream<List<ChatRoom>>? _pendingRequestsStream;
+  StreamSubscription<bool>? _typingStatusSubscription;
 
   ChatProvider(this._chatService);
 
@@ -31,6 +34,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   int get totalUnreadCount => _totalUnreadCount;
+  bool get isOtherUserTyping => _otherUserIsTyping;
 
   // Stream getters
   Stream<List<ChatRoom>>? get chatRoomsStream => _chatRoomsStream;
@@ -148,6 +152,12 @@ class ChatProvider extends ChangeNotifier {
         _messagesStream = _chatService.messagesStream(chatRoomId);
         _currentMessages = await _chatService.getMessages(chatRoomId);
 
+        // Listen for real-time message updates
+        _messagesStream!.listen(updateMessagesFromStream);
+
+        // Listen to typing status of the other user
+        _listenToTypingStatus();
+
         // Mark messages as read
         await _chatService.markMessagesAsRead(chatRoomId);
 
@@ -164,6 +174,16 @@ class ChatProvider extends ChangeNotifier {
 
   // Leave current chat room
   void leaveChatRoom() {
+    // Clean up typing status
+    if (_currentChatRoom != null) {
+      setTypingStatus(false);
+    }
+
+    // Cancel typing status subscription
+    _typingStatusSubscription?.cancel();
+    _typingStatusSubscription = null;
+    _otherUserIsTyping = false;
+
     _currentChatRoom = null;
     _currentMessages = [];
     _messagesStream = null;
@@ -175,20 +195,48 @@ class ChatProvider extends ChangeNotifier {
   // Send a text message
   Future<bool> sendTextMessage(String content) async {
     if (_currentChatRoom == null || content.trim().isEmpty) return false;
+    final trimmed = content.trim();
 
     try {
       final user = _auth.currentUser;
       if (user == null) return false;
 
+      // Optimistically add message to current list so it appears immediately
+      final now = DateTime.now();
+      final optimisticMessage = ChatMessage(
+        id: 'local_${now.millisecondsSinceEpoch}',
+        chatId: _currentChatRoom!.id,
+        senderId: user.uid,
+        senderName: user.displayName ?? 'User',
+        senderRole: _getUserRole(),
+        content: trimmed,
+        type: MessageType.text,
+        status: MessageStatus.sent,
+        timestamp: now,
+      );
+
+      // Messages are ordered oldest-first, so append at the end
+      _currentMessages = [..._currentMessages, optimisticMessage];
+      notifyListeners();
+
       await _chatService.sendMessage(
         chatRoomId: _currentChatRoom!.id,
-        content: content.trim(),
+        content: trimmed,
         senderName: user.displayName ?? 'User',
         senderRole: _getUserRole(),
       );
 
+      // When Firestore sends the updated messages via the stream,
+      // updateMessagesFromStream will replace this optimistic list
+      // with the authoritative one, avoiding duplicates.
       return true;
     } catch (e) {
+      // Remove the optimistic message if sending fails
+      _currentMessages = _currentMessages
+          .where((m) => !m.id.startsWith('local_'))
+          .toList();
+      notifyListeners();
+
       _setError('Failed to send message: $e');
       return false;
     }
@@ -336,6 +384,62 @@ class ChatProvider extends ChangeNotifier {
       _setError('Failed to accept chat request: $e');
       return false;
     }
+  }
+
+  /// Delete/close a chat room (removes for both vet and pet owner)
+  Future<bool> deleteChatRoom(String chatRoomId) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      await _chatService.deleteChatRoom(chatRoomId);
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Failed to delete chat room: $e');
+      return false;
+    }
+  }
+
+  /// TYPING STATUS METHODS ///
+
+  /// Update typing status for current user
+  Future<void> setTypingStatus(bool isTyping) async {
+    if (_currentChatRoom == null) return;
+
+    try {
+      await _chatService.updateTypingStatus(_currentChatRoom!.id, isTyping);
+    } catch (e) {
+      developer.log('Failed to set typing status: $e', name: 'ChatProvider');
+    }
+  }
+
+  /// Listen to typing status of the other participant
+  void _listenToTypingStatus() {
+    if (_currentChatRoom == null) return;
+
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Get the other participant's ID
+    final otherUserId = _currentChatRoom!.getOtherParticipantId(user.uid);
+    if (otherUserId.isEmpty)
+      return; // No other user yet (e.g., pending request)
+
+    // Cancel any existing subscription
+    _typingStatusSubscription?.cancel();
+
+    // Listen to the other user's typing status
+    _typingStatusSubscription = _chatService
+        .typingStatusStream(_currentChatRoom!.id, otherUserId)
+        .listen((isTyping) {
+          if (_otherUserIsTyping != isTyping) {
+            _otherUserIsTyping = isTyping;
+            notifyListeners();
+          }
+        });
   }
 
   /// UTILITY METHODS ///

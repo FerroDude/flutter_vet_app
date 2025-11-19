@@ -287,6 +287,7 @@ service cloud.firestore {
       // - Participants can update/delete their own rooms.
       // - Clinic members can transition a pending request to an active chat
       //   by assigning themselves as the vet (accepting the request).
+      // - Clinic members can close/delete any chat in their clinic
       allow update, delete: if isSignedIn() && (
         // Existing participants
         resource.data.petOwnerId == request.auth.uid ||
@@ -296,7 +297,9 @@ service cloud.firestore {
           resource.data.status == 0 && // currently pending
           isClinicMember(resource.data.clinicId) &&
           request.resource.data.vetId == request.auth.uid
-        )
+        ) ||
+        // Clinic members can close/delete chats for their clinic
+        isClinicMember(resource.data.clinicId)
       );
 
       match /messages/{messageId} {

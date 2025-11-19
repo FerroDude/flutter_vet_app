@@ -392,19 +392,22 @@ class _PetCard extends StatelessWidget {
                               .collection('pets')
                               .doc(petId);
 
-                          // Reuse the existing EventProvider instance for this route
-                          final eventProvider = context.read<EventProvider>();
+                        // Pass providers to the new route
+                        final eventProvider = context.read<EventProvider>();
+                        final userProvider = context.read<UserProvider>();
 
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ChangeNotifierProvider.value(
-                                    value: eventProvider,
-                                    child: PetDetailsPage(petRef: petRef),
-                                  ),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MultiProvider(
+                              providers: [
+                                ChangeNotifierProvider.value(value: eventProvider),
+                                ChangeNotifierProvider.value(value: userProvider),
+                              ],
+                              child: PetDetailsPage(petRef: petRef),
                             ),
-                          );
+                          ),
+                        );
                         }
                       },
                       style: ElevatedButton.styleFrom(

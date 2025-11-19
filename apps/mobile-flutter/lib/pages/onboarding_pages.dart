@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer' as developer;
 import '../../models/clinic_models.dart';
@@ -253,9 +254,17 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Choose Your Clinic'),
-        backgroundColor: AppTheme.primary,
+        title: const Text(
+          'Choose Your Clinic',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: AppTheme.neutral700,
         foregroundColor: Colors.white,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: AppTheme.neutral700,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark, // For iOS
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -269,10 +278,15 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
                 hintText: 'Search for a clinic...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _isSearching
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? UnconstrainedBox(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.neutral500,
+                          ),
+                        ),
                       )
                     : null,
                 border: OutlineInputBorder(
@@ -386,6 +400,7 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
 
   void _onSearchChanged(String query) {
     if (query.isEmpty) {
+      setState(() => _isSearching = false);
       _loadNearbyClinicsSample();
       return;
     }
@@ -394,7 +409,7 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
 
     // Debounce search
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (_searchController.text == query) {
+      if (mounted && _searchController.text == query) {
         _searchClinics(query);
       }
     });

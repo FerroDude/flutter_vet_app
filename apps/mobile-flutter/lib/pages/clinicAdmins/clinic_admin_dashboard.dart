@@ -42,8 +42,8 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         return Scaffold(
           appBar: AppBar(
             title: const Text('Clinic Admin Dashboard'),
-            backgroundColor: AppTheme.neutral700,
-            foregroundColor: Colors.white,
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.neutral900,
             actions: [
               IconButton(
                 tooltip: 'Settings',
@@ -71,11 +71,11 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
                 },
                 icon: CircleAvatar(
                   radius: 16,
-                  backgroundColor: Colors.white24,
+                  backgroundColor: AppTheme.neutral200,
                   child: Text(
                     _getUserInitial(userProvider),
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: AppTheme.neutral900,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -237,7 +237,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.05,
+      childAspectRatio: 1.0,
       children: actionCards,
     );
   }
@@ -315,6 +315,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -326,24 +327,28 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
                 ),
                 child: Icon(icon, size: 32, color: color),
               ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+              const SizedBox(height: 10),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 5),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 4),
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

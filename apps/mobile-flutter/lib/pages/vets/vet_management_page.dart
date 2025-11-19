@@ -380,14 +380,6 @@ class _VetManagementPageState extends State<VetManagementPage> {
         trailing: PopupMenuButton(
           onSelected: (action) => _handleVetAction(action, vet, userProvider),
           itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'edit',
-              child: ListTile(
-                leading: Icon(Icons.edit),
-                title: Text('Edit Permissions'),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
             if (vet.isActive)
               const PopupMenuItem(
                 value: 'deactivate',
@@ -439,9 +431,6 @@ class _VetManagementPageState extends State<VetManagementPage> {
     UserProvider userProvider,
   ) {
     switch (action) {
-      case 'edit':
-        _showEditPermissionsDialog(vet, userProvider);
-        break;
       case 'activate':
       case 'deactivate':
         _toggleVetStatus(vet, userProvider);
@@ -455,149 +444,104 @@ class _VetManagementPageState extends State<VetManagementPage> {
   void _showAddVetDialog(BuildContext context, UserProvider userProvider) {
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    final selectedPermissions = <String>{'appointments', 'chat'};
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Add New Vet'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Vet Email Address',
-                      hintText: 'Enter the vet\'s email',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Email is required';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Enter a valid email address';
-                      }
-                      return null;
-                    },
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Vet'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Vet Email Address',
+                    hintText: 'Enter the vet\'s email',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Permissions',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  ..._buildPermissionCheckboxes(selectedPermissions, setState),
-                ],
-              ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final email = emailController.text.trim().toLowerCase();
-                if (email.isEmpty) return;
-                try {
-                  final ok = await userProvider
-                      .provisionAuthAccountAndSendReset(email);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          ok
-                              ? 'Password setup email sent to $email.'
-                              : 'Could not send password setup email to $email.',
-                        ),
-                        backgroundColor: ok ? Colors.green : Colors.red,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final email = emailController.text.trim().toLowerCase();
+              if (email.isEmpty) return;
+              try {
+                final ok = await userProvider.provisionAuthAccountAndSendReset(
+                  email,
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        ok
+                            ? 'Password setup email sent to $email.'
+                            : 'Could not send password setup email to $email.',
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Unable to send reset email: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Send Password Reset'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  Navigator.pop(context);
-                  await _addVet(
-                    emailController.text.trim(),
-                    selectedPermissions.toList(),
-                    userProvider,
+                      backgroundColor: ok ? Colors.green : Colors.red,
+                    ),
                   );
                 }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.neutral700,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Add Vet'),
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Unable to send reset email: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Send Password Reset'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context);
+                await _addVet(emailController.text.trim(), userProvider);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.neutral700,
+              foregroundColor: Colors.white,
             ),
-          ],
-        ),
+            child: const Text('Add Vet'),
+          ),
+        ],
       ),
     );
   }
 
-  List<Widget> _buildPermissionCheckboxes(
-    Set<String> selectedPermissions,
-    StateSetter setState,
-  ) {
-    final permissions = {
-      'appointments': 'Manage Appointments',
-      'chat': 'Chat with Pet Owners',
-      'records': 'Access Medical Records',
-      'reports': 'View Reports',
-    };
-
-    return permissions.entries.map((entry) {
-      return CheckboxListTile(
-        title: Text(entry.value),
-        value: selectedPermissions.contains(entry.key),
-        onChanged: (value) {
-          setState(() {
-            if (value == true) {
-              selectedPermissions.add(entry.key);
-            } else {
-              selectedPermissions.remove(entry.key);
-            }
-          });
-        },
-        contentPadding: EdgeInsets.zero,
-      );
-    }).toList();
-  }
-
-  Future<void> _addVet(
-    String email,
-    List<String> permissions,
-    UserProvider userProvider,
-  ) async {
+  Future<void> _addVet(String email, UserProvider userProvider) async {
     setState(() => _isLoading = true);
 
     try {
-      final success = await userProvider.inviteVetByEmail(email, permissions);
+      // Vets always have full access - no permissions tracking needed
+      final success = await userProvider.inviteVetByEmail(email);
 
       if (!mounted) return;
 
@@ -620,83 +564,6 @@ class _VetManagementPageState extends State<VetManagementPage> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  void _showEditPermissionsDialog(ClinicMember vet, UserProvider userProvider) {
-    final selectedPermissions = Set<String>.from(vet.permissions);
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Permissions'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'User ID: ${vet.userId}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Permissions',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                ..._buildPermissionCheckboxes(selectedPermissions, setState),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _updateVetPermissions(
-                  vet,
-                  selectedPermissions.toList(),
-                  userProvider,
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.neutral700,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Update'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _updateVetPermissions(
-    ClinicMember vet,
-    List<String> newPermissions,
-    UserProvider userProvider,
-  ) async {
-    try {
-      // missing: Implement permission update
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Permissions updated successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update permissions: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 

@@ -99,24 +99,42 @@ class ClinicService {
     int limit = 20,
   }) async {
     try {
+      // 1. Fetch active clinics (up to limit)
+      // Note: For true scalable 'contains' search, we'd need a 3rd party service (Algolia/Elastic).
+      // For now, we fetch a batch of active clinics and filter client-side or relying on exact prefix if we used Firestore queries.
+      // But the user wants substring match ("test" in "My Test Clinic"). Firestore only does prefix.
+      // So we'll fetch active clinics and filter client-side.
+      
       Query query = _clinicsCollection
           .where('isActive', isEqualTo: true)
-          .limit(limit);
-
-      // Add name filter if provided
-      if (nameQuery != null && nameQuery.isNotEmpty) {
-        query = query
-            .where('name', isGreaterThanOrEqualTo: nameQuery)
-            .where('name', isLessThan: '$nameQuery\uf8ff');
-      }
+          .limit(50); // increased limit for client-side filtering chance
 
       final snapshot = await query.get();
-      return snapshot.docs
+      var clinics = snapshot.docs
           .map(
             (doc) =>
                 Clinic.fromJson(doc.data() as Map<String, dynamic>, doc.id),
           )
           .toList();
+
+      // 2. Filter client-side for "contains" (case-insensitive)
+      if (nameQuery != null && nameQuery.isNotEmpty) {
+        final lowerQuery = nameQuery.toLowerCase();
+        clinics = clinics.where((clinic) {
+          final nameMatches = clinic.name.toLowerCase().contains(lowerQuery);
+          // Optional: also search address?
+          // final addressMatches = clinic.address.toLowerCase().contains(lowerQuery);
+          return nameMatches; 
+        }).toList();
+      }
+      
+      // If we filtered down to 0, maybe we should have fetched more, but this is a simple implementation.
+      // Return up to requested limit
+      if (clinics.length > limit) {
+        clinics = clinics.sublist(0, limit);
+      }
+
+      return clinics;
     } catch (e) {
       throw Exception('Failed to search clinics: $e');
     }
@@ -190,7 +208,6 @@ class ClinicService {
   Future<void> addVetToClinic(
     String clinicId,
     String vetUserId,
-    List<String> permissions,
   ) async {
     try {
       final currentUser = _auth.currentUser;
@@ -200,11 +217,12 @@ class ClinicService {
       final isAdmin = await _isClinicAdmin(currentUser.uid, clinicId);
       if (!isAdmin) throw Exception('Insufficient permissions');
 
+      // Vets always have full access - no permissions tracking
       final member = ClinicMember(
         userId: vetUserId,
         clinicId: clinicId,
         role: ClinicRole.vet,
-        permissions: permissions,
+        permissions: const [], // No permissions tracking - vets have full access
         addedAt: DateTime.now(),
         addedBy: currentUser.uid,
       );
@@ -389,6 +407,7 @@ class ClinicService {
   }
 
   // Check if user has permission for clinic
+  // Vets always have full access - no permissions tracking
   Future<bool> hasClinicPermission(
     String userId,
     String clinicId,
@@ -403,9 +422,8 @@ class ClinicService {
         final member = ClinicMember.fromJson(
           memberDoc.data() as Map<String, dynamic>,
         );
-        return member.isActive &&
-            (member.permissions.contains('*') ||
-                member.permissions.contains(permission));
+        // Vets always have full access - just check if they're active
+        return member.isActive;
       }
       return false;
     } catch (e) {
@@ -545,7 +563,6 @@ class ClinicService {
   Future<void> createVetInvite(
     String clinicId,
     String email,
-    List<String> permissions,
   ) async {
     try {
       final currentUser = _auth.currentUser;
@@ -560,13 +577,12 @@ class ClinicService {
       // Create both invite and placeholder user profile in a batch
       final batch = _firestore.batch();
 
-      // 1) Create/merge invite
+      // 1) Create/merge invite (no permissions - vets always have full access)
       final inviteDocRef = _getClinicInvitesCollection(clinicId).doc(inviteId);
       batch.set(inviteDocRef, {
         'email': normalizedEmail,
         'role': 'vet',
         'status': 'pending',
-        'permissions': permissions,
         'createdAt': FieldValue.serverTimestamp(),
         'invitedBy': currentUser.uid,
       }, SetOptions(merge: true));
@@ -588,11 +604,12 @@ class ClinicService {
       });
 
       // 3) Create an inactive clinic member entry for visibility in management
+      // Vets always have full access - use empty permissions list
       final placeholderMember = ClinicMember(
         userId: tempVetId,
         clinicId: clinicId,
         role: ClinicRole.vet,
-        permissions: permissions,
+        permissions: const [], // No permissions tracking - vets have full access
         addedAt: DateTime.now(),
         addedBy: currentUser.uid,
         isActive: false,
@@ -658,7 +675,6 @@ class ClinicService {
   Future<void> applyVetInvite({
     required String clinicId,
     required String userId,
-    required List<String> permissions,
     required DocumentReference inviteRef,
     String? normalizedEmailForCleanup,
   }) async {
@@ -666,12 +682,12 @@ class ClinicService {
       // First, atomically create membership and update user profile
       final membershipAndUserBatch = _firestore.batch();
 
-      // Create membership as vet
+      // Create membership as vet - vets always have full access
       final member = ClinicMember(
         userId: userId,
         clinicId: clinicId,
         role: ClinicRole.vet,
-        permissions: permissions,
+        permissions: const [], // No permissions tracking - vets have full access
         addedAt: DateTime.now(),
         addedBy: userId,
       );
@@ -778,14 +794,14 @@ class ClinicService {
     String clinicId,
     String userId, {
     String? tempVetId,
-    required List<String> permissions,
   }) async {
     // Create or overwrite the real vet membership for this user
+    // Vets always have full access - no permissions tracking
     final vetMember = ClinicMember(
       userId: userId,
       clinicId: clinicId,
       role: ClinicRole.vet,
-      permissions: permissions,
+      permissions: const [], // No permissions tracking - vets have full access
       addedAt: DateTime.now(),
       addedBy: userId,
     );
