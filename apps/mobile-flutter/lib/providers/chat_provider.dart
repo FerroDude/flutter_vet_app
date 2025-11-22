@@ -425,8 +425,9 @@ class ChatProvider extends ChangeNotifier {
 
     // Get the other participant's ID
     final otherUserId = _currentChatRoom!.getOtherParticipantId(user.uid);
-    if (otherUserId.isEmpty)
+    if (otherUserId.isEmpty) {
       return; // No other user yet (e.g., pending request)
+    }
 
     // Cancel any existing subscription
     _typingStatusSubscription?.cancel();

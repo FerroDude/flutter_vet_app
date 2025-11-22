@@ -45,8 +45,13 @@ class SimpleAddEventDialog extends StatelessWidget {
             GFButton(
               onPressed: () => _showAppointmentForm(context),
               text: 'Appointment',
-              icon: Icon(Icons.event, color: Colors.white),
-              color: AppTheme.neutral800,
+              icon: Icon(Icons.event, color: context.isDark ? AppTheme.neutral900 : Colors.white),
+              color: context.isDark ? AppTheme.brandBlueLight : AppTheme.neutral800,
+              textStyle: TextStyle(
+                color: context.isDark ? AppTheme.neutral900 : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16.sp,
+              ),
               fullWidthButton: true,
               size: GFSize.LARGE,
             ),
@@ -54,8 +59,13 @@ class SimpleAddEventDialog extends StatelessWidget {
             GFButton(
               onPressed: () => _showMedicationForm(context),
               text: 'Medication',
-              icon: Icon(Icons.medication, color: Colors.white),
-              color: AppTheme.neutral600,
+              icon: Icon(Icons.medication, color: context.isDark ? AppTheme.neutral900 : Colors.white),
+              color: context.isDark ? AppTheme.brandTeal : AppTheme.neutral600,
+              textStyle: TextStyle(
+                color: context.isDark ? AppTheme.neutral900 : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 16.sp,
+              ),
               fullWidthButton: true,
               size: GFSize.LARGE,
             ),
@@ -360,7 +370,11 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
                   child: GFButton(
                     onPressed: _isSubmitting ? null : _submitForm,
                     text: widget.existingEvent == null ? 'Add' : 'Update',
-                    color: AppTheme.neutral800,
+                    color: context.primaryColor,
+                    textStyle: TextStyle(
+                      color: context.isDark ? AppTheme.neutral900 : Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                     size: GFSize.LARGE,
                     icon: _isSubmitting
                         ? SizedBox(
@@ -368,7 +382,7 @@ class _SimpleAppointmentFormState extends State<SimpleAppointmentForm> {
                             height: 16.h,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: context.isDark ? AppTheme.neutral900 : Colors.white,
                             ),
                           )
                         : null,
@@ -650,7 +664,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
             ),
             Gap(AppTheme.spacing3),
             DropdownButtonFormField<String>(
-              value: _frequency,
+              initialValue: _frequency,
               decoration: const InputDecoration(
                 labelText: 'Frequency',
                 prefixIcon: Icon(Icons.schedule),
@@ -738,7 +752,11 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
                   child: GFButton(
                     onPressed: _isSubmitting ? null : _submitForm,
                     text: widget.existingEvent == null ? 'Add' : 'Update',
-                    color: AppTheme.neutral800,
+                    color: context.primaryColor,
+                    textStyle: TextStyle(
+                      color: context.isDark ? AppTheme.neutral900 : Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                     size: GFSize.LARGE,
                     icon: _isSubmitting
                         ? SizedBox(
@@ -746,7 +764,7 @@ class _SimpleMedicationFormState extends State<SimpleMedicationForm> {
                             height: 16.h,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: context.isDark ? AppTheme.neutral900 : Colors.white,
                             ),
                           )
                         : null,

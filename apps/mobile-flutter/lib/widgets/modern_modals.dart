@@ -23,7 +23,7 @@ class ModernModal extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.1),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -62,7 +62,7 @@ class ModernBottomSheet extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.1),
             blurRadius: 24,
             offset: const Offset(0, -4),
           ),
@@ -120,13 +120,13 @@ class ModernModalHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (iconColor ?? AppTheme.neutral700).withValues(alpha: 0.1),
+              color: (iconColor ?? context.primaryColor).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
               size: 22,
-              color: iconColor ?? AppTheme.neutral700,
+              color: iconColor ?? context.primaryColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -208,14 +208,14 @@ class ModernModalButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color ?? AppTheme.neutral700,
-          foregroundColor: Colors.white,
+          backgroundColor: color ?? context.primaryColor,
+          foregroundColor: context.isDark ? AppTheme.neutral900 : Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 0,
-          disabledBackgroundColor: (color ?? AppTheme.neutral700).withValues(
+          disabledBackgroundColor: (color ?? context.primaryColor).withValues(
             alpha: 0.5,
           ),
         ),
@@ -325,15 +325,15 @@ class ModernModalTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppTheme.neutral700, width: 2),
+              borderSide: BorderSide(color: context.primaryColor, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 1),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -373,12 +373,12 @@ class ModernSelectionCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppTheme.neutral700.withValues(alpha: 0.1)
+            ? context.primaryColor.withValues(alpha: 0.1)
             : context.surfaceSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected
-              ? AppTheme.neutral700
+              ? context.primaryColor
               : context.secondaryTextColor.withValues(alpha: 0.1),
           width: isSelected ? 2 : 1,
         ),
@@ -397,7 +397,7 @@ class ModernSelectionCard extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: (iconColor ?? AppTheme.neutral700).withValues(
+                    color: (iconColor ?? context.primaryColor).withValues(
                       alpha: 0.15,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -406,7 +406,7 @@ class ModernSelectionCard extends StatelessWidget {
                     child: icon != null
                         ? Icon(
                             icon,
-                            color: iconColor ?? AppTheme.neutral700,
+                            color: iconColor ?? context.primaryColor,
                             size: 24,
                           )
                         : Text(
@@ -414,7 +414,7 @@ class ModernSelectionCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
-                              color: iconColor ?? AppTheme.neutral700,
+                              color: iconColor ?? context.primaryColor,
                             ),
                           ),
                   ),
@@ -450,7 +450,7 @@ class ModernSelectionCard extends StatelessWidget {
                 Icon(
                   isSelected ? Icons.check_circle : Icons.chevron_right,
                   color: isSelected
-                      ? AppTheme.neutral700
+                      ? context.primaryColor
                       : context.secondaryTextColor.withValues(alpha: 0.3),
                   size: 22,
                 ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
 import 'dashboard_page.dart';
 import 'calendar_page_wrapper.dart';
 import 'calendar_page.dart';
@@ -46,8 +45,12 @@ class MyHomePageState extends State<MyHomePage> {
             _selectedIndex = index;
           });
         },
-        selectedItemColor: AppTheme.neutral700,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: Theme.of(
+          context,
+        ).bottomNavigationBarTheme.unselectedItemColor,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),

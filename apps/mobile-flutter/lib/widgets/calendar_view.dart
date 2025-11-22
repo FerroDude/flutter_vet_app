@@ -55,11 +55,11 @@ class _CalendarViewState extends State<CalendarView> {
       calendarStyle: CalendarStyle(
         outsideDaysVisible: false,
         selectedDecoration: BoxDecoration(
-          color: AppTheme.neutral700,
+          color: Theme.of(context).primaryColor,
           shape: BoxShape.circle,
         ),
         todayDecoration: BoxDecoration(
-          color: AppTheme.neutral700.withValues(alpha:0.3),
+          color: Theme.of(context).primaryColor.withValues(alpha:0.3),
           shape: BoxShape.circle,
         ),
         defaultTextStyle: TextStyle(
@@ -72,22 +72,29 @@ class _CalendarViewState extends State<CalendarView> {
               ? AppTheme.darkTextSecondary
               : AppTheme.textSecondary,
         ),
-        holidayTextStyle: TextStyle(color: AppTheme.neutral700),
+        holidayTextStyle: TextStyle(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppTheme.brandBlueLight
+              : AppTheme.neutral700,
+        ),
       ),
       headerStyle: HeaderStyle(
         formatButtonVisible: true,
         titleCentered: true,
         formatButtonShowsNext: false,
         formatButtonDecoration: BoxDecoration(
-          color: AppTheme.neutral700,
+          color: Theme.of(context).primaryColor,
           borderRadius: BorderRadius.circular(12.0),
         ),
-        formatButtonTextStyle: const TextStyle(color: Colors.white),
+        formatButtonTextStyle: TextStyle(
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
       ),
       calendarBuilders: CalendarBuilders<CalendarEvent>(
         markerBuilder: (context, day, events) {
           if (events.isEmpty) return null;
 
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           final displayEvents = events.take(3).toList();
           return Positioned(
             bottom: 1,
@@ -98,9 +105,9 @@ class _CalendarViewState extends State<CalendarView> {
               children: displayEvents.map((event) {
                 Color dotColor;
                 if (event is AppointmentEvent) {
-                  dotColor = AppTheme.neutral700;
+                  dotColor = isDark ? AppTheme.brandBlueLight : AppTheme.neutral700;
                 } else if (event is MedicationEvent) {
-                  dotColor = AppTheme.neutral600;
+                  dotColor = isDark ? AppTheme.brandTeal : AppTheme.neutral600;
                 } else if (event is NoteEvent) {
                   dotColor = Colors.orange;
                 } else {
@@ -688,7 +695,7 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
         side: BorderSide(
           color: isDark
               ? AppTheme.neutral500.withValues(alpha: 0.3)
-              : AppTheme.borderLight,
+              : context.borderLight,
           width: 1.5,
         ),
       ),
@@ -925,21 +932,22 @@ class _EventIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     IconData icon;
     Color color;
 
     switch (eventType) {
       case EventType.appointment:
         icon = Icons.event;
-        color = AppTheme.neutral700;
+        color = isDark ? AppTheme.brandBlueLight : AppTheme.neutral700;
         break;
       case EventType.medication:
         icon = Icons.medication;
-        color = AppTheme.neutral600;
+        color = isDark ? AppTheme.brandTeal : AppTheme.neutral600;
         break;
       case EventType.note:
         icon = Icons.note;
-        color = AppTheme.neutral500;
+        color = isDark ? AppTheme.neutral300 : AppTheme.neutral500;
         break;
     }
 

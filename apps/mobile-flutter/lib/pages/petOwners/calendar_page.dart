@@ -366,17 +366,18 @@ class CalendarPageState extends State<CalendarPage>
     required CalendarEvent event,
     required int delay,
   }) {
-    Color color = AppTheme.neutral800;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Color color;
     String? subtitle;
 
     if (event is AppointmentEvent) {
-      color = AppTheme.neutral800;
+      color = isDark ? AppTheme.brandBlueLight : AppTheme.neutral800;
       subtitle = event.location;
     } else if (event is MedicationEvent) {
-      color = AppTheme.neutral800;
+      color = isDark ? AppTheme.brandTeal : AppTheme.neutral800;
       subtitle = event.dosage;
     } else {
-      color = AppTheme.neutral800;
+      color = isDark ? AppTheme.neutral400 : AppTheme.neutral800;
     }
 
     return Padding(
@@ -575,6 +576,7 @@ class CalendarPageState extends State<CalendarPage>
     AppointmentEvent appointment,
     int index,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
       child: GFCard(
@@ -594,7 +596,7 @@ class CalendarPageState extends State<CalendarPage>
                 width: 4.w,
                 height: 48.h,
                 decoration: BoxDecoration(
-                  color: AppTheme.neutral800,
+                  color: isDark ? AppTheme.brandBlueLight : AppTheme.neutral800,
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -919,6 +921,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
       child: GFCard(
@@ -938,7 +941,7 @@ class CalendarPageState extends State<CalendarPage>
                 width: 4.w,
                 height: 48.h,
                 decoration: BoxDecoration(
-                  color: AppTheme.neutral800,
+                  color: isDark ? AppTheme.brandTeal : AppTheme.neutral800,
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -1409,6 +1412,7 @@ class CalendarPageState extends State<CalendarPage>
     DateTime timestamp,
     String? note,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
       child: GFCard(
@@ -1426,7 +1430,7 @@ class CalendarPageState extends State<CalendarPage>
               width: 4.w,
               height: 48.h,
               decoration: BoxDecoration(
-                color: AppTheme.neutral800,
+                color: isDark ? Colors.orange : AppTheme.neutral800,
                 borderRadius: BorderRadius.circular(2.r),
               ),
             ),
