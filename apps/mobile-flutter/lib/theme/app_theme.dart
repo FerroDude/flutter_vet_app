@@ -45,6 +45,12 @@ class AppTheme {
     0xFFCF6679,
   ); // Readable error for dark mode
 
+  // Gradient colors for more subtle transitions
+  static const Color gradientStart = Color(0xFF1B2A41); // Dark navy
+  static const Color gradientMid1 = Color(0xFF1E3147); // Slightly lighter
+  static const Color gradientMid2 = Color(0xFF21374D); // More lighter
+  static const Color gradientEnd = Color(0xFF243D53); // Lightest navy
+
   // Color assignments for better contrast
   static const Color primary = neutral500; // Dark navy blue for primary actions
   static const Color primaryDark = neutral600; // Darker navy for hover states
@@ -87,6 +93,51 @@ class AppTheme {
   static double radiusMedium = 12.0.r;
   static double radiusLarge = 16.0.r;
 
+  // Gradient for background with multiple color stops for subtle transitions
+  static const LinearGradient backgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      gradientStart,
+      gradientMid1,
+      gradientMid2,
+      gradientEnd,
+    ],
+    stops: [0.0, 0.3, 0.6, 1.0],
+  );
+
+  // Enhanced box shadows for white cards
+  static List<BoxShadow> get cardShadow => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.08),
+      blurRadius: 12,
+      offset: const Offset(0, 2),
+      spreadRadius: 0,
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.12),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+      spreadRadius: -4,
+    ),
+  ];
+
+  // Elevated shadow for interactive cards
+  static List<BoxShadow> get cardShadowElevated => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.1),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+      spreadRadius: 0,
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.15),
+      blurRadius: 32,
+      offset: const Offset(0, 12),
+      spreadRadius: -6,
+    ),
+  ];
+
   static const TextStyle labelLarge = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w500,
@@ -106,28 +157,28 @@ class AppTheme {
       surface: neutral50, // Pure white
       error: neutral900, // Black
     ),
-    scaffoldBackgroundColor: neutral50, // Pure white background
+    scaffoldBackgroundColor: Colors.transparent, // Transparent - gradient applied per-page
 
     appBarTheme: AppBarTheme(
-      backgroundColor: neutral50, // Pure white - no transparency
-      foregroundColor: neutral900,
+      backgroundColor: Colors.transparent, // Transparent - gradient extends to top
+      foregroundColor: Colors.white, // White text/icons on gradient
       elevation: 0,
       centerTitle: false,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: GoogleFonts.inter(
         fontSize: 17.sp,
         fontWeight: FontWeight.w600,
-        color: neutral900, // Black
+        color: Colors.white, // White text
         letterSpacing: -0.4,
       ),
-      iconTheme: IconThemeData(color: neutral900, size: 22.sp), // Black icons
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
+      iconTheme: IconThemeData(color: Colors.white, size: 22.sp), // White icons
+      systemOverlayStyle: SystemUiOverlayStyle.light,
     ),
 
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: neutral50, // Pure white
-      selectedItemColor: neutral500, // Dark navy when selected
-      unselectedItemColor: neutral400, // Medium slate when not selected
+      backgroundColor: primary, // Dark navy background
+      selectedItemColor: Colors.white, // White when selected
+      unselectedItemColor: Colors.white.withValues(alpha: 0.6), // White with 60% opacity
       type: BottomNavigationBarType.fixed,
       elevation: 0,
       selectedLabelStyle: GoogleFonts.inter(
@@ -143,11 +194,11 @@ class AppTheme {
     ),
 
     cardTheme: CardThemeData(
-      elevation: 0,
-      color: neutral50, // Very light mint/white
+      elevation: 6,
+      color: neutral50, // Pure white
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radius3),
-        side: BorderSide(color: neutral200, width: 1), // Very light mint border
+        borderRadius: BorderRadius.circular(radius4), // 16px radius
+        side: BorderSide.none, // No border for cleaner look
       ),
       margin: EdgeInsets.all(spacing2),
     ),

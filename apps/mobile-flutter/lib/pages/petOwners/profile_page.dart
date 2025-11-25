@@ -16,29 +16,35 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final authUser = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: context.background,
-      appBar: AppBar(
-        title: const Text('Profile'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.edit_outlined),
-            onPressed: () {
-              // missing Navigate to edit profile
-            },
-          ),
-        ],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.backgroundGradient,
       ),
-      body: ChangeNotifierProvider.value(
-        value: injectedUserProvider,
-        child: Consumer<UserProvider>(
-          builder: (context, userProvider, child) {
-            final profile = userProvider.currentUser;
-            final clinic = userProvider.connectedClinic;
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Profile', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.edit_outlined, color: Colors.white),
+              onPressed: () {
+                // missing Navigate to edit profile
+              },
+            ),
+          ],
+        ),
+        body: ChangeNotifierProvider.value(
+          value: injectedUserProvider,
+          child: Consumer<UserProvider>(
+            builder: (context, userProvider, child) {
+              final profile = userProvider.currentUser;
+              final clinic = userProvider.connectedClinic;
 
-            return ListView(
-              padding: EdgeInsets.zero,
-              children: [
+              return ListView(
+                padding: EdgeInsets.zero,
+                children: [
                 _buildProfileHeader(context, authUser, profile),
 
                 if (clinic != null) ...[
@@ -103,6 +109,7 @@ class ProfilePage extends StatelessWidget {
           },
         ),
       ),
+      ),
     );
   }
 
@@ -123,9 +130,11 @@ class ProfilePage extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing6),
+      margin: EdgeInsets.all(AppTheme.spacing4),
       decoration: BoxDecoration(
-        color: context.surface,
-        border: Border(bottom: BorderSide(color: context.border, width: 0.5)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         children: [
@@ -147,13 +156,13 @@ class ProfilePage extends StatelessWidget {
             style: TextStyle(
               fontSize: 24.sp,
               fontWeight: FontWeight.w600,
-              color: context.textPrimary,
+              color: AppTheme.primary,
             ),
           ),
           Gap(AppTheme.spacing1),
           Text(
             email,
-            style: TextStyle(fontSize: 15.sp, color: context.textSecondary),
+            style: TextStyle(fontSize: 15.sp, color: AppTheme.neutral700),
           ),
           Gap(AppTheme.spacing4),
           Row(
@@ -163,14 +172,14 @@ class ProfilePage extends StatelessWidget {
               Container(
                 width: 1,
                 height: 32.h,
-                color: context.border,
+                color: AppTheme.neutral200,
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
               ),
               _buildStatItem(context, '0', 'Appointments'),
               Container(
                 width: 1,
                 height: 32.h,
-                color: context.border,
+                color: AppTheme.neutral200,
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
               ),
               _buildStatItem(context, '0', 'Records'),
@@ -189,13 +198,13 @@ class ProfilePage extends StatelessWidget {
           style: TextStyle(
             fontSize: 20.sp,
             fontWeight: FontWeight.w700,
-            color: context.textPrimary,
+            color: AppTheme.primary,
           ),
         ),
         Gap(4.h),
         Text(
           label,
-          style: TextStyle(fontSize: 13.sp, color: context.textSecondary),
+          style: TextStyle(fontSize: 13.sp, color: AppTheme.neutral700),
         ),
       ],
     );
@@ -221,19 +230,24 @@ class ProfilePage extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
-              color: context.textSecondary,
+              color: Colors.white.withValues(alpha: 0.9),
               letterSpacing: 0.5,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: context.surface,
-            border: Border(
-              top: BorderSide(color: context.border, width: 0.5),
-              bottom: BorderSide(color: context.border, width: 0.5),
-            ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
+          margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
           child: Column(
             children: children
                 .expand(
@@ -243,7 +257,7 @@ class ProfilePage extends StatelessWidget {
                       Divider(
                         height: 0.5,
                         thickness: 0.5,
-                        color: context.border,
+                        color: AppTheme.neutral200,
                         indent: 52.w,
                       ),
                   ],
@@ -278,7 +292,7 @@ class ProfilePage extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 13.sp,
-                    color: context.textSecondary,
+                    color: AppTheme.neutral700,
                   ),
                 ),
                 Gap(2.h),
@@ -287,7 +301,7 @@ class ProfilePage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w400,
-                    color: context.textPrimary,
+                    color: AppTheme.primary,
                   ),
                 ),
               ],

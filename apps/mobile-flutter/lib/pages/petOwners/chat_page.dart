@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../theme/app_theme.dart';
 import '../../models/chat_models.dart';
@@ -67,16 +68,23 @@ class _ChatPageState extends State<ChatPage> {
             chatProvider.chatRooms
                 .any((room) => room.status == ChatRoomStatus.pending);
 
-        return Scaffold(
-          backgroundColor: context.background,
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+          ),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
           appBar: AppBar(
             title: Text(
               'Chat',
               style: TextStyle(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w600,
+                    color: Colors.white,
               ),
             ),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
             actions: [
               IconButton(
                 icon: Icon(Icons.settings_outlined),
@@ -122,6 +130,7 @@ class _ChatPageState extends State<ChatPage> {
                   label: const Text('New chat'),
                 )
               : null,
+          ),
         );
       },
     );
@@ -159,11 +168,17 @@ class _ChatPageState extends State<ChatPage> {
         : const <ChatRoom>[];
 
     if (chatRooms.isEmpty && pendingRequests.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.chat_bubble_outline,
-        message: userProvider.isPetOwner
-            ? 'No conversations yet. Create a chat request to talk with your clinic.'
-            : 'No conversations yet.',
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'No conversations yet',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
 
@@ -177,7 +192,7 @@ class _ChatPageState extends State<ChatPage> {
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
-              color: context.textSecondary,
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           SizedBox(height: AppTheme.spacing2),
@@ -194,7 +209,7 @@ class _ChatPageState extends State<ChatPage> {
           style: TextStyle(
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
-            color: context.textSecondary,
+            color: Colors.white.withValues(alpha: 0.9),
           ),
         ),
         SizedBox(height: AppTheme.spacing2),
@@ -229,17 +244,40 @@ class _ChatPageState extends State<ChatPage> {
       subtitle = lastMessage;
     }
 
-    return GFCard(
-      elevation: 0,
-      color: context.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius3),
-        side: BorderSide(color: context.border),
-      ),
-      content: GFListTile(
-        avatar: GFAvatar(
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChangeNotifierProvider.value(
+              value: chatProvider,
+              child: ChatRoomPage(chatRoom: chatRoom),
+            ),
+          ),
+        );
+      },
+      onLongPress: (userProvider.isVet || userProvider.isClinicAdmin)
+          ? () => _showChatOptionsMenu(chatRoom, chatProvider, userProvider)
+          : null,
+      borderRadius: BorderRadius.circular(AppTheme.radius4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radius4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(AppTheme.spacing3),
+        child: Row(
+          children: [
+            CircleAvatar(
           backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-          size: GFSize.LARGE,
+              radius: 24.r,
           child: Text(
             displayName[0].toUpperCase(),
             style: TextStyle(
@@ -249,7 +287,12 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
         ),
-        title: Row(
+            Gap(AppTheme.spacing3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
           children: [
             Expanded(
               child: Text(
@@ -257,54 +300,55 @@ class _ChatPageState extends State<ChatPage> {
                 style: TextStyle(
                   fontSize: 15.sp,
                   fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
-                  color: context.textPrimary,
+                            color: AppTheme.primary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             if (hasUnread)
-              GFBadge(
-                text: unreadCount.toString(),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                          decoration: BoxDecoration(
                 color: AppTheme.primary,
-                size: GFSize.SMALL,
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Text(
+                            unreadCount.toString(),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
               ),
           ],
         ),
-        subTitle: Text(
+                  Gap(4.h),
+                  Text(
           subtitle,
-          style: TextStyle(fontSize: 13.sp, color: context.textSecondary),
+                    style: TextStyle(fontSize: 13.sp, color: AppTheme.neutral700),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChangeNotifierProvider.value(
-                value: chatProvider,
-                child: ChatRoomPage(chatRoom: chatRoom),
+                ],
               ),
             ),
-          );
-        },
-        onLongPress: (userProvider.isVet || userProvider.isClinicAdmin)
-            ? () => _showChatOptionsMenu(chatRoom, chatProvider, userProvider)
-            : null,
-        icon: userProvider.isPetOwner &&
-                chatRoom.status == ChatRoomStatus.pending
-            ? TextButton(
+            if (userProvider.isPetOwner &&
+                chatRoom.status == ChatRoomStatus.pending)
+              TextButton(
                 onPressed: () =>
                     _confirmCancelRequest(chatRoom, chatProvider),
                 child: const Text('Cancel'),
               )
-            : (userProvider.isVet || userProvider.isClinicAdmin)
-                ? IconButton(
-                    icon: const Icon(Icons.more_vert),
+            else if (userProvider.isVet || userProvider.isClinicAdmin)
+              IconButton(
+                icon: const Icon(Icons.more_vert, color: AppTheme.neutral700),
                     onPressed: () =>
                         _showChatOptionsMenu(chatRoom, chatProvider, userProvider),
-                  )
-                : null,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -397,50 +441,157 @@ class _ChatPageState extends State<ChatPage> {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
 
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('New chat request'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Title',
-                    hintText: 'e.g. Follow-up about Bella',
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: EdgeInsets.only(bottom: AppTheme.spacing4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
-                    hintText: 'Describe the reason for this chat',
+                  // Title
+                  Text(
+                    'New Chat Request',
+                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  maxLines: 4,
-                ),
-              ],
+                  SizedBox(height: AppTheme.spacing4),
+                  // Title field
+                  Text(
+                    'Title',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacing2),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: TextField(
+                      controller: titleController,
+                      style: TextStyle(color: AppTheme.primary, fontSize: 16),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Follow-up about Bella',
+                        hintStyle: TextStyle(
+                          color: AppTheme.neutral700.withValues(alpha: 0.5),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(AppTheme.spacing3),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacing4),
+                  // Description field
+                  Text(
+                    'Description (optional)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacing2),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: TextField(
+                      controller: descriptionController,
+                      style: TextStyle(color: AppTheme.primary, fontSize: 16),
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Describe the reason for this chat',
+                        hintStyle: TextStyle(
+                          color: AppTheme.neutral700.withValues(alpha: 0.5),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(AppTheme.spacing3),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacing6),
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(false),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: AppTheme.spacing3),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (titleController.text.trim().isEmpty) {
+                              return;
+                            }
+                            Navigator.of(sheetContext).pop(true);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.primary,
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            ),
+                          ),
+                          child: Text(
+                            'Create',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: AppTheme.spacing4),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (titleController.text.trim().isEmpty) {
-                  // simple validation
-                  return;
-                }
-                Navigator.of(dialogContext).pop(true);
-              },
-              child: const Text('Create'),
-            ),
-          ],
         );
       },
     );
@@ -589,14 +740,20 @@ class _ChatPageState extends State<ChatPage> {
     final title = chatRoom.topic ?? 'Chat request';
     final description = chatRoom.requestDescription ?? 'No description';
 
-    return GFCard(
-      elevation: 0,
-      color: context.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius3),
-        side: BorderSide(color: context.border),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
       ),
-      content: Column(
+        ],
+      ),
+      padding: EdgeInsets.all(AppTheme.spacing3),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -604,7 +761,7 @@ class _ChatPageState extends State<ChatPage> {
             style: TextStyle(
               fontSize: 15.sp,
               fontWeight: FontWeight.w600,
-              color: context.textPrimary,
+              color: AppTheme.primary,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -614,7 +771,7 @@ class _ChatPageState extends State<ChatPage> {
             'From: $petOwnerName',
             style: TextStyle(
               fontSize: 12.sp,
-              color: context.textSecondary,
+              color: AppTheme.neutral700,
             ),
           ),
           const SizedBox(height: 6),
@@ -622,7 +779,7 @@ class _ChatPageState extends State<ChatPage> {
             description,
             style: TextStyle(
               fontSize: 13.sp,
-              color: context.textSecondary,
+              color: AppTheme.neutral700,
             ),
             maxLines: 3,
             overflow: TextOverflow.ellipsis,

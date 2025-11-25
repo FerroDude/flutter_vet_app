@@ -5,7 +5,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
-import '../../widgets/theme_toggle_widget.dart';
 import 'profile_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -19,16 +18,24 @@ class SettingsPage extends StatelessWidget {
     final effectiveProvider =
         injectedUserProvider ?? context.read<UserProvider>();
 
-    return Scaffold(
-      backgroundColor: context.background,
-      appBar: AppBar(title: const Text('Settings')),
-      body: ChangeNotifierProvider.value(
-        value: effectiveProvider,
-        child: Consumer<UserProvider>(
-          builder: (context, userProvider, _) {
-            return ListView(
-              padding: EdgeInsets.zero,
-              children: [
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.backgroundGradient,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Settings'),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+        ),
+        body: ChangeNotifierProvider.value(
+          value: effectiveProvider,
+          child: Consumer<UserProvider>(
+            builder: (context, userProvider, _) {
+              return ListView(
+                padding: EdgeInsets.zero,
+                children: [
                 if (user != null)
                   _buildProfileHeader(context, user, userProvider),
 
@@ -74,14 +81,6 @@ class SettingsPage extends StatelessWidget {
                     subtitle: 'Appointments and reminders',
                     value: true,
                     onChanged: (value) {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.brightness_6_outlined,
-                    title: 'Appearance',
-                    subtitle: 'Light or dark mode',
-                    trailing: const ThemeToggleWidget(),
-                    onTap: null,
                   ),
                   _buildTile(
                     context,
@@ -194,6 +193,7 @@ class SettingsPage extends StatelessWidget {
           },
         ),
       ),
+      ),
     );
   }
 
@@ -211,9 +211,11 @@ class SettingsPage extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing4),
       decoration: BoxDecoration(
-        color: context.surface,
-        border: Border(bottom: BorderSide(color: context.border, width: 0.5)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
+        boxShadow: AppTheme.cardShadow,
       ),
+      margin: EdgeInsets.all(AppTheme.spacing4),
       child: Row(
         children: [
           CircleAvatar(
@@ -238,7 +240,7 @@ class SettingsPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w600,
-                    color: context.textPrimary,
+                    color: AppTheme.primary,
                   ),
                 ),
                 Gap(AppTheme.spacing1),
@@ -246,13 +248,13 @@ class SettingsPage extends StatelessWidget {
                   email,
                   style: TextStyle(
                     fontSize: 14.sp,
-                    color: context.textSecondary,
+                    color: AppTheme.neutral700,
                   ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: context.textSecondary, size: 20.sp),
+          Icon(Icons.chevron_right, color: AppTheme.neutral700, size: 20.sp),
         ],
       ),
     );
@@ -278,19 +280,18 @@ class SettingsPage extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
-              color: context.textSecondary,
+              color: Colors.white.withValues(alpha: 0.9),
               letterSpacing: 0.5,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: context.surface,
-            border: Border(
-              top: BorderSide(color: context.border, width: 0.5),
-              bottom: BorderSide(color: context.border, width: 0.5),
-            ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            boxShadow: AppTheme.cardShadow,
           ),
+          margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
           child: Column(
             children: children
                 .expand(
@@ -300,7 +301,7 @@ class SettingsPage extends StatelessWidget {
                       Divider(
                         height: 0.5,
                         thickness: 0.5,
-                        color: context.border,
+                        color: AppTheme.neutral200,
                         indent: 52.w,
                       ),
                   ],
@@ -341,7 +342,7 @@ class SettingsPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w400,
-                      color: context.textPrimary,
+                      color: AppTheme.primary,
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -350,7 +351,7 @@ class SettingsPage extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 13.sp,
-                        color: context.textSecondary,
+                        color: AppTheme.neutral700,
                       ),
                     ),
                   ],
@@ -362,7 +363,7 @@ class SettingsPage extends StatelessWidget {
             else if (onTap != null)
               Icon(
                 Icons.chevron_right,
-                color: context.textSecondary,
+                color: AppTheme.neutral700,
                 size: 20.sp,
               ),
           ],
@@ -397,7 +398,7 @@ class SettingsPage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w400,
-                    color: context.textPrimary,
+                    color: AppTheme.primary,
                   ),
                 ),
                 if (subtitle != null) ...[
@@ -406,7 +407,7 @@ class SettingsPage extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 13.sp,
-                      color: context.textSecondary,
+                      color: AppTheme.neutral700,
                     ),
                   ),
                 ],

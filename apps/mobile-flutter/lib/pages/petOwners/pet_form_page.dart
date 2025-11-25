@@ -28,6 +28,74 @@ class _PetFormPageState extends State<PetFormPage> {
   String _gender = 'Unknown';
   bool _isLoading = false;
 
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? icon,
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius2),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: TextFormField(
+            controller: controller,
+            validator: validator,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: TextStyle(color: AppTheme.primary, fontSize: 16),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: AppTheme.neutral700.withValues(alpha: 0.5)),
+              prefixIcon: icon != null
+                  ? Icon(icon, color: AppTheme.primary, size: 20)
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary, width: 2),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: Colors.red, width: 1),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -145,13 +213,18 @@ class _PetFormPageState extends State<PetFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.petRef == null ? 'Add Pet' : 'Edit Pet'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppTheme.neutral700,
-        elevation: 0,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.backgroundGradient,
       ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(widget.petRef == null ? 'Add Pet' : 'Edit Pet'),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -164,18 +237,15 @@ class _PetFormPageState extends State<PetFormPage> {
                 'Basic Information',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.neutral700,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
+              _buildTextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Pet Name *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.pets),
-                ),
+                label: 'Pet Name *',
+                icon: Icons.pets,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter a name';
@@ -188,14 +258,11 @@ class _PetFormPageState extends State<PetFormPage> {
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: _buildTextField(
                       controller: _speciesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Species *',
-                        hintText: 'Dog, Cat, Bird, etc.',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.category),
-                      ),
+                      label: 'Species *',
+                      hint: 'Dog, Cat, Bird, etc.',
+                      icon: Icons.category,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter the species';
@@ -206,13 +273,10 @@ class _PetFormPageState extends State<PetFormPage> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: TextFormField(
+                    child: _buildTextField(
                       controller: _breedController,
-                      decoration: const InputDecoration(
-                        labelText: 'Breed *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.local_florist),
-                      ),
+                      label: 'Breed *',
+                      icon: Icons.local_florist,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter the breed';
@@ -227,67 +291,123 @@ class _PetFormPageState extends State<PetFormPage> {
 
               // Date of Birth and Gender
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: InkWell(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate:
-                              _dateOfBirth ??
-                              DateTime.now().subtract(
-                                const Duration(days: 365),
-                              ),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null && mounted && context.mounted) {
-                          setState(() {
-                            _dateOfBirth = date;
-                          });
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Date of Birth',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.cake),
-                        ),
-                        child: Text(
-                          _dateOfBirth != null
-                              ? '${_dateOfBirth!.day}/${_dateOfBirth!.month}/${_dateOfBirth!.year}'
-                              : 'Select date',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Date of Birth',
                           style: TextStyle(
-                            color: _dateOfBirth != null
-                                ? null
-                                : Colors.grey[600],
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate:
+                                  _dateOfBirth ??
+                                  DateTime.now().subtract(
+                                    const Duration(days: 365),
+                                  ),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null && mounted && context.mounted) {
+                              setState(() {
+                                _dateOfBirth = date;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              boxShadow: AppTheme.cardShadow,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.cake, color: AppTheme.primary, size: 20),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _dateOfBirth != null
+                                        ? '${_dateOfBirth!.day}/${_dateOfBirth!.month}/${_dateOfBirth!.year}'
+                                        : 'Select date',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: _dateOfBirth != null
+                                          ? AppTheme.primary
+                                          : AppTheme.neutral700.withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _gender,
-                      decoration: const InputDecoration(
-                        labelText: 'Gender',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.wc),
-                      ),
-                      items: ['Male', 'Female', 'Unknown'].map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _gender = newValue;
-                          });
-                        }
-                      },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Gender',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            boxShadow: AppTheme.cardShadow,
+                          ),
+                          child: DropdownButtonFormField<String>(
+                            value: _gender,
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                              icon: Icon(Icons.wc, color: AppTheme.primary, size: 20),
+                            ),
+                            dropdownColor: Colors.white,
+                            style: TextStyle(color: AppTheme.primary, fontSize: 16),
+                            items: ['Male', 'Female', 'Unknown'].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _gender = newValue;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -298,27 +418,21 @@ class _PetFormPageState extends State<PetFormPage> {
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: _buildTextField(
                       controller: _weightController,
-                      decoration: const InputDecoration(
-                        labelText: 'Weight',
-                        hintText: 'e.g., 15 kg, 3.5 lbs',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.monitor_weight),
-                      ),
+                      label: 'Weight',
+                      hint: 'e.g., 15 kg, 3.5 lbs',
+                      icon: Icons.monitor_weight,
                       keyboardType: TextInputType.text,
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: TextFormField(
+                    child: _buildTextField(
                       controller: _colorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Color/Markings',
-                        hintText: 'Brown, White spots, etc.',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.palette),
-                      ),
+                      label: 'Color/Markings',
+                      hint: 'Brown, White spots, etc.',
+                      icon: Icons.palette,
                     ),
                   ),
                 ],
@@ -331,41 +445,32 @@ class _PetFormPageState extends State<PetFormPage> {
                 'Medical Information',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.neutral700,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
+              _buildTextField(
                 controller: _microchipController,
-                decoration: const InputDecoration(
-                  labelText: 'Microchip Number',
-                  hintText: 'ID number if microchipped',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.memory),
-                ),
+                label: 'Microchip Number',
+                hint: 'ID number if microchipped',
+                icon: Icons.memory,
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
+              _buildTextField(
                 controller: _veterinarianController,
-                decoration: const InputDecoration(
-                  labelText: 'Veterinarian',
-                  hintText: 'Primary vet name or clinic',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.local_hospital),
-                ),
+                label: 'Veterinarian',
+                hint: 'Primary vet name or clinic',
+                icon: Icons.local_hospital,
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
+              _buildTextField(
                 controller: _medicalNotesController,
-                decoration: const InputDecoration(
-                  labelText: 'Medical Notes',
-                  hintText: 'Allergies, conditions, medications',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.medical_information),
-                ),
+                label: 'Medical Notes',
+                hint: 'Allergies, conditions, medications',
+                icon: Icons.medical_information,
                 maxLines: 3,
               ),
 
@@ -376,19 +481,16 @@ class _PetFormPageState extends State<PetFormPage> {
                 'Emergency Contact',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.neutral700,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
+              _buildTextField(
                 controller: _emergencyContactController,
-                decoration: const InputDecoration(
-                  labelText: 'Emergency Contact',
-                  hintText: 'Name and phone number',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.emergency),
-                ),
+                label: 'Emergency Contact',
+                hint: 'Name and phone number',
+                icon: Icons.emergency,
               ),
 
               const SizedBox(height: 32),
@@ -400,8 +502,12 @@ class _PetFormPageState extends State<PetFormPage> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _savePet,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.neutral700,
+                    backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    ),
+                    elevation: 4,
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
@@ -419,6 +525,7 @@ class _PetFormPageState extends State<PetFormPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

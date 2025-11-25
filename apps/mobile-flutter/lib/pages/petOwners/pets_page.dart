@@ -20,52 +20,59 @@ class PetsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, _) {
-        return Scaffold(
-          backgroundColor: context.background,
-          appBar: AppBar(
-            title: Text('My Pets'),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SettingsPage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                tooltip: 'Settings',
-              ),
-              IconButton(
-                icon: Icon(Icons.person_outline),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProfilePage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                tooltip: 'Profile',
-              ),
-              IconButton(
-                icon: Icon(Icons.add_circle_outline),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PetFormPage(),
-                    ),
-                  );
-                },
-                tooltip: 'Add Pet',
-              ),
-            ],
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
           ),
-          body: const _ModernPetsPageContent(),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: Text('My Pets', style: TextStyle(color: Colors.white)),
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.settings_outlined),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SettingsPage(injectedUserProvider: userProvider),
+                      ),
+                    );
+                  },
+                  tooltip: 'Settings',
+                ),
+                IconButton(
+                  icon: Icon(Icons.person_outline),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfilePage(injectedUserProvider: userProvider),
+                      ),
+                    );
+                  },
+                  tooltip: 'Profile',
+                ),
+                IconButton(
+                  icon: Icon(Icons.add_circle_outline),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PetFormPage(),
+                      ),
+                    );
+                  },
+                  tooltip: 'Add Pet',
+                ),
+              ],
+            ),
+            body: const _ModernPetsPageContent(),
+          ),
         );
       },
     );
@@ -100,12 +107,12 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
             Icon(
               Icons.error_outline,
               size: 64.sp,
-              color: context.textSecondary,
+              color: Colors.white.withValues(alpha: 0.8),
             ),
             Gap(AppTheme.spacing4),
             Text(
               'Please log in to view your pets',
-              style: TextStyle(color: context.textSecondary),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
             ),
           ],
         ),
@@ -132,7 +139,9 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
                 return Center(
                   child: Text(
                     'Error loading pets',
-                    style: TextStyle(color: context.textSecondary),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
                   ),
                 );
               }
@@ -160,7 +169,7 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
                       Icon(
                         Icons.pets_outlined,
                         size: 64.sp,
-                        color: context.textSecondary,
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                       Gap(AppTheme.spacing4),
                       Text(
@@ -168,7 +177,7 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w500,
-                          color: context.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
                       Gap(AppTheme.spacing2),
@@ -203,7 +212,40 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
                   final pet = petDoc.data();
                   return Padding(
                     padding: EdgeInsets.only(bottom: AppTheme.spacing3),
-                    child: _PetCard(petId: petDoc.id, petData: pet),
+                    child: InkWell(
+                      onTap: () {
+                        final userId = FirebaseAuth.instance.currentUser?.uid;
+                        if (userId != null) {
+                          final petRef = FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(userId)
+                              .collection('pets')
+                              .doc(petDoc.id);
+
+                          final eventProvider = context.read<EventProvider>();
+                          final userProvider = context.read<UserProvider>();
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MultiProvider(
+                                providers: [
+                                  ChangeNotifierProvider.value(
+                                    value: eventProvider,
+                                  ),
+                                  ChangeNotifierProvider.value(
+                                    value: userProvider,
+                                  ),
+                                ],
+                                child: PetDetailsPage(petRef: petRef),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(AppTheme.radius4),
+                      child: _PetCard(petId: petDoc.id, petData: pet),
+                    ),
                   );
                 },
               );
@@ -217,7 +259,14 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
   Widget _buildSearchBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing4),
-      color: context.surface,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(AppTheme.radius4),
+          bottomRight: Radius.circular(AppTheme.radius4),
+        ),
+        boxShadow: AppTheme.cardShadow,
+      ),
       child: GFSearchBar(
         searchList: [],
         searchQueryBuilder: (query, list) => [],
@@ -227,13 +276,13 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
           hintText: 'Search pets...',
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radius2),
-            borderSide: BorderSide(color: context.border),
+            borderSide: BorderSide(color: AppTheme.neutral200),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radius2),
-            borderSide: BorderSide(color: context.border),
+            borderSide: BorderSide(color: AppTheme.neutral200),
           ),
-          prefixIcon: Icon(Icons.search, color: context.textSecondary),
+          prefixIcon: Icon(Icons.search, color: AppTheme.neutral700),
         ),
       ),
     );
@@ -254,94 +303,73 @@ class _PetCard extends StatelessWidget {
     final age = petData['age'];
     final imageUrl = petData['imageUrl'];
 
-    return GFCard(
-      elevation: 0,
-      color: context.surface,
-      borderOnForeground: true,
-      boxFit: BoxFit.cover,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius3),
-        side: BorderSide(color: context.border),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
+        boxShadow: AppTheme.cardShadow,
       ),
-      content: GFListTile(
-        avatar: GFAvatar(
-          backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
-          backgroundColor: context.isDark
-              ? Color(0xFF2F2F2F)
-              : AppTheme.neutral100,
-          size: GFSize.LARGE,
-          child: imageUrl == null
-              ? Icon(Icons.pets, size: 24.sp, color: context.textPrimary)
-              : null,
-        ),
-        title: Text(
-          name,
-          style: TextStyle(
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w600,
-            color: context.textPrimary,
-          ),
-        ),
-        subTitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: EdgeInsets.all(AppTheme.spacing3),
+        child: Row(
           children: [
-            if (breed.isNotEmpty || species.isNotEmpty) ...[
-              Gap(AppTheme.spacing1),
-              Text(
-                breed.isNotEmpty ? breed : species,
-                style: TextStyle(fontSize: 14.sp, color: context.textSecondary),
-              ),
-            ],
-            if (age != null) ...[
-              Gap(AppTheme.spacing1),
-              Row(
+            CircleAvatar(
+              backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
+              backgroundColor: AppTheme.neutral100,
+              radius: 28.r,
+              child: imageUrl == null
+                  ? Icon(Icons.pets, size: 24.sp, color: AppTheme.primary)
+                  : null,
+            ),
+            Gap(AppTheme.spacing3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.cake_outlined,
-                    size: 14.sp,
-                    color: context.textSecondary,
-                  ),
-                  Gap(AppTheme.spacing1),
                   Text(
-                    '$age ${age == 1 ? 'year' : 'years'} old',
+                    name,
                     style: TextStyle(
-                      fontSize: 12.sp,
-                      color: context.textSecondary,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
                     ),
                   ),
+                  if (breed.isNotEmpty || species.isNotEmpty) ...[
+                    Gap(AppTheme.spacing1),
+                    Text(
+                      breed.isNotEmpty ? breed : species,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: AppTheme.neutral700,
+                      ),
+                    ),
+                  ],
+                  if (age != null) ...[
+                    Gap(AppTheme.spacing1),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.cake_outlined,
+                          size: 14.sp,
+                          color: AppTheme.neutral700,
+                        ),
+                        Gap(AppTheme.spacing1),
+                        Text(
+                          '$age ${age == 1 ? 'year' : 'years'} old',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppTheme.neutral700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-            ],
+            ),
+            Icon(Icons.chevron_right, color: AppTheme.neutral700),
           ],
         ),
-        icon: Icon(Icons.chevron_right, color: context.textSecondary),
-        onTap: () {
-          final userId = FirebaseAuth.instance.currentUser?.uid;
-          if (userId != null) {
-            final petRef = FirebaseFirestore.instance
-                .collection('users')
-                .doc(userId)
-                .collection('pets')
-                .doc(petId);
-            
-            // Pass providers to the new route
-            final eventProvider = context.read<EventProvider>();
-            final userProvider = context.read<UserProvider>();
-            
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MultiProvider(
-                  providers: [
-                    ChangeNotifierProvider.value(value: eventProvider),
-                    ChangeNotifierProvider.value(value: userProvider),
-                  ],
-                  child: PetDetailsPage(petRef: petRef),
-                ),
-              ),
-            );
-          }
-        },
       ),
     );
   }

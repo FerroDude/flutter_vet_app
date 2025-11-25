@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -8,16 +9,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
-import 'package:getwidget/getwidget.dart';
 import '../../theme/app_theme.dart';
 import '../../models/event_model.dart';
 import '../../models/symptom_models.dart';
 import '../../providers/event_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/simple_event_forms.dart';
 import '../../widgets/calendar_view.dart';
-import '../../widgets/modern_modals.dart';
 import '../../services/pet_service.dart';
 import 'add_symptom_sheet.dart';
+import 'profile_page.dart';
+import 'settings_page.dart';
 
 /// Clean, professional calendar page
 class CalendarPage extends StatefulWidget {
@@ -40,8 +42,9 @@ class CalendarPageState extends State<CalendarPage>
   final _petService = PetService();
 
   DateTime _selectedDay = DateTime.now();
-  CalendarFormat _calendarFormat = CalendarFormat.month;
+  CalendarFormat _calendarFormat = CalendarFormat.twoWeeks;
   Map<DateTime, List<PetSymptom>> _symptomsByDay = {};
+  Map<String, String> _petNamesCache = {};
 
   @override
   void initState() {
@@ -52,7 +55,33 @@ class CalendarPageState extends State<CalendarPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventProvider>().loadEvents();
       _loadSymptomsByDay();
+      _loadPetNames();
     });
+  }
+
+  Future<void> _loadPetNames() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final petsSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('pets')
+        .get();
+
+    final names = <String, String>{};
+    for (final doc in petsSnap.docs) {
+      final data = doc.data();
+      names[doc.id] = data['name'] as String? ?? 'Unknown';
+    }
+    if (mounted) {
+      setState(() => _petNamesCache = names);
+    }
+  }
+
+  String _getPetName(String? petId) {
+    if (petId == null || petId.isEmpty) return '';
+    return _petNamesCache[petId] ?? '';
   }
 
   @override
@@ -77,15 +106,19 @@ class CalendarPageState extends State<CalendarPage>
   void handleFabAction() {
     switch (_tabController.index) {
       case 0:
+        // Calendar tab - show selection dialog
         showAddEventDialog();
         break;
       case 1:
+        // Appointments tab - go directly to appointment form
         showAppointmentFormWithPetSelection();
         break;
       case 2:
+        // Medications tab - go directly to medication form
         _showMedicationFormWithPetSelection();
         break;
       case 3:
+        // Symptoms tab - go directly to symptom form
         _showSymptomSheetWithPetSelection();
         break;
     }
@@ -96,7 +129,12 @@ class CalendarPageState extends State<CalendarPage>
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: context.read<EventProvider>(),
-        child: SimpleAddEventDialog(selectedDate: _selectedDay),
+        child: SimpleAddEventDialog(
+          selectedDate: _selectedDay,
+          onShowAppointment: () => showAppointmentFormWithPetSelection(),
+          onShowMedication: () => _showMedicationFormWithPetSelection(),
+          onShowSymptom: () => _showSymptomSheetWithPetSelection(),
+        ),
       ),
     ).then((result) {
       if (result == true) _refreshData();
@@ -132,84 +170,208 @@ class CalendarPageState extends State<CalendarPage>
     setState(() => _calendarFormat = format);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _topAction(IconData icon, VoidCallback onPressed) {
+    return IconButton(
+      icon: Icon(icon, color: Colors.white, size: 24.sp),
+      onPressed: onPressed,
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: context.surfacePrimary,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark ? context.surfaceSecondary : Colors.white,
-          ),
-          padding: EdgeInsets.symmetric(vertical: AppTheme.spacing2),
-          child: Stack(
+  Widget _buildHeader(BuildContext context, UserProvider userProvider) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(height: MediaQuery.of(context).padding.top),
+        Gap(AppTheme.spacing2),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+          child: Row(
             children: [
-              TabBar(
-                controller: _tabController,
-                labelColor: AppTheme.neutral700,
-                unselectedLabelColor: context.secondaryTextColor,
-                indicatorColor: AppTheme.neutral700,
-                indicatorWeight: 5,
-                dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(icon: Icon(Icons.calendar_month, size: 32)),
-                  Tab(icon: Icon(Icons.event, size: 32)),
-                  Tab(icon: Icon(Icons.medication, size: 32)),
-                  Tab(icon: Icon(Icons.healing, size: 32)),
-                ],
-              ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final tabWidth = constraints.maxWidth / 4;
-                    final indicatorLeft = tabWidth * _tabController.index;
-                    return Stack(
-                      children: [
-                        Container(height: 1, color: Colors.black),
-                        AnimatedPositioned(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          left: indicatorLeft + (tabWidth * 0.15),
-                          bottom: 0,
-                          child: Container(
-                            width: tabWidth * 0.7,
-                            height: 1,
-                            color: isDark
-                                ? context.surfaceSecondary
-                                : Colors.white,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+              Text(
+                'Calendar',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              const Spacer(),
+              _topAction(Icons.settings_outlined, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        SettingsPage(injectedUserProvider: userProvider),
+                  ),
+                );
+              }),
+              _topAction(Icons.person_outline, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ProfilePage(injectedUserProvider: userProvider),
+                  ),
+                );
+              }),
             ],
           ),
         ),
-      ),
-      body: Consumer<EventProvider>(
-        builder: (context, eventProvider, child) {
-          if (eventProvider.isLoading && eventProvider.events.isEmpty) {
-            return _buildLoadingState(context);
-          }
+        Gap(AppTheme.spacing1),
+        Container(
+          margin: EdgeInsets.only(
+            left: AppTheme.spacing4,
+            right: AppTheme.spacing4,
+            bottom: AppTheme.spacing2,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppTheme.spacing2,
+            vertical: AppTheme.spacing2,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final totalWidth = constraints.maxWidth;
+              final itemWidth = totalWidth / 4;
+              const circleSize = 48.0;
+              final icons = [
+                Icons.calendar_month,
+                Icons.event,
+                Icons.medication,
+                Icons.healing,
+              ];
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildCalendarView(context, eventProvider),
-              _buildAppointmentsList(context, eventProvider),
-              _buildMedicationsList(context, eventProvider),
-              _buildSymptomsList(context),
-            ],
-          );
-        },
+              return AnimatedBuilder(
+                animation: _tabController.animation!,
+                builder: (context, child) {
+                  final animationValue = _tabController.animation!.value;
+                  // Center of selected tab position
+                  final indicatorLeft =
+                      animationValue * itemWidth + (itemWidth - circleSize) / 2;
+
+                  return SizedBox(
+                    height: circleSize,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Sliding circular indicator
+                        Positioned(
+                          left: indicatorLeft,
+                          top: 0,
+                          child: Container(
+                            width: circleSize,
+                            height: circleSize,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Icons row - positioned to match indicator calculation
+                        Row(
+                          children: List.generate(4, (index) {
+                            // Calculate how "selected" this icon is (0.0 to 1.0)
+                            final distance = (animationValue - index).abs();
+                            final selectionProgress = (1.0 - distance).clamp(
+                              0.0,
+                              1.0,
+                            );
+
+                            return SizedBox(
+                              width: itemWidth,
+                              height: circleSize,
+                              child: GestureDetector(
+                                onTap: () => _tabController.animateTo(index),
+                                behavior: HitTestBehavior.opaque,
+                                child: Center(
+                                  child: Icon(
+                                    icons[index],
+                                    size: 26,
+                                    color: Color.lerp(
+                                      AppTheme.primary,
+                                      Colors.white,
+                                      selectionProgress,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                _buildHeader(context, userProvider),
+                Expanded(
+                  child: Consumer<EventProvider>(
+                    builder: (context, eventProvider, child) {
+                      if (eventProvider.isLoading &&
+                          eventProvider.events.isEmpty) {
+                        return _buildLoadingState(context);
+                      }
+
+                      return TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildCalendarView(context, eventProvider),
+                          _buildAppointmentsList(context, eventProvider),
+                          _buildMedicationsList(context, eventProvider),
+                          _buildSymptomsList(context),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: handleFabAction,
+            backgroundColor: AppTheme.neutral800,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.add),
+          ),
+        ),
       ),
     );
   }
@@ -219,13 +381,13 @@ class CalendarPageState extends State<CalendarPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: AppTheme.neutral700),
+          CircularProgressIndicator(color: Colors.white),
           SizedBox(height: AppTheme.spacing4),
           Text(
             'Loading calendar...',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.secondaryTextColor),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
           ),
         ],
       ),
@@ -287,8 +449,9 @@ class CalendarPageState extends State<CalendarPage>
         Container(
           margin: EdgeInsets.all(AppTheme.spacing4),
           decoration: BoxDecoration(
-            color: context.surfaceSecondary,
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            boxShadow: AppTheme.cardShadow,
           ),
           child: CalendarView(
             events: merged,
@@ -312,7 +475,7 @@ class CalendarPageState extends State<CalendarPage>
                 DateFormat('EEEE, MMMM d').format(_selectedDay),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: context.textColor,
+                  color: Colors.white,
                 ),
               ),
               const Spacer(),
@@ -323,13 +486,13 @@ class CalendarPageState extends State<CalendarPage>
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.neutral700.withValues(alpha: 0.1),
+                    color: Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${selectedEvents.length}',
                     style: TextStyle(
-                      color: AppTheme.neutral700,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -366,143 +529,130 @@ class CalendarPageState extends State<CalendarPage>
     required CalendarEvent event,
     required int delay,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color color;
     String? subtitle;
+    final petName = _getPetName(event.petId);
 
     if (event is AppointmentEvent) {
-      color = isDark ? AppTheme.brandBlueLight : AppTheme.neutral800;
+      color = AppTheme.brandBlueLight;
       subtitle = event.location;
     } else if (event is MedicationEvent) {
-      color = isDark ? AppTheme.brandTeal : AppTheme.neutral800;
+      color = AppTheme.brandTeal;
       subtitle = event.dosage;
     } else {
-      color = isDark ? AppTheme.neutral400 : AppTheme.neutral800;
+      color = Colors.orange;
     }
 
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-      child: GFCard(
-        elevation: 0,
-        color: context.surface,
-        borderOnForeground: true,
-        boxFit: BoxFit.cover,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.radius3),
-          side: BorderSide(color: context.border),
+          boxShadow: AppTheme.cardShadow,
         ),
-        content: Row(
-          children: [
-            Container(
-              width: 4.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(2.r),
+        child: Padding(
+          padding: EdgeInsets.all(AppTheme.spacing3),
+          child: Row(
+            children: [
+              Container(
+                width: 4.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
               ),
-            ),
-            Gap(AppTheme.spacing3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: context.textPrimary,
+              Gap(AppTheme.spacing3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.primary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Gap(AppTheme.spacing1),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 12.sp,
-                        color: context.textSecondary,
-                      ),
-                      Gap(AppTheme.spacing1),
-                      Text(
-                        DateFormat('h:mm a').format(event.dateTime),
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: context.textSecondary,
-                        ),
-                      ),
-                      if (subtitle != null && subtitle.isNotEmpty) ...[
-                        Gap(AppTheme.spacing2),
+                    Gap(AppTheme.spacing1),
+                    Row(
+                      children: [
                         Icon(
-                          event is AppointmentEvent
-                              ? Icons.location_on_outlined
-                              : Icons.info_outline,
+                          Icons.access_time,
                           size: 12.sp,
-                          color: context.textSecondary,
+                          color: AppTheme.neutral700,
                         ),
                         Gap(AppTheme.spacing1),
-                        Expanded(
-                          child: Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              color: context.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          DateFormat('h:mm a').format(event.dateTime),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppTheme.neutral700,
                           ),
                         ),
+                        if (petName.isNotEmpty) ...[
+                          Gap(AppTheme.spacing2),
+                          Icon(
+                            Icons.pets,
+                            size: 12.sp,
+                            color: AppTheme.neutral700,
+                          ),
+                          Gap(AppTheme.spacing1),
+                          Text(
+                            petName,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: AppTheme.neutral700,
+                            ),
+                          ),
+                        ],
+                        if (subtitle != null && subtitle.isNotEmpty) ...[
+                          Gap(AppTheme.spacing2),
+                          Icon(
+                            event is AppointmentEvent
+                                ? Icons.location_on_outlined
+                                : Icons.info_outline,
+                            size: 12.sp,
+                            color: AppTheme.neutral700,
+                          ),
+                          Gap(AppTheme.spacing1),
+                          Expanded(
+                            child: Text(
+                              subtitle,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppTheme.neutral700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildEmptyDayState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppTheme.neutral700.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.event_available,
-                size: 40,
-                color: AppTheme.neutral700,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No events this day',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: context.textColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap the + button to add an event',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.secondaryTextColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+      child: Text(
+        'No events this day',
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: Colors.white.withValues(alpha: 0.7),
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -516,12 +666,7 @@ class CalendarPageState extends State<CalendarPage>
           ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
     if (appointments.isEmpty) {
-      return _buildEmptyState(
-        context: context,
-        icon: Icons.event_note,
-        title: 'No appointments',
-        message: 'Schedule your first appointment',
-      );
+      return _buildSimpleEmptyState(context, 'No appointments');
     }
 
     // Group by date
@@ -559,7 +704,7 @@ class CalendarPageState extends State<CalendarPage>
                   headerDate,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.neutral700,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -576,87 +721,107 @@ class CalendarPageState extends State<CalendarPage>
     AppointmentEvent appointment,
     int index,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final petName = _getPetName(appointment.petId);
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-      child: GFCard(
-        elevation: 0,
-        color: context.surface,
-        borderOnForeground: true,
-        boxFit: BoxFit.cover,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.radius3),
-          side: BorderSide(color: context.border),
+          boxShadow: AppTheme.cardShadow,
         ),
-        content: InkWell(
-          onTap: () => _editAppointment(appointment),
-          child: Row(
-            children: [
-              Container(
-                width: 4.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.brandBlueLight : AppTheme.neutral800,
-                  borderRadius: BorderRadius.circular(2.r),
-                ),
-              ),
-              Gap(AppTheme.spacing3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      appointment.title,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        color: context.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppTheme.radius3),
+            onTap: () => _editAppointment(appointment),
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: AppTheme.brandBlueLight,
+                      borderRadius: BorderRadius.circular(2.r),
                     ),
-                    Gap(AppTheme.spacing1),
-                    Row(
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 12.sp,
-                          color: context.textSecondary,
+                        Text(
+                          appointment.title,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.primary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Gap(AppTheme.spacing1),
-                        Text(
-                          DateFormat('h:mm a').format(appointment.dateTime),
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: context.textSecondary,
-                          ),
-                        ),
-                        if (appointment.location != null) ...[
-                          Gap(AppTheme.spacing2),
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 12.sp,
-                            color: context.textSecondary,
-                          ),
-                          Gap(AppTheme.spacing1),
-                          Expanded(
-                            child: Text(
-                              appointment.location!,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 12.sp,
+                              color: AppTheme.neutral700,
+                            ),
+                            Gap(AppTheme.spacing1),
+                            Text(
+                              DateFormat('h:mm a').format(appointment.dateTime),
                               style: TextStyle(
                                 fontSize: 12.sp,
-                                color: context.textSecondary,
+                                color: AppTheme.neutral700,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                            if (petName.isNotEmpty) ...[
+                              Gap(AppTheme.spacing2),
+                              Icon(
+                                Icons.pets,
+                                size: 12.sp,
+                                color: AppTheme.neutral700,
+                              ),
+                              Gap(AppTheme.spacing1),
+                              Text(
+                                petName,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: AppTheme.neutral700,
+                                ),
+                              ),
+                            ],
+                            if (appointment.location != null) ...[
+                              Gap(AppTheme.spacing2),
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 12.sp,
+                                color: AppTheme.neutral700,
+                              ),
+                              Gap(AppTheme.spacing1),
+                              Expanded(
+                                child: Text(
+                                  appointment.location!,
+                                  style: TextStyle(
+                                    fontSize: 12.sp,
+                                    color: AppTheme.neutral700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -672,12 +837,7 @@ class CalendarPageState extends State<CalendarPage>
           ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
     if (medications.isEmpty) {
-      return _buildEmptyState(
-        context: context,
-        icon: Icons.medication,
-        title: 'No medications',
-        message: 'Add your first medication reminder',
-      );
+      return _buildSimpleEmptyState(context, 'No medications');
     }
 
     // Group medications by series
@@ -740,13 +900,13 @@ class CalendarPageState extends State<CalendarPage>
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppTheme.neutral600),
+          Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.9)),
           SizedBox(width: AppTheme.spacing2),
           Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.neutral600,
+              color: Colors.white,
             ),
           ),
         ],
@@ -762,16 +922,14 @@ class CalendarPageState extends State<CalendarPage>
     items.sort((a, b) => a.dateTime.compareTo(b.dateTime));
     final first = items.first;
     final isExpanded = _expandedSeries.contains(key);
+    final petName = _getPetName(first.petId);
 
     return Container(
       margin: EdgeInsets.only(bottom: AppTheme.spacing3),
       decoration: BoxDecoration(
-        color: AppTheme.neutral600.withValues(alpha: 0.05),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(
-          color: AppTheme.neutral600.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Column(
         children: [
@@ -796,7 +954,7 @@ class CalendarPageState extends State<CalendarPage>
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: AppTheme.neutral600,
+                        color: AppTheme.primary,
                         borderRadius: BorderRadius.circular(
                           AppTheme.radiusMedium,
                         ),
@@ -817,16 +975,34 @@ class CalendarPageState extends State<CalendarPage>
                             style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: context.textColor,
+                                  color: AppTheme.primary,
                                 ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           SizedBox(height: AppTheme.spacing1),
-                          Text(
-                            '${first.dosage} • ${first.frequency}',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: context.secondaryTextColor),
+                          Row(
+                            children: [
+                              Text(
+                                '${first.dosage} • ${first.frequency}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppTheme.neutral700),
+                              ),
+                              if (petName.isNotEmpty) ...[
+                                SizedBox(width: AppTheme.spacing2),
+                                Icon(
+                                  Icons.pets,
+                                  size: 12,
+                                  color: AppTheme.neutral700,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  petName,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppTheme.neutral700),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),
@@ -837,7 +1013,7 @@ class CalendarPageState extends State<CalendarPage>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.neutral600.withValues(alpha: 0.15),
+                        color: AppTheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(
                           AppTheme.radiusSmall,
                         ),
@@ -845,16 +1021,12 @@ class CalendarPageState extends State<CalendarPage>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.layers,
-                            size: 14,
-                            color: AppTheme.neutral600,
-                          ),
+                          Icon(Icons.layers, size: 14, color: AppTheme.primary),
                           SizedBox(width: 4),
                           Text(
                             '${items.length}',
                             style: TextStyle(
-                              color: AppTheme.neutral600,
+                              color: AppTheme.primary,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -865,7 +1037,7 @@ class CalendarPageState extends State<CalendarPage>
                     SizedBox(width: AppTheme.spacing2),
                     Icon(
                       isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: AppTheme.neutral600,
+                      color: AppTheme.primary,
                     ),
                   ],
                 ),
@@ -882,7 +1054,7 @@ class CalendarPageState extends State<CalendarPage>
               ),
               child: Column(
                 children: [
-                  Divider(color: AppTheme.neutral600.withValues(alpha: 0.2)),
+                  Divider(color: AppTheme.neutral300),
                   SizedBox(height: AppTheme.spacing2),
                   ...items.asMap().entries.map((entry) {
                     final med = entry.value;
@@ -894,7 +1066,7 @@ class CalendarPageState extends State<CalendarPage>
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: AppTheme.neutral600.withValues(alpha: 0.7),
+                              color: AppTheme.primary,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -905,7 +1077,7 @@ class CalendarPageState extends State<CalendarPage>
                                 'EEE, MMM d • h:mm a',
                               ).format(med.dateTime),
                               style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: context.secondaryTextColor),
+                                  ?.copyWith(color: AppTheme.neutral700),
                             ),
                           ),
                         ],
@@ -921,80 +1093,115 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final petName = _getPetName(med.petId);
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-      child: GFCard(
-        elevation: 0,
-        color: context.surface,
-        borderOnForeground: true,
-        boxFit: BoxFit.cover,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.radius3),
-          side: BorderSide(color: context.border),
+          boxShadow: AppTheme.cardShadow,
         ),
-        content: InkWell(
-          onTap: () => _handleEventTap(med),
-          child: Row(
-            children: [
-              Container(
-                width: 4.w,
-                height: 48.h,
-                decoration: BoxDecoration(
-                  color: isDark ? AppTheme.brandTeal : AppTheme.neutral800,
-                  borderRadius: BorderRadius.circular(2.r),
-                ),
-              ),
-              Gap(AppTheme.spacing3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      med.medicationName,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        color: context.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppTheme.radius3),
+            onTap: () => _handleEventTap(med),
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4.w,
+                    height: 48.h,
+                    decoration: BoxDecoration(
+                      color: AppTheme.brandTeal,
+                      borderRadius: BorderRadius.circular(2.r),
                     ),
-                    Gap(AppTheme.spacing1),
-                    Row(
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 12.sp,
-                          color: context.textSecondary,
+                        Text(
+                          med.medicationName,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.primary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Gap(AppTheme.spacing1),
-                        Text(
-                          DateFormat('h:mm a').format(med.dateTime),
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: context.textSecondary,
-                          ),
-                        ),
-                        Gap(AppTheme.spacing2),
-                        Expanded(
-                          child: Text(
-                            med.dosage,
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              color: context.textSecondary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 12.sp,
+                              color: AppTheme.neutral700,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            Gap(AppTheme.spacing1),
+                            Text(
+                              DateFormat('h:mm a').format(med.dateTime),
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppTheme.neutral700,
+                              ),
+                            ),
+                            if (petName.isNotEmpty) ...[
+                              Gap(AppTheme.spacing2),
+                              Icon(
+                                Icons.pets,
+                                size: 12.sp,
+                                color: AppTheme.neutral700,
+                              ),
+                              Gap(AppTheme.spacing1),
+                              Text(
+                                petName,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: AppTheme.neutral700,
+                                ),
+                              ),
+                            ],
+                            Gap(AppTheme.spacing2),
+                            Expanded(
+                              child: Text(
+                                med.dosage,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: AppTheme.neutral700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimpleEmptyState(BuildContext context, String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(
+          message,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
@@ -1016,24 +1223,28 @@ class CalendarPageState extends State<CalendarPage>
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppTheme.neutral700.withValues(alpha: 0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 40, color: AppTheme.neutral700),
+              child: Icon(
+                icon,
+                size: 40,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: context.textColor,
+                color: Colors.white,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.secondaryTextColor,
+                color: Colors.white.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -1162,60 +1373,154 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     // Show pet selection dialog
-    return await showModalBottomSheet<
-      QueryDocumentSnapshot<Map<String, dynamic>>
-    >(
+    return await showDialog<QueryDocumentSnapshot<Map<String, dynamic>>>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (dialogContext) => ModernBottomSheet(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ModernModalHeader(
-              title: 'Select a Pet',
-              icon: Icons.pets,
-              iconColor: const Color(0xFF3B82F6),
-            ),
-            const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 400),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: List.generate(petsSnapshot.docs.length, (index) {
-                    final pet = petsSnapshot.docs[index];
-                    final petData = pet.data();
-                    final petName = petData['name'] as String? ?? 'Unknown';
-                    final species = petData['species'] as String? ?? 'Unknown';
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: EdgeInsets.all(AppTheme.spacing5),
+          decoration: BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Select a Pet',
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              Gap(AppTheme.spacing5),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: List.generate(petsSnapshot.docs.length, (index) {
+                      final pet = petsSnapshot.docs[index];
+                      final petData = pet.data();
+                      final petName = petData['name'] as String? ?? 'Unknown';
+                      final species =
+                          petData['species'] as String? ?? 'Unknown';
 
-                    return ModernSelectionCard(
-                      title: petName,
-                      subtitle: species,
-                      iconColor: _getSpeciesColor(species),
-                      onTap: () => Navigator.pop(dialogContext, pet),
-                    );
-                  }),
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < petsSnapshot.docs.length - 1
+                              ? AppTheme.spacing3
+                              : 0,
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => Navigator.pop(dialogContext, pet),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius3,
+                            ),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacing4,
+                                vertical: AppTheme.spacing3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radius3,
+                                ),
+                                boxShadow: AppTheme.cardShadow,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      _getSpeciesIcon(species),
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  Gap(AppTheme.spacing3),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          petName,
+                                          style: TextStyle(
+                                            fontSize: 16.sp,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primary,
+                                          ),
+                                        ),
+                                        Text(
+                                          species,
+                                          style: TextStyle(
+                                            fontSize: 12.sp,
+                                            color: AppTheme.neutral700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
                 ),
               ),
-            ),
-          ],
+              Gap(AppTheme.spacing4),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Color _getSpeciesColor(String species) {
+  IconData _getSpeciesIcon(String species) {
     switch (species.toLowerCase()) {
       case 'dog':
-        return const Color(0xFF3B82F6); // Blue
+        return Icons.pets;
       case 'cat':
-        return const Color(0xFF8B5CF6); // Purple
+        return Icons.pets;
       case 'bird':
-        return const Color(0xFFF59E0B); // Amber
+        return Icons.flutter_dash;
+      case 'fish':
+        return Icons.water;
       case 'rabbit':
-        return const Color(0xFF10B981); // Green
+        return Icons.cruelty_free;
       default:
-        return const Color(0xFF6366F1); // Indigo
+        return Icons.pets;
     }
   }
 
@@ -1308,36 +1613,50 @@ class CalendarPageState extends State<CalendarPage>
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            await _loadSymptomsByDay();
-            setState(() {});
-          },
-          child: ListView.builder(
-            padding: EdgeInsets.all(AppTheme.spacing4),
-            itemCount: petsSnapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final petDoc = petsSnapshot.data!.docs[index];
-              final petData = petDoc.data() as Map<String, dynamic>;
-              final petName = petData['name'] as String? ?? 'Unknown';
+        // Build a map of petId -> petName
+        final petNames = <String, String>{};
+        for (final doc in petsSnapshot.data!.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          petNames[doc.id] = data['name'] as String? ?? 'Unknown';
+        }
 
-              return FutureBuilder<QuerySnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .collection('pets')
-                    .doc(petDoc.id)
-                    .collection('symptoms')
-                    .orderBy('timestamp', descending: true)
-                    .limit(10)
-                    .get(),
-                builder: (context, symptomsSnapshot) {
-                  if (!symptomsSnapshot.hasData) {
-                    return SizedBox.shrink();
-                  }
+        // Fetch all symptoms from all pets
+        return FutureBuilder<List<_SymptomWithPet>>(
+          future: _fetchAllSymptoms(userId, petsSnapshot.data!.docs, petNames),
+          builder: (context, symptomsSnapshot) {
+            if (symptomsSnapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
 
-                  final symptoms = symptomsSnapshot.data!.docs;
-                  if (symptoms.isEmpty) return SizedBox.shrink();
+            final allSymptoms = symptomsSnapshot.data ?? [];
+            if (allSymptoms.isEmpty) {
+              return _buildSimpleEmptyState(context, 'No symptoms');
+            }
+
+            // Group by date
+            final grouped = <String, List<_SymptomWithPet>>{};
+            for (final symptom in allSymptoms) {
+              final key = DateFormat('yyyy-MM-dd').format(symptom.timestamp);
+              grouped.putIfAbsent(key, () => []).add(symptom);
+            }
+
+            final dateKeys = grouped.keys.toList()
+              ..sort((a, b) => b.compareTo(a));
+
+            return RefreshIndicator(
+              onRefresh: () async {
+                await _loadSymptomsByDay();
+                setState(() {});
+              },
+              child: ListView.builder(
+                padding: EdgeInsets.all(AppTheme.spacing4),
+                itemCount: dateKeys.length,
+                itemBuilder: (context, index) {
+                  final key = dateKeys[index];
+                  final group = grouped[key]!;
+                  final headerDate = DateFormat(
+                    'EEE, MMM d',
+                  ).format(group.first.timestamp);
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1352,58 +1671,93 @@ class CalendarPageState extends State<CalendarPage>
                         child: Row(
                           children: [
                             Icon(
-                              Icons.pets,
+                              Icons.calendar_today,
                               size: 18,
-                              color: AppTheme.neutral500,
+                              color: Colors.white.withValues(alpha: 0.9),
                             ),
                             SizedBox(width: AppTheme.spacing2),
                             Text(
-                              petName,
+                              headerDate,
                               style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: AppTheme.neutral500,
+                                    color: Colors.white,
                                   ),
                             ),
                             Spacer(),
                             Text(
-                              '${symptoms.length} symptoms',
+                              '${group.length} ${group.length == 1 ? 'symptom' : 'symptoms'}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: context.secondaryTextColor,
+                                color: Colors.white.withValues(alpha: 0.7),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      ...symptoms.map((symptomDoc) {
-                        final data = symptomDoc.data() as Map<String, dynamic>;
-                        final type = SymptomType.values.firstWhere(
-                          (t) => t.toString().split('.').last == data['type'],
-                          orElse: () => SymptomType.other,
-                        );
-                        final timestamp =
-                            (data['timestamp'] as Timestamp?)?.toDate() ??
-                            DateTime.now();
-                        final note = data['note'] as String?;
-
-                        return _buildSymptomCard(
+                      ...group.map(
+                        (symptom) => _buildSymptomCard(
                           context,
-                          type,
-                          timestamp,
-                          note,
-                        );
-                      }),
-                      SizedBox(height: AppTheme.spacing4),
+                          symptom.type,
+                          symptom.timestamp,
+                          symptom.note,
+                          symptom.petName,
+                        ),
+                      ),
                     ],
                   );
                 },
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       },
     );
+  }
+
+  Future<List<_SymptomWithPet>> _fetchAllSymptoms(
+    String userId,
+    List<QueryDocumentSnapshot> petDocs,
+    Map<String, String> petNames,
+  ) async {
+    final allSymptoms = <_SymptomWithPet>[];
+
+    for (final petDoc in petDocs) {
+      final symptomsSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('pets')
+          .doc(petDoc.id)
+          .collection('symptoms')
+          .orderBy('timestamp', descending: true)
+          .limit(20)
+          .get();
+
+      for (final doc in symptomsSnap.docs) {
+        final data = doc.data();
+        final type = SymptomType.values.firstWhere(
+          (t) => t.toString().split('.').last == data['type'],
+          orElse: () => SymptomType.other,
+        );
+        final timestamp =
+            (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final note = data['note'] as String?;
+
+        allSymptoms.add(
+          _SymptomWithPet(
+            type: type,
+            timestamp: timestamp,
+            note: note,
+            petId: petDoc.id,
+            petName: petNames[petDoc.id] ?? 'Unknown',
+          ),
+        );
+      }
+    }
+
+    // Sort by timestamp descending
+    allSymptoms.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return allSymptoms;
   }
 
   Widget _buildSymptomCard(
@@ -1411,83 +1765,116 @@ class CalendarPageState extends State<CalendarPage>
     SymptomType type,
     DateTime timestamp,
     String? note,
+    String petName,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-      child: GFCard(
-        elevation: 0,
-        color: context.surface,
-        borderOnForeground: true,
-        boxFit: BoxFit.cover,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.radius3),
-          side: BorderSide(color: context.border),
+          boxShadow: AppTheme.cardShadow,
         ),
-        content: Row(
-          children: [
-            Container(
-              width: 4.w,
-              height: 48.h,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.orange : AppTheme.neutral800,
-                borderRadius: BorderRadius.circular(2.r),
+        child: Padding(
+          padding: EdgeInsets.all(AppTheme.spacing3),
+          child: Row(
+            children: [
+              Container(
+                width: 4.w,
+                height: 48.h,
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
               ),
-            ),
-            Gap(AppTheme.spacing3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _symptomLabel(type),
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w500,
-                      color: context.textPrimary,
+              Gap(AppTheme.spacing3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _symptomLabel(type),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.primary,
+                      ),
                     ),
-                  ),
-                  Gap(AppTheme.spacing1),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 12.sp,
-                        color: context.textSecondary,
-                      ),
-                      Gap(AppTheme.spacing1),
-                      Text(
-                        DateFormat('h:mm a').format(timestamp),
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: context.textSecondary,
+                    Gap(AppTheme.spacing1),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12.sp,
+                          color: AppTheme.neutral700,
                         ),
-                      ),
-                      if (note != null && note.isNotEmpty) ...[
-                        Gap(AppTheme.spacing2),
-                        Expanded(
-                          child: Text(
-                            note,
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              color: context.textSecondary,
-                              fontStyle: FontStyle.italic,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Gap(AppTheme.spacing1),
+                        Text(
+                          DateFormat('h:mm a').format(timestamp),
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppTheme.neutral700,
                           ),
                         ),
+                        if (petName.isNotEmpty) ...[
+                          Gap(AppTheme.spacing2),
+                          Icon(
+                            Icons.pets,
+                            size: 12.sp,
+                            color: AppTheme.neutral700,
+                          ),
+                          Gap(AppTheme.spacing1),
+                          Text(
+                            petName,
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: AppTheme.neutral700,
+                            ),
+                          ),
+                        ],
+                        if (note != null && note.isNotEmpty) ...[
+                          Gap(AppTheme.spacing2),
+                          Expanded(
+                            child: Text(
+                              note,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppTheme.neutral700,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+// Helper class to store symptom with pet info
+class _SymptomWithPet {
+  final SymptomType type;
+  final DateTime timestamp;
+  final String? note;
+  final String petId;
+  final String petName;
+
+  _SymptomWithPet({
+    required this.type,
+    required this.timestamp,
+    this.note,
+    required this.petId,
+    required this.petName,
+  });
 }
 
 // Extension methods are already defined in app_theme.dart

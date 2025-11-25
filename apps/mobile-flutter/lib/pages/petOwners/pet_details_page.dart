@@ -17,12 +17,17 @@ class PetDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pet Details'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppTheme.neutral700,
-        elevation: 0,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.backgroundGradient,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Pet Details'),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
         actions: [
           IconButton(
             onPressed: () async {
@@ -140,8 +145,12 @@ class PetDetailsPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Pet Header Card
-                Card(
-                  elevation: 4,
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radius4),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -202,7 +211,12 @@ class PetDetailsPage extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Basic Information Card
-                Card(
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radius4),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -238,7 +252,12 @@ class PetDetailsPage extends StatelessWidget {
                 if (pet['microchip']?.isNotEmpty == true ||
                     pet['veterinarian']?.isNotEmpty == true ||
                     pet['medicalNotes']?.isNotEmpty == true)
-                  Card(
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius4),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -272,7 +291,12 @@ class PetDetailsPage extends StatelessWidget {
 
                 // Emergency Contact Card
                 if (pet['emergencyContact']?.isNotEmpty == true)
-                  Card(
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius4),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -657,6 +681,7 @@ class PetDetailsPage extends StatelessWidget {
             ),
           );
         },
+      ),
       ),
     );
   }

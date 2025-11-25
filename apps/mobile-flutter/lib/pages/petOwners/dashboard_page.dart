@@ -25,8 +25,12 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: context.background,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: AppTheme.backgroundGradient,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
@@ -43,6 +47,7 @@ class _DashboardPageState extends State<DashboardPage> {
               SliverToBoxAdapter(child: _buildTodaySection(context)),
               SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
             ],
+          ),
           ),
         ),
       ),
@@ -64,12 +69,12 @@ class _DashboardPageState extends State<DashboardPage> {
               style: TextStyle(
                 fontSize: 24.sp,
                 fontWeight: FontWeight.w600,
-                color: context.textPrimary,
+                color: Colors.white,
               ),
             ),
           ),
-          GFIconButton(
-            icon: Icon(Icons.person_outline, size: 20.sp),
+          IconButton(
+            icon: Icon(Icons.person_outline, size: 24.sp, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -79,13 +84,9 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               );
             },
-            type: GFButtonType.outline2x,
-            shape: GFIconButtonShape.standard,
-            color: AppTheme.neutral300,
           ),
-          Gap(AppTheme.spacing2),
-          GFIconButton(
-            icon: Icon(Icons.settings_outlined, size: 20.sp),
+          IconButton(
+            icon: Icon(Icons.settings_outlined, size: 24.sp, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
@@ -95,9 +96,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 ),
               );
             },
-            type: GFButtonType.outline2x,
-            shape: GFIconButtonShape.standard,
-            color: AppTheme.neutral300,
           ),
         ],
       ),
@@ -121,7 +119,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 style: TextStyle(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
-                  color: context.textPrimary,
+                  color: Colors.white,
                 ),
               ),
               TextButton(
@@ -138,7 +136,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.neutral700,
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ),
@@ -170,7 +168,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       'No pets yet',
                       style: TextStyle(
                         fontSize: 14.sp,
-                        color: context.textSecondary,
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ),
@@ -227,7 +225,7 @@ class _DashboardPageState extends State<DashboardPage> {
             style: TextStyle(
               fontSize: 16.sp,
               fontWeight: FontWeight.w600,
-              color: context.textPrimary,
+              color: Colors.white,
             ),
           ),
           Gap(AppTheme.spacing3),
@@ -235,23 +233,23 @@ class _DashboardPageState extends State<DashboardPage> {
             Container(
               padding: EdgeInsets.all(AppTheme.spacing4),
               decoration: BoxDecoration(
-                color: context.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radius3),
-                border: Border.all(color: context.border),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radius4),
+                boxShadow: AppTheme.cardShadow,
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.event_note_outlined,
                     size: 20.sp,
-                    color: context.textSecondary,
+                    color: AppTheme.neutral700,
                   ),
                   Gap(AppTheme.spacing2),
                   Text(
                     'No appointments or medications today',
                     style: TextStyle(
                       fontSize: 14.sp,
-                      color: context.textSecondary,
+                      color: AppTheme.neutral700,
                     ),
                   ),
                 ],
@@ -312,9 +310,15 @@ class _PetCard extends StatelessWidget {
         right: isLast ? AppTheme.spacing4 : AppTheme.spacing3,
       ),
       decoration: BoxDecoration(
-        color: context.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radius3),
-        border: Border.all(color: context.border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.max,
@@ -330,15 +334,13 @@ class _PetCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: context.isDark
-                      ? Color(0xFF2F2F2F)
-                      : AppTheme.neutral100,
+                  color: AppTheme.neutral100,
                 ),
                 child: Center(
                   child: Icon(
                     Icons.pets,
                     size: 32.sp,
-                    color: context.textSecondary,
+                    color: AppTheme.neutral700,
                   ),
                 ),
               ),
@@ -363,7 +365,7 @@ class _PetCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
-                      color: context.textPrimary,
+                      color: AppTheme.primary,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -374,7 +376,7 @@ class _PetCard extends StatelessWidget {
                     getAge(),
                     style: TextStyle(
                       fontSize: 11.sp,
-                      color: context.textSecondary,
+                      color: AppTheme.neutral700,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -411,7 +413,7 @@ class _PetCard extends StatelessWidget {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
+                        backgroundColor: AppTheme.primary,
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.zero,
                         minimumSize: Size.zero,
@@ -459,16 +461,21 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GFCard(
-      elevation: 0,
-      color: context.surface,
-      borderOnForeground: true,
-      boxFit: BoxFit.cover,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius3),
-        side: BorderSide(color: context.border),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      content: Row(
+      child: Padding(
+        padding: EdgeInsets.all(AppTheme.spacing3),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
@@ -489,7 +496,7 @@ class _EventCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.w500,
-                    color: context.textPrimary,
+                    color: AppTheme.primary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -500,14 +507,14 @@ class _EventCard extends StatelessWidget {
                     Icon(
                       Icons.access_time,
                       size: 12.sp,
-                      color: context.textSecondary,
+                      color: AppTheme.neutral700,
                     ),
                     Gap(AppTheme.spacing1),
                     Text(
                       DateFormat('h:mm a').format(event.dateTime),
                       style: TextStyle(
                         fontSize: 12.sp,
-                        color: context.textSecondary,
+                        color: AppTheme.neutral700,
                       ),
                     ),
                     if (event is AppointmentEvent &&
@@ -516,7 +523,7 @@ class _EventCard extends StatelessWidget {
                       Icon(
                         Icons.location_on_outlined,
                         size: 12.sp,
-                        color: context.textSecondary,
+                        color: AppTheme.neutral700,
                       ),
                       Gap(AppTheme.spacing1),
                       Expanded(
@@ -524,7 +531,7 @@ class _EventCard extends StatelessWidget {
                           (event as AppointmentEvent).location!,
                           style: TextStyle(
                             fontSize: 12.sp,
-                            color: context.textSecondary,
+                            color: AppTheme.neutral700,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -581,6 +588,7 @@ class _EventCard extends StatelessWidget {
             },
           ),
         ],
+      ),
       ),
     );
   }

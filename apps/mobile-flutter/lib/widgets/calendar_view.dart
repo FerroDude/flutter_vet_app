@@ -18,7 +18,7 @@ class CalendarView extends StatefulWidget {
     required this.events,
     required this.onDaySelected,
     this.selectedDay,
-    this.calendarFormat = CalendarFormat.month,
+    this.calendarFormat = CalendarFormat.twoWeeks,
     required this.onFormatChanged,
   });
 
@@ -29,103 +29,197 @@ class CalendarView extends StatefulWidget {
 class _CalendarViewState extends State<CalendarView> {
   @override
   Widget build(BuildContext context) {
-    return TableCalendar<CalendarEvent>(
-      firstDay: DateTime.utc(2020, 1, 1),
-      lastDay: DateTime.utc(2030, 12, 31),
-      focusedDay: widget.selectedDay ?? DateTime.now(),
-      calendarFormat: widget.calendarFormat,
-      eventLoader: (day) {
-        final dayKey = DateTime(day.year, day.month, day.day);
-        return widget.events[dayKey] ?? [];
-      },
-      selectedDayPredicate: (day) {
-        return isSameDay(widget.selectedDay, day);
-      },
-      onDaySelected: (selectedDay, focusedDay) {
-        final events =
-            widget.events[DateTime(
-              selectedDay.year,
-              selectedDay.month,
-              selectedDay.day,
-            )] ??
-            [];
-        widget.onDaySelected(selectedDay, events);
-      },
-      onFormatChanged: widget.onFormatChanged,
-      calendarStyle: CalendarStyle(
-        outsideDaysVisible: false,
-        selectedDecoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
-          shape: BoxShape.circle,
-        ),
-        todayDecoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withValues(alpha:0.3),
-          shape: BoxShape.circle,
-        ),
-        defaultTextStyle: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppTheme.darkTextPrimary
-              : AppTheme.textPrimary,
-        ),
-        weekendTextStyle: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppTheme.darkTextSecondary
-              : AppTheme.textSecondary,
-        ),
-        holidayTextStyle: TextStyle(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? AppTheme.brandBlueLight
-              : AppTheme.neutral700,
-        ),
-      ),
-      headerStyle: HeaderStyle(
-        formatButtonVisible: true,
-        titleCentered: true,
-        formatButtonShowsNext: false,
-        formatButtonDecoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
-          borderRadius: BorderRadius.circular(12.0),
-        ),
-        formatButtonTextStyle: TextStyle(
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
-      ),
-      calendarBuilders: CalendarBuilders<CalendarEvent>(
-        markerBuilder: (context, day, events) {
-          if (events.isEmpty) return null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Custom format selector above calendar
+        _buildFormatSelector(),
+        TableCalendar<CalendarEvent>(
+          firstDay: DateTime.utc(2020, 1, 1),
+          lastDay: DateTime.utc(2030, 12, 31),
+          focusedDay: widget.selectedDay ?? DateTime.now(),
+          calendarFormat: widget.calendarFormat,
+          eventLoader: (day) {
+            final dayKey = DateTime(day.year, day.month, day.day);
+            return widget.events[dayKey] ?? [];
+          },
+          selectedDayPredicate: (day) {
+            return isSameDay(widget.selectedDay, day);
+          },
+          onDaySelected: (selectedDay, focusedDay) {
+            final events =
+                widget.events[DateTime(
+                  selectedDay.year,
+                  selectedDay.month,
+                  selectedDay.day,
+                )] ??
+                [];
+            widget.onDaySelected(selectedDay, events);
+          },
+          onFormatChanged: widget.onFormatChanged,
+          calendarStyle: CalendarStyle(
+            outsideDaysVisible: false,
+            selectedDecoration: BoxDecoration(
+              color: AppTheme.primary,
+              shape: BoxShape.circle,
+            ),
+            todayDecoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            defaultTextStyle: const TextStyle(
+              color: AppTheme.primary,
+              fontWeight: FontWeight.w500,
+            ),
+            weekendTextStyle: TextStyle(
+              color: AppTheme.primary.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w500,
+            ),
+            selectedTextStyle: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+            todayTextStyle: const TextStyle(
+              color: AppTheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          headerStyle: HeaderStyle(
+            formatButtonVisible: false, // Using custom selector instead
+            titleCentered: true,
+            formatButtonShowsNext: false,
+            titleTextStyle: const TextStyle(
+              color: AppTheme.primary,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            leftChevronIcon: const Icon(
+              Icons.chevron_left,
+              color: AppTheme.primary,
+            ),
+            rightChevronIcon: const Icon(
+              Icons.chevron_right,
+              color: AppTheme.primary,
+            ),
+          ),
+          daysOfWeekStyle: const DaysOfWeekStyle(
+            weekdayStyle: TextStyle(
+              color: AppTheme.neutral700,
+              fontWeight: FontWeight.w600,
+            ),
+            weekendStyle: TextStyle(
+              color: AppTheme.neutral700,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          calendarBuilders: CalendarBuilders<CalendarEvent>(
+            markerBuilder: (context, day, events) {
+              if (events.isEmpty) return null;
 
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          final displayEvents = events.take(3).toList();
-          return Positioned(
-            bottom: 1,
-            child: Wrap(
-              spacing: 2,
-              runSpacing: 2,
-              alignment: WrapAlignment.center,
-              children: displayEvents.map((event) {
-                Color dotColor;
-                if (event is AppointmentEvent) {
-                  dotColor = isDark ? AppTheme.brandBlueLight : AppTheme.neutral700;
-                } else if (event is MedicationEvent) {
-                  dotColor = isDark ? AppTheme.brandTeal : AppTheme.neutral600;
-                } else if (event is NoteEvent) {
-                  dotColor = Colors.orange;
-                } else {
-                  dotColor = Colors.grey;
-                }
+              final displayEvents = events.take(3).toList();
+              return Container(
+                margin: const EdgeInsets.only(top: 28),
+                child: Wrap(
+                  spacing: 2,
+                  runSpacing: 2,
+                  alignment: WrapAlignment.center,
+                  children: displayEvents.map((event) {
+                    Color dotColor;
+                    if (event is AppointmentEvent) {
+                      dotColor = AppTheme.primary;
+                    } else if (event is MedicationEvent) {
+                      dotColor = AppTheme.brandTeal;
+                    } else if (event is NoteEvent) {
+                      dotColor = Colors.orange;
+                    } else {
+                      dotColor = AppTheme.neutral600;
+                    }
 
-                return Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
-                  ),
-                );
-              }).toList(),
+                    return Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: dotColor,
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormatSelector() {
+    final formats = [
+      (CalendarFormat.month, 'Month', Icons.calendar_view_month),
+      (CalendarFormat.twoWeeks, '2 Weeks', Icons.calendar_view_week),
+      (CalendarFormat.week, 'Week', Icons.view_week),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppTheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: formats.map((item) {
+          final (format, label, icon) = item;
+          final isSelected = widget.calendarFormat == format;
+
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => widget.onFormatChanged(format),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: isSelected ? Colors.white : AppTheme.neutral700,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: isSelected ? Colors.white : AppTheme.neutral700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
@@ -846,8 +940,9 @@ class _SeriesEventCardState extends State<_SeriesEventCard> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.neutral600
-                                              .withValues(alpha: 0.15),
+                                          color: AppTheme.neutral600.withValues(
+                                            alpha: 0.15,
+                                          ),
                                           borderRadius: BorderRadius.circular(
                                             8,
                                           ),
@@ -994,9 +1089,9 @@ class _PetBadge extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: color.withValues(alpha:0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withValues(alpha:0.3), width: 1),
+            border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1045,11 +1140,7 @@ class _EmptyEventsView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.event_note_outlined,
-            size: 64,
-            color: AppTheme.neutral500,
-          ),
+          Icon(Icons.event_note_outlined, size: 64, color: AppTheme.neutral500),
           SizedBox(height: 16),
           Text(
             'No events for this day',
