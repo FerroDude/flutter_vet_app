@@ -954,19 +954,14 @@ class UserProvider extends ChangeNotifier {
   }
 
   // Add vet to clinic (admin only)
-  Future<bool> addVetToClinic(
-    String vetUserId,
-  ) async {
+  Future<bool> addVetToClinic(String vetUserId) async {
     if (!canManageVets || _connectedClinic == null) return false;
 
     try {
       _setLoading(true);
 
       // Vets always have full access - no permissions tracking
-      await _clinicService.addVetToClinic(
-        _connectedClinic!.id,
-        vetUserId,
-      );
+      await _clinicService.addVetToClinic(_connectedClinic!.id, vetUserId);
 
       // Reload clinic members
       await _loadConnectedClinic(_connectedClinic!.id);
@@ -1153,6 +1148,7 @@ class UserProvider extends ChangeNotifier {
     // Add your app owner email here
     const appOwnerEmails = [
       'pedroferrodude@hotmail.com',
+      'ines.breia@gmail.com',
       // Add more app owner emails as needed
     ];
 

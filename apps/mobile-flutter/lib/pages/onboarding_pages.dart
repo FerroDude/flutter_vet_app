@@ -21,110 +21,124 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 60),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 60),
 
-              // Welcome header
-              Text(
-                'Welcome to VetPlus!',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                // Welcome header
+                Text(
+                  'Welcome to VetPlus!',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 16),
+
+                Text(
+                  'Let us know how you\'ll be using the app',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 60),
+
+                // Role selection cards - Public registration only for Pet Owners
+                _buildRoleCard(
+                  title: 'Pet Owner',
+                  description:
+                      'I want to manage my pet\'s health and appointments',
+                  icon: Icons.pets,
+                  userType: UserType.petOwner,
                   color: AppTheme.primary,
                 ),
-                textAlign: TextAlign.center,
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 32),
 
-              Text(
-                'Let us know how you\'ll be using the app',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 60),
-
-              // Role selection cards - Public registration only for Pet Owners
-              _buildRoleCard(
-                title: 'Pet Owner',
-                description:
-                    'I want to manage my pet\'s health and appointments',
-                icon: Icons.pets,
-                userType: UserType.petOwner,
-                color: AppTheme.primary,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Info text for other user types
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.grey[600], size: 24),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Veterinarian or Clinic Administrator?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Vet and clinic admin accounts are created by your clinic administrator. Contact your clinic for access.',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Continue button
-              ElevatedButton(
-                onPressed: _isLoading ? null : _continue,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                // Info text for other user types
+                Container(
+                  padding: EdgeInsets.all(AppTheme.spacing3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.white.withValues(alpha: 0.7),
+                        size: 24,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Veterinarian or Clinic Administrator?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
-                      )
-                    : const Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
                       ),
-              ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Vet and clinic admin accounts are created by your clinic administrator. Contact your clinic for access.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
 
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 24),
+
+                // Continue button
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _continue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primary,
+                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primary,
+                          ),
+                        )
+                      : const Text(
+                          'Continue',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -140,59 +154,64 @@ class _ClinicOnboardingPageState extends State<ClinicOnboardingPage> {
   }) {
     final isSelected = _selectedUserType == userType;
 
-    return Card(
-      elevation: isSelected ? 8 : 2,
-      shadowColor: isSelected ? color.withValues(alpha:0.3) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isSelected ? color : Colors.grey[300]!,
-          width: isSelected ? 2 : 1,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+        border: isSelected
+            ? Border.all(color: AppTheme.primary, width: 2)
+            : null,
       ),
-      child: InkWell(
-        onTap: () => setState(() => _selectedUserType = userType),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _selectedUserType = userType),
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 24),
                 ),
-                child: Icon(icon, color: color, size: 24),
-              ),
 
-              const SizedBox(width: 16),
+                SizedBox(width: AppTheme.spacing3),
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? color : null,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.neutral700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              if (isSelected) Icon(Icons.check_circle, color: color, size: 24),
-            ],
+                if (isSelected)
+                  Icon(Icons.check_circle, color: AppTheme.primary, size: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -253,147 +272,240 @@ class _ClinicSelectionPageState extends State<ClinicSelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           'Choose Your Clinic',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppTheme.neutral700,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: Colors.white,
         systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: AppTheme.neutral700,
+          statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
           statusBarBrightness: Brightness.dark, // For iOS
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Search bar
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search for a clinic...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _isSearching
-                    ? UnconstrainedBox(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppTheme.neutral500,
-                          ),
-                        ),
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onChanged: _onSearchChanged,
-            ),
-
-            const SizedBox(height: 24),
-
-            // Section header
-            Text(
-              _searchController.text.isEmpty
-                  ? 'Nearby Clinics'
-                  : 'Search Results',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Clinic list
-            Expanded(
-              child: _searchResults.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _searchController.text.isEmpty
-                                ? 'Loading nearby clinics...'
-                                : 'No clinics found',
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(color: Colors.grey[600]),
-                          ),
-                        ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Search bar
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: AppTheme.primary),
+                    decoration: InputDecoration(
+                      hintText: 'Search for a clinic...',
+                      hintStyle: TextStyle(color: AppTheme.neutral400),
+                      prefixIcon: Icon(Icons.search, color: AppTheme.primary),
+                      suffixIcon: _isSearching
+                          ? UnconstrainedBox(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacing3,
+                        vertical: AppTheme.spacing3,
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) {
-                        final clinic = _searchResults[index];
-                        return _buildClinicCard(clinic);
-                      },
                     ),
-            ),
+                    onChanged: _onSearchChanged,
+                  ),
+                ),
 
-            const SizedBox(height: 16),
+                SizedBox(height: AppTheme.spacing4),
 
-            // Skip button
-            TextButton(
-              onPressed: _skipForNow,
-              child: Text(
-                'Skip for now',
-                style: TextStyle(color: Colors.grey[600], fontSize: 16),
-              ),
+                // Section header
+                Text(
+                  _searchController.text.isEmpty
+                      ? 'Available Clinics'
+                      : 'Search Results',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+
+                SizedBox(height: AppTheme.spacing3),
+
+                // Clinic list
+                Expanded(
+                  child: _searchResults.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _searchController.text.isEmpty
+                                    ? Icons.local_hospital_outlined
+                                    : Icons.search_off,
+                                size: 64,
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchController.text.isEmpty
+                                    ? 'Loading clinics...'
+                                    : 'No clinics found',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                              ),
+                              if (_searchController.text.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) {
+                            final clinic = _searchResults[index];
+                            return _buildClinicCard(clinic);
+                          },
+                        ),
+                ),
+
+                SizedBox(height: AppTheme.spacing3),
+
+                // Skip button
+                OutlinedButton(
+                  onPressed: _skipForNow,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    ),
+                  ),
+                  child: const Text(
+                    'Skip for now',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildClinicCard(Clinic clinic) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha:0.1),
-            borderRadius: BorderRadius.circular(25),
+    return Container(
+      margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _selectClinic(clinic),
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing3),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
+                  ),
+                  child: const Icon(
+                    Icons.local_hospital,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: AppTheme.spacing3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        clinic.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        clinic.address,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.neutral700,
+                        ),
+                      ),
+                      if (clinic.phone.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            clinic.phone,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.neutral500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                _isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.primary,
+                        ),
+                      )
+                    : Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: AppTheme.neutral400,
+                      ),
+              ],
+            ),
           ),
-          child: const Icon(Icons.local_hospital, color: AppTheme.primary),
         ),
-        title: Text(
-          clinic.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(clinic.address),
-            const SizedBox(height: 2),
-            Text(clinic.phone, style: TextStyle(color: Colors.grey[600])),
-          ],
-        ),
-        trailing: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.arrow_forward_ios),
-        onTap: () => _selectClinic(clinic),
       ),
     );
   }
