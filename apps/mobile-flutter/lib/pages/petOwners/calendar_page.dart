@@ -443,84 +443,90 @@ class CalendarPageState extends State<CalendarPage>
     );
     final selectedEvents = merged[selectedDate] ?? [];
 
-    return Column(
-      children: [
-        // Clean Calendar Widget
-        Container(
-          margin: EdgeInsets.all(AppTheme.spacing4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppTheme.radius4),
-            boxShadow: AppTheme.cardShadow,
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Clean Calendar Widget
+          Container(
+            margin: EdgeInsets.all(AppTheme.spacing4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppTheme.radius4),
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: CalendarView(
+              events: merged,
+              onDaySelected: (selectedDay, events) {
+                setState(() => _selectedDay = selectedDay);
+                _onDaySelected(selectedDay, events);
+                _loadSymptomsByDay();
+              },
+              selectedDay: _selectedDay,
+              calendarFormat: _calendarFormat,
+              onFormatChanged: _onFormatChanged,
+            ),
           ),
-          child: CalendarView(
-            events: merged,
-            onDaySelected: (selectedDay, events) {
-              setState(() => _selectedDay = selectedDay);
-              _onDaySelected(selectedDay, events);
-              _loadSymptomsByDay();
-            },
-            selectedDay: _selectedDay,
-            calendarFormat: _calendarFormat,
-            onFormatChanged: _onFormatChanged,
-          ),
-        ),
 
-        // Simple Day Header
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
-          child: Row(
-            children: [
-              Text(
-                DateFormat('EEEE, MMMM d').format(_selectedDay),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          // Simple Day Header
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+            child: Row(
+              children: [
+                Text(
+                  DateFormat('EEEE, MMMM d').format(_selectedDay),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              if (selectedEvents.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${selectedEvents.length}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                const Spacer(),
+                if (selectedEvents.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${selectedEvents.length}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
 
-        SizedBox(height: AppTheme.spacing3),
+          SizedBox(height: AppTheme.spacing3),
 
-        // Events for Selected Day
-        Expanded(
-          child: selectedEvents.isEmpty
-              ? _buildEmptyDayState(context)
-              : ListView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
-                  itemCount: selectedEvents.length,
-                  itemBuilder: (context, index) {
-                    return _buildModernEventCard(
+          // Events for Selected Day
+          if (selectedEvents.isEmpty)
+            _buildEmptyDayState(context)
+          else
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+              child: Column(
+                children: [
+                  for (int index = 0; index < selectedEvents.length; index++)
+                    _buildModernEventCard(
                       context: context,
                       event: selectedEvents[index],
                       delay: index * 50,
-                    );
-                  },
-                ),
-        ),
-      ],
+                    ),
+                ],
+              ),
+            ),
+          
+          // Bottom padding
+          SizedBox(height: AppTheme.spacing6),
+        ],
+      ),
     );
   }
 

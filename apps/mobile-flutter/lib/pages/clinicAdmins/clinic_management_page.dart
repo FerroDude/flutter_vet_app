@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
@@ -117,262 +118,346 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              widget.isCreating ? 'Create Clinic' : 'Clinic Settings',
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
             ),
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.neutral900,
-            actions: [
-              if (!widget.isCreating && !_isEditing)
-                IconButton(
-                  onPressed: () => setState(() => _isEditing = true),
-                  icon: const Icon(Icons.edit),
-                )
-              else if (_isEditing) ...[
-                TextButton(
-                  onPressed: () {
-                    if (widget.isCreating) {
-                      Navigator.pop(context);
-                    } else {
-                      setState(() => _isEditing = false);
-                      _loadClinicData();
-                    }
-                  },
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(color: AppTheme.neutral900),
-                  ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: Text(
+                  widget.isCreating ? 'Create Clinic' : 'Clinic Settings',
                 ),
-                TextButton(
-                  onPressed: _isLoading ? null : _saveClinic,
-                  child: Text(
-                    'Save',
-                    style: TextStyle(color: AppTheme.neutral900),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Basic Information Card
-                        _buildBasicInfoCard(),
-
-                        const SizedBox(height: 16),
-
-                        // Contact Information Card
-                        _buildContactInfoCard(),
-
-                        const SizedBox(height: 16),
-
-                        // Business Hours Card
-                        _buildBusinessHoursCard(),
-
-                        const SizedBox(height: 16),
-
-                        // Additional Information Card
-                        _buildAdditionalInfoCard(),
-
-                        if (widget.isCreating) ...[
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _saveClinic,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.neutral700,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Create Clinic',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 24),
-                      ],
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                actions: [
+                  if (!widget.isCreating && !_isEditing)
+                    IconButton(
+                      onPressed: () => setState(() => _isEditing = true),
+                      icon: const Icon(Icons.edit),
+                    )
+                  else if (_isEditing) ...[
+                    TextButton(
+                      onPressed: () {
+                        if (widget.isCreating) {
+                          Navigator.pop(context);
+                        } else {
+                          setState(() => _isEditing = false);
+                          _loadClinicData();
+                        }
+                      },
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                ),
+                    TextButton(
+                      onPressed: _isLoading ? null : _saveClinic,
+                      child: const Text(
+                        'Save',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              body: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                      ),
+                    )
+                  : Form(
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Basic Information Card
+                            _buildBasicInfoCard(),
+
+                            const SizedBox(height: 16),
+
+                            // Contact Information Card
+                            _buildContactInfoCard(),
+
+                            const SizedBox(height: 16),
+
+                            // Business Hours Card
+                            _buildBusinessHoursCard(),
+
+                            const SizedBox(height: 16),
+
+                            // Additional Information Card
+                            _buildAdditionalInfoCard(),
+
+                            if (widget.isCreating) ...[
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _saveClinic,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: AppTheme.primary,
+                                  ),
+                                  child: _isLoading
+                                      ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppTheme.primary,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Create Clinic',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
+
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+          ),
         );
       },
     );
   }
 
   Widget _buildBasicInfoCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Basic Information',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Basic Information',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
 
-            TextFormField(
-              controller: _nameController,
-              enabled: _isEditing,
-              decoration: const InputDecoration(
-                labelText: 'Clinic Name *',
-                hintText: 'Enter clinic name',
-                prefixIcon: Icon(Icons.local_hospital),
-                border: OutlineInputBorder(),
+          TextFormField(
+            controller: _nameController,
+            enabled: _isEditing,
+            style: TextStyle(color: AppTheme.primary),
+            decoration: InputDecoration(
+              labelText: 'Clinic Name *',
+              hintText: 'Enter clinic name',
+              prefixIcon: Icon(Icons.local_hospital, color: AppTheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Clinic name is required';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _addressController,
-              enabled: _isEditing,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Address *',
-                hintText: 'Enter clinic address',
-                prefixIcon: Icon(Icons.location_on),
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.neutral300),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Address is required';
-                }
-                return null;
-              },
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary),
+              ),
             ),
-          ],
-        ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Clinic name is required';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _addressController,
+            enabled: _isEditing,
+            maxLines: 2,
+            style: TextStyle(color: AppTheme.primary),
+            decoration: InputDecoration(
+              labelText: 'Address *',
+              hintText: 'Enter clinic address',
+              prefixIcon: Icon(Icons.location_on, color: AppTheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.neutral300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary),
+              ),
+              alignLabelWithHint: true,
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Address is required';
+              }
+              return null;
+            },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildContactInfoCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Contact Information',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Contact Information',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
 
-            TextFormField(
-              controller: _phoneController,
-              enabled: _isEditing,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number *',
-                hintText: 'Enter phone number',
-                prefixIcon: Icon(Icons.phone),
-                border: OutlineInputBorder(),
+          TextFormField(
+            controller: _phoneController,
+            enabled: _isEditing,
+            keyboardType: TextInputType.phone,
+            style: TextStyle(color: AppTheme.primary),
+            decoration: InputDecoration(
+              labelText: 'Phone Number *',
+              hintText: 'Enter phone number',
+              prefixIcon: Icon(Icons.phone, color: AppTheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Phone number is required';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _emailController,
-              enabled: _isEditing,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email Address *',
-                hintText: 'Enter email address',
-                prefixIcon: Icon(Icons.email),
-                border: OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.neutral300),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Email address is required';
-                }
-                if (!value.contains('@')) {
-                  return 'Enter a valid email address';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _websiteController,
-              enabled: _isEditing,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
-                labelText: 'Website',
-                hintText: 'Enter website URL (optional)',
-                prefixIcon: Icon(Icons.web),
-                border: OutlineInputBorder(),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary),
               ),
             ),
-          ],
-        ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Phone number is required';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _emailController,
+            enabled: _isEditing,
+            keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: AppTheme.primary),
+            decoration: InputDecoration(
+              labelText: 'Email Address *',
+              hintText: 'Enter email address',
+              prefixIcon: Icon(Icons.email, color: AppTheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.neutral300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Email address is required';
+              }
+              if (!value.contains('@')) {
+                return 'Enter a valid email address';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _websiteController,
+            enabled: _isEditing,
+            keyboardType: TextInputType.url,
+            style: TextStyle(color: AppTheme.primary),
+            decoration: InputDecoration(
+              labelText: 'Website',
+              hintText: 'Enter website URL (optional)',
+              prefixIcon: Icon(Icons.web, color: AppTheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.neutral300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildBusinessHoursCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Business Hours',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Business Hours',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
 
-            ..._openingHours.keys.map((day) => _buildDayHours(day)),
-          ],
-        ),
+          ..._openingHours.keys.map((day) => _buildDayHours(day)),
+        ],
       ),
     );
   }
@@ -388,7 +473,10 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
             width: 80,
             child: Text(
               _capitalizeDayName(day),
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppTheme.primary,
+              ),
             ),
           ),
 
@@ -397,6 +485,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
           if (_isEditing)
             Switch(
               value: isOpen,
+              activeColor: AppTheme.primary,
               onChanged: (value) {
                 setState(() {
                   if (value) {
@@ -424,19 +513,20 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
                     horizontal: 12,
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppTheme.neutral300),
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
                   ),
                   child: Text(
                     _openingHours[day]!.format(context),
                     textAlign: TextAlign.center,
+                    style: TextStyle(color: AppTheme.primary),
                   ),
                 ),
               ),
             ),
 
             const SizedBox(width: 8),
-            const Text('to'),
+            Text('to', style: TextStyle(color: AppTheme.neutral600)),
             const SizedBox(width: 8),
 
             Expanded(
@@ -448,22 +538,23 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
                     horizontal: 12,
                   ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppTheme.neutral300),
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
                   ),
                   child: Text(
                     _closingHours[day]!.format(context),
                     textAlign: TextAlign.center,
+                    style: TextStyle(color: AppTheme.primary),
                   ),
                 ),
               ),
             ),
           ] else
-            const Expanded(
+            Expanded(
               child: Text(
                 'Closed',
                 style: TextStyle(
-                  color: Colors.grey,
+                  color: AppTheme.neutral500,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -474,34 +565,50 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
   }
 
   Widget _buildAdditionalInfoCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Additional Information',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Additional Information',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
 
-            TextFormField(
-              controller: _descriptionController,
-              enabled: _isEditing,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Enter clinic description (optional)',
-                prefixIcon: Icon(Icons.description),
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+          TextFormField(
+            controller: _descriptionController,
+            enabled: _isEditing,
+            maxLines: 4,
+            style: TextStyle(color: AppTheme.primary),
+            decoration: InputDecoration(
+              labelText: 'Description',
+              hintText: 'Enter clinic description (optional)',
+              prefixIcon: Icon(Icons.description, color: AppTheme.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
               ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.neutral300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                borderSide: BorderSide(color: AppTheme.primary),
+              ),
+              alignLabelWithHint: true,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

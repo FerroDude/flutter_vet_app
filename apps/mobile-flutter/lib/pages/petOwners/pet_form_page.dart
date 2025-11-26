@@ -380,7 +380,7 @@ class _PetFormPageState extends State<PetFormPage> {
                             boxShadow: AppTheme.cardShadow,
                           ),
                           child: DropdownButtonFormField<String>(
-                            value: _gender,
+                            initialValue: _gender,
                             decoration: InputDecoration(
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,

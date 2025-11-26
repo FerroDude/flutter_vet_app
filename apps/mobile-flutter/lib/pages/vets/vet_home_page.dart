@@ -32,21 +32,16 @@ class _VetHomePageState extends State<VetHomePage> {
             _selectedIndex = index;
           });
         },
-        selectedItemColor: AppTheme.neutral700,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: AppTheme.primary,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white.withValues(alpha: 0.6),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pets),
-            label: 'Patients',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chats',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.pets), label: 'Patients'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
         ],
       ),
     );

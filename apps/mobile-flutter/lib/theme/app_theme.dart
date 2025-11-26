@@ -55,9 +55,9 @@ class AppTheme {
   static const Color primary = neutral500; // Dark navy blue for primary actions
   static const Color primaryDark = neutral600; // Darker navy for hover states
 
-  static const Color success = neutral500; // Dark navy (unified)
-  static const Color warning = neutral500; // Dark navy (unified)
-  static const Color error = neutral900; // Black for errors
+  static const Color success = Color(0xFF10B981); // Green for success
+  static const Color warning = Color(0xFFF59E0B); // Orange for warnings
+  static const Color error = Color(0xFFEF4444); // Red for errors
 
   static const Color textPrimary = neutral900; // Pure black for main text
   static const Color textSecondary =

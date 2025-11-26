@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/user_provider.dart';
@@ -19,78 +20,126 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
       builder: (context, userProvider, child) {
         // Only app owners can access this stats page
         if (!userProvider.isAppOwner) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Access denied. App owner privileges required.'),
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 64,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Access denied',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'App owner privileges required',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('System Statistics'),
-            backgroundColor: AppTheme.neutral700,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                onPressed: () => _refreshStats(),
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: _refreshStats,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // System Overview
-                  _buildSystemOverviewCard(),
-
-                  const SizedBox(height: 24),
-
-                  // Clinics Statistics
-                  Text(
-                    'Clinic Statistics',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: const Text('System Statistics'),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    onPressed: () => _refreshStats(),
+                    icon: const Icon(Icons.refresh),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  _buildClinicsStatsGrid(),
-
-                  const SizedBox(height: 24),
-
-                  // Users Statistics
-                  Text(
-                    'User Statistics',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildUsersStatsGrid(),
-
-                  const SizedBox(height: 24),
-
-                  // Recent Activity
-                  Text(
-                    'Recent Activity',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildRecentActivity(),
                 ],
+              ),
+              body: RefreshIndicator(
+                onRefresh: _refreshStats,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // System Overview
+                      _buildSystemOverviewCard(),
+
+                      const SizedBox(height: 24),
+
+                      // Clinics Statistics
+                      const Text(
+                        'Clinic Statistics',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _buildClinicsStatsGrid(),
+
+                      const SizedBox(height: 24),
+
+                      // Users Statistics
+                      const Text(
+                        'User Statistics',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _buildUsersStatsGrid(),
+
+                      const SizedBox(height: 24),
+
+                      // Recent Activity
+                      const Text(
+                        'Recent Activity',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _buildRecentActivity(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -100,27 +149,20 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
   }
 
   Widget _buildSystemOverviewCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      elevation: 4,
-      color: isDark ? Colors.grey[900] : Colors.grey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-          width: 1,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.neutral600,
-              AppTheme.neutral600.withValues(alpha: 0.8),
+              AppTheme.primary,
+              AppTheme.primary.withValues(alpha: 0.8),
             ],
           ),
         ),
@@ -176,23 +218,22 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
       stream: FirebaseFirestore.instance.collection('clinics').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          );
         }
 
         if (snapshot.hasError) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          return Card(
-            color: isDark ? Colors.grey[900] : Colors.grey[50],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                width: 1,
-              ),
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppTheme.radius3),
+              boxShadow: AppTheme.cardShadow,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Error loading clinic stats: ${snapshot.error}'),
+            child: Text(
+              'Error loading clinic stats: ${snapshot.error}',
+              style: TextStyle(color: AppTheme.primary),
             ),
           );
         }
@@ -218,25 +259,25 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
               title: 'Total Clinics',
               value: totalClinics.toString(),
               icon: Icons.business,
-              color: AppTheme.neutral700,
+              color: AppTheme.primary,
             ),
             _buildStatCard(
               title: 'Active Clinics',
               value: activeClinics.toString(),
               icon: Icons.check_circle,
-              color: AppTheme.neutral600,
+              color: AppTheme.primary,
             ),
             _buildStatCard(
               title: 'Inactive Clinics',
               value: inactiveClinics.toString(),
               icon: Icons.pause_circle,
-              color: AppTheme.neutral400,
+              color: AppTheme.primary,
             ),
             _buildStatCard(
               title: 'This Month',
               value: '0',
               icon: Icons.trending_up,
-              color: AppTheme.neutral500,
+              color: AppTheme.primary,
             ),
           ],
         );
@@ -249,23 +290,22 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          );
         }
 
         if (snapshot.hasError) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          return Card(
-            color: isDark ? Colors.grey[900] : Colors.grey[50],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                width: 1,
-              ),
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppTheme.radius3),
+              boxShadow: AppTheme.cardShadow,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Error loading user stats: ${snapshot.error}'),
+            child: Text(
+              'Error loading user stats: ${snapshot.error}',
+              style: TextStyle(color: AppTheme.primary),
             ),
           );
         }
@@ -301,25 +341,25 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
               title: 'Total Users',
               value: totalUsers.toString(),
               icon: Icons.people,
-              color: AppTheme.neutral700,
+              color: AppTheme.primary,
             ),
             _buildStatCard(
               title: 'Pet Owners',
               value: petOwners.toString(),
               icon: Icons.pets,
-              color: AppTheme.neutral600,
+              color: AppTheme.primary,
             ),
             _buildStatCard(
               title: 'Veterinarians',
               value: vets.toString(),
               icon: Icons.medical_services,
-              color: AppTheme.neutral400,
+              color: AppTheme.primary,
             ),
             _buildStatCard(
               title: 'Clinic Admins',
               value: clinicAdmins.toString(),
               icon: Icons.admin_panel_settings,
-              color: AppTheme.neutral500,
+              color: AppTheme.primary,
             ),
           ],
         );
@@ -333,147 +373,152 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
     required IconData icon,
     required Color color,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      elevation: 3,
-      color: isDark ? Colors.grey[900] : Colors.grey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-          width: 1,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              overflow: TextOverflow.ellipsis,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppTheme.primary, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                color: isDark ? Colors.grey[300] : Colors.grey[600],
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: AppTheme.neutral600,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildRecentActivity() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      color: isDark ? Colors.grey[900] : Colors.grey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-          width: 1,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Recent System Activity',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recent System Activity',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 16),
+          ),
+          const SizedBox(height: 16),
 
-            // Recent Clinics
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('clinics')
-                  .orderBy('createdAt', descending: true)
-                  .limit(3)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                }
+          // Recent Clinics
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('clinics')
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text(
+                  'Error: ${snapshot.error}',
+                  style: TextStyle(color: AppTheme.error),
+                );
+              }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: CircularProgressIndicator(color: AppTheme.primary),
+                );
+              }
 
-                final recentClinics = snapshot.data?.docs ?? [];
+              final recentClinics = snapshot.data?.docs ?? [];
 
-                if (recentClinics.isEmpty) {
-                  return Center(
-                    child: Column(
-                      children: [
-                        Icon(Icons.timeline, size: 48, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No recent clinic activity',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
+              if (recentClinics.isEmpty) {
+                return Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.timeline,
+                        size: 48,
+                        color: AppTheme.neutral400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No recent clinic activity',
+                        style: TextStyle(
+                          color: AppTheme.neutral600,
+                          fontSize: 14,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
+                children: recentClinics.map((doc) {
+                  final clinicData = doc.data() as Map<String, dynamic>;
+                  final clinic = Clinic.fromJson(clinicData, doc.id);
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppTheme.primary,
+                      child: const Icon(
+                        Icons.business,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    title: Text(
+                      clinic.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'New clinic registered',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.neutral600,
+                      ),
+                    ),
+                    trailing: Text(
+                      _formatDate(clinic.createdAt),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.neutral500,
+                      ),
                     ),
                   );
-                }
-
-                return Column(
-                  children: recentClinics.map((doc) {
-                    final clinicData = doc.data() as Map<String, dynamic>;
-                    final clinic = Clinic.fromJson(clinicData, doc.id);
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppTheme.neutral600,
-                        child: const Icon(
-                          Icons.business,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        clinic.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'New clinic registered',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                      trailing: Text(
-                        _formatDate(clinic.createdAt),
-                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

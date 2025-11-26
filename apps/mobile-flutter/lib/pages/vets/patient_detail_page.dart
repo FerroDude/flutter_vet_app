@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/vet_provider.dart';
 import '../../services/chat_service.dart';
@@ -29,34 +31,40 @@ class PatientDetailPage extends StatelessWidget {
         );
         final pets = vetProvider.petsForOwner(ownerId);
 
-        return Scaffold(
-          backgroundColor: context.background,
-          appBar: AppBar(
-            title: Text(
-              owner.displayName.isEmpty ? owner.email : owner.displayName,
-            ),
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.neutral700,
-            elevation: 0,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.chat_bubble),
-                tooltip: 'Chat with owner',
-                onPressed:
-                    (userProvider.connectedClinic?.id != null &&
-                        userProvider.currentUser != null)
-                    ? () => _startChat(context, userProvider, owner)
-                    : null,
-              ),
-            ],
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
           ),
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildOwnerCard(context, owner),
-              const SizedBox(height: 16),
-              _buildPetsSection(context, pets),
-            ],
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: Text(
+                owner.displayName.isEmpty ? owner.email : owner.displayName,
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble),
+                  tooltip: 'Chat with owner',
+                  onPressed:
+                      (userProvider.connectedClinic?.id != null &&
+                          userProvider.currentUser != null)
+                      ? () => _startChat(context, userProvider, owner)
+                      : null,
+                ),
+              ],
+            ),
+            body: ListView(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              children: [
+                _buildOwnerCard(context, owner),
+                Gap(AppTheme.spacing4),
+                _buildPetsSection(context, pets),
+              ],
+            ),
           ),
         );
       },
@@ -67,108 +75,122 @@ class PatientDetailPage extends StatelessWidget {
     final name =
         owner.displayName.isNotEmpty ? owner.displayName : owner.email;
 
-    return Card(
-      color: context.surface,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: AppTheme.neutral700.withValues(alpha: 0.08),
-              child: Text(
-                (name.isNotEmpty ? name[0] : 'U').toUpperCase(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.neutral700,
-                ),
+      padding: EdgeInsets.all(AppTheme.spacing4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+            child: Text(
+              (name.isNotEmpty ? name[0] : 'U').toUpperCase(),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primary,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+          ),
+          Gap(AppTheme.spacing3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primary,
                   ),
-                  const SizedBox(height: 4),
-                  if (owner.email.isNotEmpty)
-                    Text(
-                      owner.email,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.grey[700]),
+                ),
+                Gap(AppTheme.spacing1),
+                if (owner.email.isNotEmpty)
+                  Text(
+                    owner.email,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: AppTheme.neutral700,
                     ),
-                  if (owner.phone != null && owner.phone!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      owner.phone!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.grey[700]),
-                    ),
-                  ],
-                  if (owner.address != null && owner.address!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      owner.address!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: Colors.grey[700]),
-                    ),
-                  ],
+                  ),
+                if (owner.phone != null && owner.phone!.isNotEmpty) ...[
+                  Gap(2),
+                  Row(
+                    children: [
+                      Icon(Icons.phone_outlined, size: 14.sp, color: AppTheme.neutral700),
+                      Gap(AppTheme.spacing1),
+                      Text(
+                        owner.phone!,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: AppTheme.neutral700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
+                if (owner.address != null && owner.address!.isNotEmpty) ...[
+                  Gap(AppTheme.spacing2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.location_on_outlined, size: 14.sp, color: AppTheme.neutral700),
+                      Gap(AppTheme.spacing1),
+                      Expanded(
+                        child: Text(
+                          owner.address!,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: AppTheme.neutral700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPetsSection(BuildContext context, List<Pet> pets) {
-    return Card(
-      color: context.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radius3),
-        ).borderRadius,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pets',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+      padding: EdgeInsets.all(AppTheme.spacing4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pets',
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 12),
-            if (pets.isEmpty)
-              Text(
-                'No pets found',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: Colors.grey[600]),
-              )
-            else
-              ...pets.map((p) => _buildPetTile(context, p)),
-          ],
-        ),
+          ),
+          Gap(AppTheme.spacing3),
+          if (pets.isEmpty)
+            Text(
+              'No pets found',
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: AppTheme.neutral700,
+              ),
+            )
+          else
+            ...pets.map((p) => _buildPetTile(context, p)),
+        ],
       ),
     );
   }
@@ -197,24 +219,59 @@ class PatientDetailPage extends StatelessWidget {
       }
     }
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-      leading: CircleAvatar(
-        backgroundColor: Colors.grey[200],
-        child: const Icon(Icons.pets, color: Colors.black87),
-      ),
-      title: Text(pet.name),
-      subtitle: details.isNotEmpty ? Text(details.join(' · ')) : null,
-      trailing: (pet.weightKg != null)
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: AppTheme.spacing2),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppTheme.brandTeal.withValues(alpha: 0.1),
+            child: Icon(Icons.pets, color: AppTheme.brandTeal, size: 20.sp),
+          ),
+          Gap(AppTheme.spacing3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pet.name,
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                if (details.isNotEmpty)
+                  Text(
+                    details.join(' · '),
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: AppTheme.neutral700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (pet.weightKg != null)
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.spacing2,
+                vertical: 4,
+              ),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: AppTheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text('${pet.weightKg!.toStringAsFixed(1)} kg'),
-            )
-          : null,
+              child: Text(
+                '${pet.weightKg!.toStringAsFixed(1)} kg',
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

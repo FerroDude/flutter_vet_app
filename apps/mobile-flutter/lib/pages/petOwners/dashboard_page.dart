@@ -447,149 +447,142 @@ class _EventCard extends StatelessWidget {
 
   const _EventCard({required this.event});
 
-  Future<DocumentSnapshot<Map<String, dynamic>>?> _loadPetDocument() async {
+  Future<String> _loadPetName() async {
     final petId = event.petId;
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (petId == null || userId == null) return null;
-    return FirebaseFirestore.instance
+    if (petId == null || userId == null) return '';
+    
+    final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(userId)
         .collection('pets')
         .doc(petId)
         .get();
+    
+    if (doc.exists && doc.data() != null) {
+      return doc.data()!['name'] as String? ?? '';
+    }
+    return '';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radius4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+    // Determine color based on event type
+    Color color;
+    String? subtitle;
+
+    if (event is AppointmentEvent) {
+      color = AppTheme.brandBlueLight;
+      subtitle = (event as AppointmentEvent).location;
+    } else if (event is MedicationEvent) {
+      color = AppTheme.brandTeal;
+      subtitle = (event as MedicationEvent).dosage;
+    } else {
+      color = Colors.orange;
+    }
+
+    return FutureBuilder<String>(
+      future: _loadPetName(),
+      builder: (context, snapshot) {
+        final petName = snapshot.data ?? '';
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius3),
+            boxShadow: AppTheme.cardShadow,
           ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(AppTheme.spacing3),
-        child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 4.w,
-            height: 48.h,
-            decoration: BoxDecoration(
-              color: AppTheme.neutral800,
-              borderRadius: BorderRadius.circular(2.r),
-            ),
-          ),
-          Gap(AppTheme.spacing3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing3),
+            child: Row(
               children: [
-                Text(
-                  event.title,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.primary,
+                Container(
+                  width: 4.w,
+                  height: 48.h,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2.r),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                Gap(AppTheme.spacing1),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 12.sp,
-                      color: AppTheme.neutral700,
-                    ),
-                    Gap(AppTheme.spacing1),
-                    Text(
-                      DateFormat('h:mm a').format(event.dateTime),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppTheme.neutral700,
-                      ),
-                    ),
-                    if (event is AppointmentEvent &&
-                        (event as AppointmentEvent).location != null) ...[
-                      Gap(AppTheme.spacing2),
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 12.sp,
-                        color: AppTheme.neutral700,
+                Gap(AppTheme.spacing3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Gap(AppTheme.spacing1),
-                      Expanded(
-                        child: Text(
-                          (event as AppointmentEvent).location!,
-                          style: TextStyle(
-                            fontSize: 12.sp,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 12.sp,
                             color: AppTheme.neutral700,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          Gap(AppTheme.spacing1),
+                          Text(
+                            DateFormat('h:mm a').format(event.dateTime),
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              color: AppTheme.neutral700,
+                            ),
+                          ),
+                          if (petName.isNotEmpty) ...[
+                            Gap(AppTheme.spacing2),
+                            Icon(
+                              Icons.pets,
+                              size: 12.sp,
+                              color: AppTheme.neutral700,
+                            ),
+                            Gap(AppTheme.spacing1),
+                            Text(
+                              petName,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: AppTheme.neutral700,
+                              ),
+                            ),
+                          ],
+                          if (subtitle != null && subtitle.isNotEmpty) ...[
+                            Gap(AppTheme.spacing2),
+                            Icon(
+                              event is AppointmentEvent
+                                  ? Icons.location_on_outlined
+                                  : Icons.info_outline,
+                              size: 12.sp,
+                              color: AppTheme.neutral700,
+                            ),
+                            Gap(AppTheme.spacing1),
+                            Expanded(
+                              child: Text(
+                                subtitle,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: AppTheme.neutral700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
-          SizedBox(width: AppTheme.spacing2),
-          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>?>(
-            future: _loadPetDocument(),
-            builder: (context, snapshot) {
-              String label = 'Unknown pet';
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                label = 'Loading...';
-              } else if (snapshot.hasData && snapshot.data != null) {
-                final data = snapshot.data!.data();
-                if (data != null && data['name'] is String) {
-                  label = data['name'] as String;
-                }
-              }
-
-              return SizedBox(
-                height: 48.h,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    constraints: BoxConstraints(maxWidth: 120.w),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacing2,
-                      vertical: 4.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.neutral800,
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      ),
+        );
+      },
     );
   }
 }

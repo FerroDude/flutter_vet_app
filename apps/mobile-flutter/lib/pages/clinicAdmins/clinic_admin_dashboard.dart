@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
@@ -32,70 +33,112 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
       builder: (context, userProvider, child) {
         // Only clinic admins can access this dashboard
         if (!userProvider.isClinicAdmin) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Access denied. Clinic admin privileges required.'),
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 64,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Access denied',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Clinic admin privileges required',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Clinic Admin Dashboard'),
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.neutral900,
-            actions: [
-              IconButton(
-                tooltip: 'Settings',
-                icon: const Icon(Icons.settings),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SettingsPage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                tooltip: 'Profile',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProfilePage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                icon: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppTheme.neutral200,
-                  child: Text(
-                    _getUserInitial(userProvider),
-                    style: TextStyle(
-                      color: AppTheme.neutral900,
-                      fontWeight: FontWeight.bold,
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: const Text('Clinic Admin Dashboard'),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    tooltip: 'Settings',
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SettingsPage(injectedUserProvider: userProvider),
+                        ),
+                      );
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'Profile',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ProfilePage(injectedUserProvider: userProvider),
+                        ),
+                      );
+                    },
+                    icon: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      child: Text(
+                        _getUserInitial(userProvider),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              await userProvider.refresh();
-            },
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildClinicOverviewCard(userProvider),
-                  const SizedBox(height: 24),
-                  _buildQuickActionsSection(context, userProvider),
                 ],
+              ),
+              body: RefreshIndicator(
+                onRefresh: () async {
+                  await userProvider.refresh();
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildClinicOverviewCard(userProvider),
+                      const SizedBox(height: 24),
+                      _buildQuickActionsSection(context, userProvider),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -111,73 +154,100 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
 
     if (connectedClinic == null) {
       if (hasClinicConnection) {
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: const [
-                SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius3),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.primary,
                 ),
-                SizedBox(width: 12),
-                Text('Loading clinic info...'),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Loading clinic info...',
+                style: TextStyle(color: AppTheme.primary),
+              ),
+            ],
           ),
         );
       }
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'No Clinic Connected',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No Clinic Connected',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primary,
               ),
-              const SizedBox(height: 8),
-              const Text('Please contact support to connect your clinic.'),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please contact support to connect your clinic.',
+              style: TextStyle(color: AppTheme.neutral700),
+            ),
+          ],
         ),
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.business, color: AppTheme.neutral700, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    connectedClinic.name,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radius2),
+                ),
+                child: Icon(Icons.business, color: AppTheme.primary, size: 28),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  connectedClinic.name,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildClinicStatRow('Address', connectedClinic.address),
-            _buildClinicStatRow('Phone', connectedClinic.phone),
-            _buildClinicStatRow('Email', connectedClinic.email),
-            _buildClinicStatRow(
-              'Created',
-              _formatDate(connectedClinic.createdAt),
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildClinicStatRow('Address', connectedClinic.address),
+          _buildClinicStatRow('Phone', connectedClinic.phone),
+          _buildClinicStatRow('Email', connectedClinic.email),
+          _buildClinicStatRow(
+            'Created',
+            _formatDate(connectedClinic.createdAt),
+          ),
+        ],
       ),
     );
   }
@@ -194,14 +264,17 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
               '$label:',
               style: TextStyle(
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: AppTheme.neutral600,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w400),
+              style: TextStyle(
+                fontWeight: FontWeight.w400,
+                color: AppTheme.neutral700,
+              ),
             ),
           ),
         ],
@@ -216,11 +289,13 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Quick Actions',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 16),
         _buildQuickActions(context, userProvider),
@@ -251,7 +326,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.people,
         title: 'Manage Vets',
         subtitle: 'Invite and manage vets',
-        color: AppTheme.neutral600,
+        color: AppTheme.primary,
         onTap: () {
           Navigator.push(
             context,
@@ -268,7 +343,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.analytics,
         title: 'Clinic Reports',
         subtitle: 'Track analytics',
-        color: AppTheme.neutral400,
+        color: AppTheme.primary,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Clinic reports coming soon')),
@@ -279,7 +354,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.people_outline,
         title: 'Pet Owners',
         subtitle: 'Connected owners',
-        color: AppTheme.neutral500,
+        color: AppTheme.primary,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Pet owner management coming soon')),
@@ -290,7 +365,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         icon: Icons.settings,
         title: 'Clinic Settings',
         subtitle: 'Clinic details',
-        color: AppTheme.neutral700,
+        color: AppTheme.primary,
         onTap: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Clinic settings coming soon')),
@@ -307,50 +382,61 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, size: 32, color: color),
-              ),
-              const SizedBox(height: 10),
-              Flexible(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(icon, size: 32, color: AppTheme.primary),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Flexible(
-                child: Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 10),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppTheme.primary,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Flexible(
+                  child: Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.neutral600,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

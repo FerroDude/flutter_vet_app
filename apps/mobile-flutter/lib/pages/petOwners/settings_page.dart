@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
+import '../../services/clinic_service.dart';
+import '../../models/clinic_models.dart';
 import 'profile_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -41,37 +43,19 @@ class SettingsPage extends StatelessWidget {
 
                 Gap(AppTheme.spacing3),
 
-                _buildSection(context, 'Account', [
-                  _buildTile(
-                    context,
-                    icon: Icons.person_outline,
-                    title: 'Edit Profile',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ProfilePage(injectedUserProvider: userProvider),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.pets_outlined,
-                    title: 'My Pets',
-                    subtitle: 'Manage your pets',
-                    onTap: () {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.local_hospital_outlined,
-                    title: 'Connected Clinic',
-                    subtitle:
-                        userProvider.connectedClinic?.name ?? 'Not connected',
-                    onTap: () {},
-                  ),
-                ]),
+                // Only show clinic section for non-app owners
+                // App owners are never connected to clinics
+                if (!userProvider.isAppOwner)
+                  _buildSection(context, 'Account', [
+                    _buildTile(
+                      context,
+                      icon: Icons.local_hospital_outlined,
+                      title: 'Connected Clinic',
+                      subtitle:
+                          userProvider.connectedClinic?.name ?? 'Not connected',
+                      onTap: () => _showClinicDetails(context, userProvider),
+                    ),
+                  ]),
 
                 _buildSection(context, 'Preferences', [
                   _buildSwitchTile(
@@ -136,7 +120,7 @@ class SettingsPage extends StatelessWidget {
 
                 Padding(
                   padding: EdgeInsets.all(AppTheme.spacing4),
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: () async {
                       final shouldSignOut = await showDialog<bool>(
                         context: context,
@@ -170,11 +154,17 @@ class SettingsPage extends StatelessWidget {
                         }
                       }
                     },
-                    style: OutlinedButton.styleFrom(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
                       foregroundColor: AppTheme.error,
-                      side: BorderSide(color: AppTheme.error),
+                      elevation: 2,
+                      shadowColor: Colors.black.withValues(alpha: 0.1),
                       padding: EdgeInsets.symmetric(
                         vertical: AppTheme.spacing3,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radius2),
+                        side: BorderSide(color: AppTheme.error, width: 1.5),
                       ),
                     ),
                     child: Text(
@@ -208,55 +198,374 @@ class SettingsPage extends StatelessWidget {
         rawName.isNotEmpty ? rawName : (email.isNotEmpty ? email : 'User');
     final initialSource = displayName.isNotEmpty ? displayName : 'U';
 
-    return Container(
-      padding: EdgeInsets.all(AppTheme.spacing4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radius4),
-        boxShadow: AppTheme.cardShadow,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ProfilePage(injectedUserProvider: userProvider),
+          ),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(AppTheme.spacing4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radius4),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        margin: EdgeInsets.all(AppTheme.spacing4),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 32.r,
+              backgroundColor: AppTheme.neutral800.withValues(alpha:0.1),
+              child: Text(
+                initialSource[0].toUpperCase(),
+                style: TextStyle(
+                  color: AppTheme.neutral800,
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Gap(AppTheme.spacing3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing1),
+                  Text(
+                    email,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: AppTheme.neutral700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppTheme.neutral700, size: 20.sp),
+          ],
+        ),
       ),
-      margin: EdgeInsets.all(AppTheme.spacing4),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 32.r,
-            backgroundColor: AppTheme.neutral800.withValues(alpha:0.1),
-            child: Text(
-              initialSource[0].toUpperCase(),
-              style: TextStyle(
-                color: AppTheme.neutral800,
-                fontSize: 24.sp,
-                fontWeight: FontWeight.w600,
+    );
+  }
+
+  void _showClinicDetails(BuildContext context, UserProvider userProvider) {
+    final clinic = userProvider.connectedClinic;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacing4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: EdgeInsets.only(bottom: AppTheme.spacing4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  // Title
+                  Text(
+                    'Connected Clinic',
+                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacing4),
+                  
+                  if (clinic != null) ...[
+                    // Clinic details card
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(AppTheme.spacing4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radius3),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(AppTheme.spacing3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(AppTheme.radius2),
+                                ),
+                                child: Icon(
+                                  Icons.local_hospital,
+                                  color: AppTheme.primary,
+                                  size: 28.sp,
+                                ),
+                              ),
+                              Gap(AppTheme.spacing3),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      clinic.name,
+                                      style: TextStyle(
+                                        fontSize: 18.sp,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.primary,
+                                      ),
+                                    ),
+                                    Gap(4),
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.success.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Connected',
+                                        style: TextStyle(
+                                          fontSize: 12.sp,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppTheme.success,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (clinic.address.isNotEmpty) ...[
+                            Gap(AppTheme.spacing3),
+                            Divider(color: AppTheme.neutral200),
+                            Gap(AppTheme.spacing2),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined, 
+                                  size: 18.sp, 
+                                  color: AppTheme.neutral700,
+                                ),
+                                Gap(AppTheme.spacing2),
+                                Expanded(
+                                  child: Text(
+                                    clinic.address,
+                                    style: TextStyle(
+                                      fontSize: 14.sp,
+                                      color: AppTheme.neutral700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (clinic.phone.isNotEmpty) ...[
+                            Gap(AppTheme.spacing2),
+                            Row(
+                              children: [
+                                Icon(Icons.phone_outlined, 
+                                  size: 18.sp, 
+                                  color: AppTheme.neutral700,
+                                ),
+                                Gap(AppTheme.spacing2),
+                                Text(
+                                  clinic.phone,
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    color: AppTheme.neutral700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (clinic.email.isNotEmpty) ...[
+                            Gap(AppTheme.spacing2),
+                            Row(
+                              children: [
+                                Icon(Icons.email_outlined, 
+                                  size: 18.sp, 
+                                  color: AppTheme.neutral700,
+                                ),
+                                Gap(AppTheme.spacing2),
+                                Text(
+                                  clinic.email,
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    color: AppTheme.neutral700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: AppTheme.spacing4),
+                    // Change clinic button - only show for pet owners
+                    // Vets and clinic admins are bound to their clinic
+                    if (!userProvider.isVet && !userProvider.isClinicAdmin)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            _showChangeClinicDialog(context, userProvider);
+                          },
+                          icon: Icon(Icons.swap_horiz),
+                          label: Text('Connect to Different Clinic'),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ] else ...[
+                    // No clinic connected - only show connect option for pet owners
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(AppTheme.spacing4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radius3),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.local_hospital_outlined,
+                            size: 48.sp,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                          Gap(AppTheme.spacing3),
+                          Text(
+                            'No clinic connected',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Gap(AppTheme.spacing2),
+                          Text(
+                            userProvider.isVet 
+                              ? 'Please contact your clinic administrator'
+                              : 'Connect to a veterinary clinic to access their services',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: AppTheme.spacing4),
+                    // Connect button - only show for pet owners
+                    if (!userProvider.isVet)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            _showChangeClinicDialog(context, userProvider);
+                          },
+                          icon: Icon(Icons.add),
+                          label: Text('Connect to Clinic'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.primary,
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                  SizedBox(height: AppTheme.spacing4),
+                ],
               ),
             ),
           ),
-          Gap(AppTheme.spacing3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
+        );
+      },
+    );
+  }
+
+  void _showChangeClinicDialog(BuildContext context, UserProvider userProvider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return _ClinicSearchSheet(
+          userProvider: userProvider,
+          onClinicSelected: (clinic) async {
+            Navigator.pop(sheetContext);
+            
+            // Show loading
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Connecting to ${clinic.name}...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+            
+            // Try to connect
+            final success = await userProvider.connectToClinic(clinic.id);
+            
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success 
+                      ? 'Successfully connected to ${clinic.name}!' 
+                      : 'Failed to connect. Please try again.',
                   ),
+                  backgroundColor: success ? AppTheme.success : AppTheme.error,
                 ),
-                Gap(AppTheme.spacing1),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: AppTheme.neutral700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right, color: AppTheme.neutral700, size: 20.sp),
-        ],
-      ),
+              );
+            }
+          },
+        );
+      },
     );
   }
 
@@ -420,6 +729,278 @@ class SettingsPage extends StatelessWidget {
             activeThumbColor: AppTheme.neutral800,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ClinicSearchSheet extends StatefulWidget {
+  final UserProvider userProvider;
+  final Function(Clinic) onClinicSelected;
+
+  const _ClinicSearchSheet({
+    required this.userProvider,
+    required this.onClinicSelected,
+  });
+
+  @override
+  State<_ClinicSearchSheet> createState() => _ClinicSearchSheetState();
+}
+
+class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
+  final _searchController = TextEditingController();
+  final _clinicService = ClinicService();
+  List<Clinic> _clinics = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadClinics();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadClinics([String? query]) async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final clinics = await _clinicService.searchClinics(
+        nameQuery: query,
+        limit: 50,
+      );
+      
+      // Filter out the currently connected clinic
+      final currentClinicId = widget.userProvider.connectedClinic?.id;
+      final filteredClinics = clinics.where((c) => c.id != currentClinicId).toList();
+      
+      setState(() {
+        _clinics = filteredClinics;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load clinics';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        gradient: AppTheme.backgroundGradient,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: EdgeInsets.only(top: AppTheme.spacing4, bottom: AppTheme.spacing3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          
+          // Title and search
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select a Clinic',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: AppTheme.spacing2),
+                Text(
+                  'Search and select a veterinary clinic to connect with',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+                SizedBox(height: AppTheme.spacing4),
+                
+                // Search field
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: AppTheme.primary, fontSize: 16),
+                    onChanged: (value) {
+                      _loadClinics(value.isEmpty ? null : value);
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search clinics...',
+                      hintStyle: TextStyle(
+                        color: AppTheme.neutral700.withValues(alpha: 0.5),
+                      ),
+                      prefixIcon: Icon(Icons.search, color: AppTheme.primary),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(AppTheme.spacing3),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          SizedBox(height: AppTheme.spacing4),
+          
+          // Clinic list
+          Expanded(
+            child: _buildClinicList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClinicList() {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48.sp, color: Colors.white.withValues(alpha: 0.5)),
+            Gap(AppTheme.spacing3),
+            Text(
+              _error!,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+            ),
+            Gap(AppTheme.spacing3),
+            TextButton(
+              onPressed: () => _loadClinics(_searchController.text.isEmpty ? null : _searchController.text),
+              child: Text('Try Again', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_clinics.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.local_hospital_outlined, size: 48.sp, color: Colors.white.withValues(alpha: 0.5)),
+            Gap(AppTheme.spacing3),
+            Text(
+              _searchController.text.isEmpty
+                  ? 'No clinics available'
+                  : 'No clinics found',
+              style: TextStyle(
+                fontSize: 16.sp,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+      itemCount: _clinics.length,
+      itemBuilder: (context, index) {
+        final clinic = _clinics[index];
+        return _buildClinicTile(clinic);
+      },
+    );
+  }
+
+  Widget _buildClinicTile(Clinic clinic) {
+    return GestureDetector(
+      onTap: () => widget.onClinicSelected(clinic),
+      child: Container(
+        margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+        padding: EdgeInsets.all(AppTheme.spacing4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacing2),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+              ),
+              child: Icon(
+                Icons.local_hospital,
+                color: AppTheme.primary,
+                size: 24.sp,
+              ),
+            ),
+            Gap(AppTheme.spacing3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    clinic.name,
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                  if (clinic.address.isNotEmpty) ...[
+                    Gap(4),
+                    Text(
+                      clinic.address,
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        color: AppTheme.neutral700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: AppTheme.neutral700,
+              size: 20.sp,
+            ),
+          ],
+        ),
       ),
     );
   }

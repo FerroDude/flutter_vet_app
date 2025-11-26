@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
-import 'package:getwidget/getwidget.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/chat_models.dart';
@@ -84,46 +83,56 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 : 'Clinic')
             : currentChatRoom.petOwnerName;
 
-        return Scaffold(
-          backgroundColor: context.background,
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  titleText,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (currentChatRoom.topic != null)
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+          ),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    currentChatRoom.topic!,
+                    titleText,
                     style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
+                  if (currentChatRoom.topic != null)
+                    Text(
+                      currentChatRoom.topic!,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            body: Column(
+              children: [
+                Expanded(
+                  child: _buildMessagesList(
+                    chatProvider,
+                    isPendingAndPetOwner: isPendingAndPetOwner,
+                  ),
+                ),
+                if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
+                  _buildTypingIndicator(),
+                if (isPendingAndPetOwner)
+                  _buildPendingNotice()
+                else
+                  _buildMessageInput(chatProvider),
               ],
             ),
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: _buildMessagesList(
-                  chatProvider,
-                  isPendingAndPetOwner: isPendingAndPetOwner,
-                ),
-              ),
-              if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
-                _buildTypingIndicator(),
-              if (isPendingAndPetOwner)
-                _buildPendingNotice()
-              else
-                _buildMessageInput(chatProvider),
-            ],
           ),
         );
       },
@@ -145,14 +154,17 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             Icon(
               Icons.chat_bubble_outline,
               size: 64.sp,
-              color: context.textSecondary,
+              color: Colors.white.withValues(alpha: 0.5),
             ),
             Gap(AppTheme.spacing2),
             Text(
               isPendingAndPetOwner
                   ? 'Waiting for a vet to open the chat'
                   : 'No messages yet',
-              style: TextStyle(fontSize: 14.sp, color: context.textSecondary),
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),
@@ -184,9 +196,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   vertical: AppTheme.spacing2,
                 ),
                 decoration: BoxDecoration(
-                  color: isMe ? AppTheme.primary : context.surface,
+                  color: isMe ? AppTheme.primary : Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radius3),
-                  border: isMe ? null : Border.all(color: context.border),
+                  boxShadow: isMe ? null : AppTheme.cardShadow,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,7 +207,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       message.content,
                       style: TextStyle(
                         fontSize: 14.sp,
-                        color: isMe ? Colors.white : context.textPrimary,
+                        color: isMe ? Colors.white : AppTheme.primary,
                       ),
                     ),
                     Gap(AppTheme.spacing1),
@@ -205,7 +217,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         fontSize: 11.sp,
                         color: isMe
                             ? Colors.white.withValues(alpha: 0.7)
-                            : context.textSecondary,
+                            : AppTheme.neutral700,
                       ),
                     ),
                   ],
@@ -232,9 +244,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               vertical: AppTheme.spacing2,
             ),
             decoration: BoxDecoration(
-              color: context.surface,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(AppTheme.radius3),
-              border: Border.all(color: context.border),
+              boxShadow: AppTheme.cardShadow,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -255,17 +267,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Widget _buildPendingNotice() {
     return Container(
       width: double.infinity,
+      margin: EdgeInsets.all(AppTheme.spacing3),
       padding: EdgeInsets.all(AppTheme.spacing3),
       decoration: BoxDecoration(
-        color: context.surface,
-        border: Border(top: BorderSide(color: context.border)),
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Icon(
             Icons.info_outline,
             size: 20.sp,
-            color: context.textSecondary,
+            color: Colors.white.withValues(alpha: 0.7),
           ),
           Gap(AppTheme.spacing2),
           Expanded(
@@ -273,7 +287,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               'Waiting for a vet to open the chat. You can start messaging once your request is accepted.',
               style: TextStyle(
                 fontSize: 13.sp,
-                color: context.textSecondary,
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ),
@@ -287,44 +301,44 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   ) {
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing3),
-      decoration: BoxDecoration(
-        color: context.surface,
-        border: Border(top: BorderSide(color: context.border)),
-      ),
       child: Row(
         children: [
           Expanded(
-            child: GFTextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius3),
-                  borderSide: BorderSide(color: context.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius3),
-                  borderSide: BorderSide(color: context.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius3),
-                  borderSide: BorderSide(color: AppTheme.primary),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacing3,
-                  vertical: AppTheme.spacing2,
-                ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radius3),
+                boxShadow: AppTheme.cardShadow,
               ),
-              maxLines: null,
+              child: TextField(
+                controller: _messageController,
+                style: TextStyle(color: AppTheme.primary, fontSize: 14.sp),
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  hintStyle: TextStyle(
+                    color: AppTheme.neutral700.withValues(alpha: 0.5),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacing3,
+                    vertical: AppTheme.spacing3,
+                  ),
+                ),
+                maxLines: null,
+              ),
             ),
           ),
           Gap(AppTheme.spacing2),
-          GFIconButton(
-            icon: Icon(Icons.send, color: Colors.white),
-            color: AppTheme.primary,
-            type: GFButtonType.solid,
-            shape: GFIconButtonShape.circle,
-            onPressed: () => _sendMessage(chatProvider),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: AppTheme.cardShadow,
+            ),
+            child: IconButton(
+              icon: Icon(Icons.send, color: AppTheme.primary),
+              onPressed: () => _sendMessage(chatProvider),
+            ),
           ),
         ],
       ),
@@ -436,7 +450,7 @@ class _TypingDotState extends State<_TypingDot>
         width: 6.w,
         height: 6.w,
         decoration: BoxDecoration(
-          color: context.textSecondary,
+          color: AppTheme.neutral700,
           shape: BoxShape.circle,
         ),
       ),

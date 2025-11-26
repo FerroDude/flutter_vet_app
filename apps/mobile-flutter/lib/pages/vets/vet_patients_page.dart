@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
 import '../../providers/vet_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
@@ -41,49 +43,58 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
     return Consumer2<VetProvider, UserProvider>(
       builder: (context, vetProvider, userProvider, child) {
         final clinic = userProvider.connectedClinic;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Patients'),
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.neutral700,
-            elevation: 0,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: 'Settings',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SettingsPage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.person_outline),
-                tooltip: 'Profile',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProfilePage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-              ),
-            ],
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
           ),
-          body: clinic == null
-              ? _buildNoClinic()
-              : Column(
-                  children: [
-                    _buildSearchBar(vetProvider),
-                    Expanded(child: _buildPatientsList(vetProvider)),
-                  ],
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: Text(
+                'Patients',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  tooltip: 'Settings',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SettingsPage(injectedUserProvider: userProvider),
+                      ),
+                    );
+                  },
                 ),
+                IconButton(
+                  icon: const Icon(Icons.person_outline),
+                  tooltip: 'Profile',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfilePage(injectedUserProvider: userProvider),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            body: clinic == null
+                ? _buildNoClinic()
+                : Column(
+                    children: [
+                      _buildSearchBar(vetProvider),
+                      Expanded(child: _buildPatientsList(vetProvider)),
+                    ],
+                  ),
+          ),
         );
       },
     );
@@ -96,22 +107,25 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
         children: [
           Icon(
             Icons.local_hospital_outlined,
-            size: 64,
-            color: Colors.grey[400],
+            size: 64.sp,
+            color: Colors.white.withValues(alpha: 0.5),
           ),
-          const SizedBox(height: 16),
+          Gap(AppTheme.spacing4),
           Text(
             'No clinic linked',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 18.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(height: 8),
+          Gap(AppTheme.spacing2),
           Text(
             'Vets must be linked to a clinic to view patients.',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -120,32 +134,50 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
 
   Widget _buildSearchBar(VetProvider vetProvider) {
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search by name…',
-          prefixIcon: const Icon(Icons.search),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      padding: EdgeInsets.all(AppTheme.spacing4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          boxShadow: AppTheme.cardShadow,
         ),
-        onChanged: vetProvider.updateSearchText,
+        child: TextField(
+          controller: _searchController,
+          style: TextStyle(color: AppTheme.primary, fontSize: 14.sp),
+          decoration: InputDecoration(
+            hintText: 'Search by name…',
+            hintStyle: TextStyle(color: AppTheme.neutral700.withValues(alpha: 0.5)),
+            prefixIcon: Icon(Icons.search, color: AppTheme.primary),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacing3,
+              vertical: AppTheme.spacing3,
+            ),
+          ),
+          onChanged: vetProvider.updateSearchText,
+        ),
       ),
     );
   }
 
   Widget _buildPatientsList(VetProvider vetProvider) {
     if (vetProvider.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      );
     }
     if (vetProvider.error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppTheme.spacing4),
           child: Text(
             vetProvider.error!,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.red),
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: AppTheme.error,
+            ),
           ),
         ),
       );
@@ -156,53 +188,98 @@ class _VetPatientsPageState extends State<VetPatientsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.pets, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
+            Icon(
+              Icons.pets,
+              size: 64.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+            Gap(AppTheme.spacing4),
             Text(
               'No patients yet',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 16.sp,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
       itemCount: patients.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => Gap(AppTheme.spacing2),
       itemBuilder: (context, index) {
         final owner = patients[index];
         final pets = vetProvider.petsForOwner(owner.id);
 
-        return Card(
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius3),
+            boxShadow: AppTheme.cardShadow,
+          ),
           child: ListTile(
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacing4,
+              vertical: AppTheme.spacing2,
+            ),
             leading: CircleAvatar(
-              backgroundColor: AppTheme.neutral700.withValues(alpha: 0.1),
-              child: const Icon(Icons.person, color: Colors.black87),
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+              child: Text(
+                (owner.displayName.isNotEmpty
+                        ? owner.displayName[0]
+                        : owner.email[0])
+                    .toUpperCase(),
+                style: TextStyle(
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             title: Text(
               owner.displayName.isEmpty ? owner.email : owner.displayName,
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.primary,
+              ),
             ),
-            subtitle: Text(owner.email),
+            subtitle: Text(
+              owner.email,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.neutral700,
+              ),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (pets.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacing2,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: AppTheme.brandTeal.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('${pets.length} pets'),
+                    child: Text(
+                      '${pets.length} pets',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppTheme.brandTeal,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right),
+                Gap(AppTheme.spacing2),
+                Icon(
+                  Icons.chevron_right,
+                  color: AppTheme.neutral700,
+                  size: 20.sp,
+                ),
               ],
             ),
             onTap: () {

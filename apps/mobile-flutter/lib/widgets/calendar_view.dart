@@ -39,6 +39,8 @@ class _CalendarViewState extends State<CalendarView> {
           lastDay: DateTime.utc(2030, 12, 31),
           focusedDay: widget.selectedDay ?? DateTime.now(),
           calendarFormat: widget.calendarFormat,
+          availableGestures: AvailableGestures
+              .horizontalSwipe, // Only allow horizontal swipe for month navigation
           eventLoader: (day) {
             final dayKey = DateTime(day.year, day.month, day.day);
             return widget.events[dayKey] ?? [];

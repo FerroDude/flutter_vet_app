@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as developer;
@@ -26,70 +27,114 @@ class _AdminDashboardState extends State<AdminDashboard> {
       builder: (context, userProvider, child) {
         // Only app owners can access this dashboard
         if (!userProvider.isAppOwner) {
-          return const Scaffold(
-            body: Center(
-              child: Text('Access denied. App owner privileges required.'),
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 64,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Access denied',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'App owner privileges required',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('App Owner Dashboard'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SettingsPage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                tooltip: 'Settings',
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: const Text('App Owner Dashboard'),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SettingsPage(injectedUserProvider: userProvider),
+                        ),
+                      );
+                    },
+                    tooltip: 'Settings',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ProfilePage(injectedUserProvider: userProvider),
+                        ),
+                      );
+                    },
+                    tooltip: 'Profile',
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.person_outline),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProfilePage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                tooltip: 'Profile',
+              body: IndexedStack(
+                index: _selectedIndex,
+                children: [
+                  _buildActionsPage(context, userProvider),
+                  _buildStatsPage(context, userProvider),
+                ],
               ),
-            ],
-          ),
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _buildActionsPage(context, userProvider),
-              _buildStatsPage(context, userProvider),
-            ],
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: (index) => setState(() => _selectedIndex = index),
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppTheme.neutral700,
-            unselectedItemColor: Colors.grey[600],
-            backgroundColor: Colors.white,
-            elevation: 8,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard),
-                label: 'Actions',
+              bottomNavigationBar: BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: (index) => setState(() => _selectedIndex = index),
+                type: BottomNavigationBarType.fixed,
+                selectedItemColor: Colors.white,
+                unselectedItemColor: Colors.white.withValues(alpha: 0.6),
+                backgroundColor: AppTheme.primary,
+                elevation: 0,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard),
+                    label: 'Actions',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.analytics),
+                    label: 'Statistics',
+                  ),
+                ],
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.analytics),
-                label: 'Statistics',
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -116,15 +161,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.flash_on, color: AppTheme.neutral700, size: 28),
+                    Icon(Icons.flash_on, color: Colors.white, size: 28),
                     const SizedBox(width: 12),
-                    Text(
+                    const Text(
                       'Actions',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.neutral700,
-                          ),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -147,14 +192,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       onPressed: () => _showCheckClinicDialog(context),
                       icon: const Icon(Icons.search),
                       label: const Text('Check Clinic'),
-                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                      style: TextButton.styleFrom(foregroundColor: Colors.lightBlueAccent),
                     ),
                     TextButton.icon(
                       onPressed: () => _showAdminManagementDialog(context),
                       icon: const Icon(Icons.admin_panel_settings),
                       label: const Text('Admin Tools'),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.purple,
+                        foregroundColor: Colors.purpleAccent,
                       ),
                     ),
                   ],
@@ -173,15 +218,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Icon(
                   Icons.admin_panel_settings,
-                  color: AppTheme.neutral500,
+                  color: Colors.white,
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   'Clinic Admins',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.neutral500,
+                    fontSize: 20,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -196,13 +242,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // Quick Stats Preview
             Row(
               children: [
-                Icon(Icons.trending_up, color: AppTheme.neutral600, size: 28),
+                Icon(Icons.trending_up, color: Colors.white, size: 28),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   'Overview',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.neutral600,
+                    fontSize: 20,
+                    color: Colors.white,
                   ),
                 ),
               ],
@@ -231,13 +278,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
             // Detailed Statistics Header
             Row(
               children: [
-                Icon(Icons.analytics, color: AppTheme.neutral400, size: 28),
+                Icon(Icons.analytics, color: Colors.white, size: 28),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   'Analytics',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.neutral400,
+                    fontSize: 20,
+                    color: Colors.white,
                   ),
                 ),
                 const Spacer(),
@@ -253,8 +301,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('Full Report'),
+                  icon: const Icon(Icons.open_in_new, color: Colors.white),
+                  label: const Text('Full Report', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -352,73 +400,44 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      elevation: 6,
-      shadowColor: color.withValues(alpha: 0.3),
-      color: isDark ? Colors.grey[900] : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
-          width: 1,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withValues(alpha: 0.15),
-                color.withValues(alpha: 0.05),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: AppTheme.primary, size: 32),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppTheme.primary,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(icon, color: color, size: 32),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: isDark ? Colors.white : Colors.grey[800],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
           ),
         ),
       ),
@@ -431,76 +450,62 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required IconData icon,
     required Color color,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      color: isDark ? Colors.grey[900] : Colors.grey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-          width: 1,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius2),
+        boxShadow: AppTheme.cardShadow,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppTheme.primary, size: 18),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primary,
             ),
-            const SizedBox(height: 1),
-            Text(
-              title,
-              style: TextStyle(
-                color: isDark ? Colors.grey[300] : Colors.grey[600],
-                fontSize: 10,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 1),
+          Text(
+            title,
+            style: TextStyle(
+              color: AppTheme.neutral600,
+              fontSize: 10,
             ),
-          ],
-        ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
 
   // Enhanced App Owner overview card with blue theme
   Widget _buildEnhancedOverviewCard() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      elevation: 8,
-      shadowColor: AppTheme.neutral700.withValues(alpha: 0.3),
-      color: isDark ? Colors.grey[900] : Colors.grey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
-          width: 1,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.neutral700,
-              AppTheme.neutral700.withValues(alpha: 0.8),
+              AppTheme.primary,
+              AppTheme.primary.withValues(alpha: 0.8),
             ],
           ),
         ),
@@ -515,13 +520,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
                   child: const Icon(
                     Icons.admin_panel_settings,

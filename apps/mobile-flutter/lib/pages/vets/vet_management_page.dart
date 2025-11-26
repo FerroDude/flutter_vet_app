@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
 import '../../models/clinic_models.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
@@ -21,39 +22,64 @@ class _VetManagementPageState extends State<VetManagementPage> {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
         if (!userProvider.canManageVets) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Vet Management'),
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.neutral700,
-              elevation: 0,
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
             ),
-            body: const Center(
-              child: Text('Access denied. Admin privileges required.'),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                title: Text(
+                  'Vet Management',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              body: Center(
+                child: Text(
+                  'Access denied. Admin privileges required.',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ),
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Vet Management'),
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.neutral700,
-            elevation: 0,
-            actions: [
-              IconButton(
-                onPressed: () => _showAddVetDialog(context, userProvider),
-                icon: const Icon(Icons.add),
-              ),
-            ],
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
           ),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              await userProvider.refresh();
-            },
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildVetsList(userProvider),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              title: Text(
+                'Vet Management',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              actions: [
+                IconButton(
+                  onPressed: () => _showAddVetDialog(context, userProvider),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            body: RefreshIndicator(
+              onRefresh: () async {
+                await userProvider.refresh();
+              },
+              child: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : _buildVetsList(userProvider),
+            ),
           ),
         );
       },
@@ -70,29 +96,43 @@ class _VetManagementPageState extends State<VetManagementPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.medical_services, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
+            Icon(
+              Icons.medical_services,
+              size: 64.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+            Gap(AppTheme.spacing4),
             Text(
               'No vets added yet',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
-            const SizedBox(height: 8),
+            Gap(AppTheme.spacing2),
             Text(
               'Tap the + button to add your first vet',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
-            const SizedBox(height: 24),
+            Gap(AppTheme.spacing6),
             ElevatedButton.icon(
               onPressed: () => _showAddVetDialog(context, userProvider),
               icon: const Icon(Icons.add),
               label: const Text('Add Vet'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.neutral700,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: AppTheme.primary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacing4,
+                  vertical: AppTheme.spacing3,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radius2),
+                ),
               ),
             ),
           ],
@@ -101,18 +141,18 @@ class _VetManagementPageState extends State<VetManagementPage> {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(AppTheme.spacing4),
       children: [
         // Vets list
         ...List.generate(vets.length, (index) {
           final vet = vets[index];
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: AppTheme.spacing2),
             child: _buildVetCard(vet, userProvider),
           );
         }),
 
-        const SizedBox(height: 24),
+        Gap(AppTheme.spacing6),
         // Pending invites section
         _buildInvitesSection(userProvider),
       ],
@@ -128,17 +168,19 @@ class _VetManagementPageState extends State<VetManagementPage> {
       children: [
         Row(
           children: [
-            Icon(Icons.mail_outline, color: AppTheme.neutral700),
-            const SizedBox(width: 8),
+            Icon(Icons.mail_outline, color: Colors.white),
+            Gap(AppTheme.spacing2),
             Text(
               'Pending Invites',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        Gap(AppTheme.spacing3),
         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('clinics')
@@ -152,27 +194,35 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
               ) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
+                  return Padding(
+                    padding: EdgeInsets.all(AppTheme.spacing4),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
                   );
                 }
                 if (snapshot.hasError) {
                   return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text('Error loading invites: ${snapshot.error}'),
+                    padding: EdgeInsets.all(AppTheme.spacing4),
+                    child: Text(
+                      'Error loading invites: ${snapshot.error}',
+                      style: TextStyle(color: AppTheme.error),
+                    ),
                   );
                 }
 
                 final docs = snapshot.data?.docs ?? [];
                 if (docs.isEmpty) {
                   return Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(AppTheme.spacing4),
                     child: Text(
                       'No pending invites',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
                     ),
                   );
                 }
@@ -184,38 +234,58 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     final status = (data['status'] as String?) ?? 'pending';
                     final role = (data['role'] as String?) ?? 'vet';
 
-                    return Card(
+                    return Container(
+                      margin: EdgeInsets.only(bottom: AppTheme.spacing2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radius3),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
                       child: ListTile(
-                        leading: const Icon(Icons.mark_email_unread),
-                        title: Text(email),
-                        subtitle: Text('Status: $status'),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacing4,
+                          vertical: AppTheme.spacing2,
+                        ),
+                        leading: Icon(Icons.mark_email_unread, color: AppTheme.primary),
+                        title: Text(
+                          email,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Status: $status',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppTheme.neutral700,
+                          ),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacing2,
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.neutral700.withValues(
-                                  alpha: 0.08,
-                                ),
+                                color: AppTheme.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 role.toUpperCase(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  color: AppTheme.neutral700,
+                                  fontSize: 10.sp,
+                                  color: AppTheme.primary,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
                             IconButton(
                               tooltip: 'Resend reset email',
-                              icon: const Icon(Icons.refresh),
+                              icon: Icon(Icons.refresh, color: AppTheme.primary, size: 20.sp),
                               onPressed: () async {
                                 final messenger = ScaffoldMessenger.of(context);
                                 try {
@@ -229,7 +299,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                             : 'Could not send reset email',
                                       ),
                                       backgroundColor: ok
-                                          ? Colors.green
+                                          ? AppTheme.success
                                           : Colors.orange,
                                     ),
                                   );
@@ -237,7 +307,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text('Error: $e'),
-                                      backgroundColor: Colors.red,
+                                      backgroundColor: AppTheme.error,
                                     ),
                                   );
                                 }
@@ -245,7 +315,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                             ),
                             IconButton(
                               tooltip: 'Revoke invite',
-                              icon: const Icon(Icons.delete, color: Colors.red),
+                              icon: Icon(Icons.delete, color: AppTheme.error, size: 20.sp),
                               onPressed: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
@@ -264,7 +334,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                         onPressed: () =>
                                             Navigator.pop(context, true),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red,
+                                          backgroundColor: AppTheme.error,
                                           foregroundColor: Colors.white,
                                         ),
                                         child: const Text('Revoke'),
@@ -290,15 +360,15 @@ class _VetManagementPageState extends State<VetManagementPage> {
                                               : 'Failed to revoke invite',
                                         ),
                                         backgroundColor: ok
-                                            ? Colors.green
-                                            : Colors.red,
+                                            ? AppTheme.success
+                                            : AppTheme.error,
                                       ),
                                     );
                                   } catch (e) {
                                     messenger.showSnackBar(
                                       SnackBar(
                                         content: Text('Error: $e'),
-                                        backgroundColor: Colors.red,
+                                        backgroundColor: AppTheme.error,
                                       ),
                                     );
                                   }
@@ -318,14 +388,17 @@ class _VetManagementPageState extends State<VetManagementPage> {
   }
 
   Widget _buildVetCard(ClinicMember vet, UserProvider userProvider) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        boxShadow: AppTheme.cardShadow,
+      ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: EdgeInsets.all(AppTheme.spacing4),
         leading: CircleAvatar(
-          backgroundColor: AppTheme.neutral600.withValues(alpha: 0.1),
-          child: const Icon(Icons.medical_services, color: AppTheme.neutral600),
+          backgroundColor: AppTheme.brandTeal.withValues(alpha: 0.1),
+          child: Icon(Icons.medical_services, color: AppTheme.brandTeal),
         ),
         title: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           future: FirebaseFirestore.instance
@@ -346,30 +419,49 @@ class _VetManagementPageState extends State<VetManagementPage> {
             }
             return Text(
               name,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primary,
+              ),
             );
           },
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text('Role: ${_getRoleDisplayName(vet.role)}'),
-            const SizedBox(height: 2),
-            Text('Added: ${_formatDate(vet.addedAt)}'),
+            Gap(AppTheme.spacing1),
+            Text(
+              'Role: ${_getRoleDisplayName(vet.role)}',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.neutral700,
+              ),
+            ),
+            Gap(2),
+            Text(
+              'Added: ${_formatDate(vet.addedAt)}',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: AppTheme.neutral700,
+              ),
+            ),
             if (!vet.isActive) ...[
-              const SizedBox(height: 4),
+              Gap(AppTheme.spacing1),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacing2,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
+                  color: AppTheme.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
+                child: Text(
                   'Inactive',
                   style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 12,
+                    color: AppTheme.error,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -378,10 +470,11 @@ class _VetManagementPageState extends State<VetManagementPage> {
           ],
         ),
         trailing: PopupMenuButton(
+          icon: Icon(Icons.more_vert, color: AppTheme.neutral700),
           onSelected: (action) => _handleVetAction(action, vet, userProvider),
           itemBuilder: (context) => [
             if (vet.isActive)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'deactivate',
                 child: ListTile(
                   leading: Icon(Icons.block, color: Colors.orange),
@@ -390,18 +483,18 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 ),
               )
             else
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'activate',
                 child: ListTile(
-                  leading: Icon(Icons.check_circle, color: Colors.green),
+                  leading: Icon(Icons.check_circle, color: AppTheme.success),
                   title: Text('Activate'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'remove',
               child: ListTile(
-                leading: Icon(Icons.delete, color: Colors.red),
+                leading: Icon(Icons.delete, color: AppTheme.error),
                 title: Text('Remove'),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -445,93 +538,207 @@ class _VetManagementPageState extends State<VetManagementPage> {
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Vet'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Vet Email Address',
-                    hintText: 'Enter the vet\'s email',
-                    prefixIcon: Icon(Icons.email),
-                    border: OutlineInputBorder(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: EdgeInsets.only(bottom: AppTheme.spacing4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Email is required';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-              ],
+                  
+                  // Title
+                  Text(
+                    'Add New Vet',
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'Enter the email address of the vet you want to add to your clinic.',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  Gap(AppTheme.spacing4),
+                  
+                  // Email label
+                  Text(
+                    'Email Address',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing2),
+                  
+                  // Email input
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: TextStyle(color: AppTheme.primary),
+                      decoration: InputDecoration(
+                        hintText: 'vet@example.com',
+                        hintStyle: TextStyle(color: AppTheme.neutral400),
+                        prefixIcon: Icon(Icons.email_outlined, color: AppTheme.primary),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacing3,
+                          vertical: AppTheme.spacing3,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Email is required';
+                        }
+                        if (!value.contains('@')) {
+                          return 'Enter a valid email address';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  Gap(AppTheme.spacing4),
+                  
+                  // Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            ),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      Gap(AppTheme.spacing3),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (formKey.currentState!.validate()) {
+                              Navigator.pop(sheetContext);
+                              await _addVet(emailController.text.trim(), userProvider);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppTheme.primary,
+                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                            ),
+                          ),
+                          child: const Text('Add Vet'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  Gap(AppTheme.spacing3),
+                  
+                  // Password reset option
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        final email = emailController.text.trim().toLowerCase();
+                        if (email.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter an email address first'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        try {
+                          final ok = await userProvider.provisionAuthAccountAndSendReset(
+                            email,
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? 'Password setup email sent to $email.'
+                                      : 'Could not send password setup email to $email.',
+                                ),
+                                backgroundColor: ok ? Colors.green : Colors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Unable to send reset email: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: Icon(
+                        Icons.lock_reset,
+                        color: Colors.white.withValues(alpha: 0.7),
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Send Password Reset Email',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Gap(AppTheme.spacing2),
+                ],
+              ),
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final email = emailController.text.trim().toLowerCase();
-              if (email.isEmpty) return;
-              try {
-                final ok = await userProvider.provisionAuthAccountAndSendReset(
-                  email,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        ok
-                            ? 'Password setup email sent to $email.'
-                            : 'Could not send password setup email to $email.',
-                      ),
-                      backgroundColor: ok ? Colors.green : Colors.red,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Unable to send reset email: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Send Password Reset'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context);
-                await _addVet(emailController.text.trim(), userProvider);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.neutral700,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Add Vet'),
-          ),
-        ],
       ),
     );
   }
@@ -591,31 +798,109 @@ class _VetManagementPageState extends State<VetManagementPage> {
   }
 
   void _showRemoveVetDialog(ClinicMember vet, UserProvider userProvider) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Vet'),
-        content: const Text(
-          'Are you sure you want to remove this vet from your clinic? '
-          'They will lose access to all clinic features.',
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+        child: Padding(
+          padding: EdgeInsets.all(AppTheme.spacing4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.only(bottom: AppTheme.spacing4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              
+              // Warning icon
+              Container(
+                padding: EdgeInsets.all(AppTheme.spacing3),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(AppTheme.radius3),
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppTheme.error,
+                  size: 32.sp,
+                ),
+              ),
+              Gap(AppTheme.spacing4),
+              
+              // Title
+              Text(
+                'Remove Vet',
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              Gap(AppTheme.spacing2),
+              
+              // Message
+              Text(
+                'Are you sure you want to remove this vet from your clinic? '
+                'They will lose access to all clinic features.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+              Gap(AppTheme.spacing4),
+              
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(sheetContext),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius2),
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _removeVet(vet, userProvider);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.error,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius2),
+                        ),
+                      ),
+                      child: const Text('Remove'),
+                    ),
+                  ),
+                ],
+              ),
+              Gap(AppTheme.spacing2),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _removeVet(vet, userProvider);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Remove'),
-          ),
-        ],
+        ),
       ),
     );
   }
