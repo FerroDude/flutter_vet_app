@@ -26,6 +26,7 @@ class ChatMessage {
   final MessageType type;
   final MessageStatus status;
   final DateTime timestamp;
+  final DateTime? readAt;
   final String? imageUrl;
   final String? appointmentId;
   final String? medicationId;
@@ -41,6 +42,7 @@ class ChatMessage {
     required this.type,
     required this.status,
     required this.timestamp,
+    this.readAt,
     this.imageUrl,
     this.appointmentId,
     this.medicationId,
@@ -58,6 +60,7 @@ class ChatMessage {
       type: MessageType.values[json['type']],
       status: MessageStatus.values[json['status']],
       timestamp: _parseDateTime(json['timestamp']),
+      readAt: json['readAt'] != null ? _parseDateTime(json['readAt']) : null,
       imageUrl: json['imageUrl'],
       appointmentId: json['appointmentId'],
       medicationId: json['medicationId'],
@@ -75,6 +78,7 @@ class ChatMessage {
       'type': type.index,
       'status': status.index,
       'timestamp': timestamp.millisecondsSinceEpoch,
+      'readAt': readAt?.millisecondsSinceEpoch,
       'imageUrl': imageUrl,
       'appointmentId': appointmentId,
       'medicationId': medicationId,
@@ -83,6 +87,10 @@ class ChatMessage {
   }
 
   static DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      // Return current time as fallback for null values
+      return DateTime.now();
+    }
     if (value is Timestamp) {
       return value.toDate();
     } else if (value is int) {
@@ -90,7 +98,8 @@ class ChatMessage {
     } else if (value is String) {
       return DateTime.parse(value);
     }
-    throw ArgumentError('Invalid datetime value: $value');
+    // Fallback to current time instead of throwing
+    return DateTime.now();
   }
 
   ChatMessage copyWith({
@@ -102,6 +111,7 @@ class ChatMessage {
     MessageType? type,
     MessageStatus? status,
     DateTime? timestamp,
+    DateTime? readAt,
     String? imageUrl,
     String? appointmentId,
     String? medicationId,
@@ -117,6 +127,7 @@ class ChatMessage {
       type: type ?? this.type,
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
+      readAt: readAt ?? this.readAt,
       imageUrl: imageUrl ?? this.imageUrl,
       appointmentId: appointmentId ?? this.appointmentId,
       medicationId: medicationId ?? this.medicationId,
@@ -164,7 +175,8 @@ class ChatRoom {
     final int rawStatus = json['status'] is int
         ? json['status'] as int
         : ChatRoomStatus.active.index;
-    final safeStatus = (rawStatus >= 0 && rawStatus < ChatRoomStatus.values.length)
+    final safeStatus =
+        (rawStatus >= 0 && rawStatus < ChatRoomStatus.values.length)
         ? ChatRoomStatus.values[rawStatus]
         : ChatRoomStatus.active;
 

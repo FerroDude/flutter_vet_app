@@ -166,9 +166,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
               ),
               body: _isLoading
                   ? Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(color: Colors.white),
                     )
                   : Form(
                       key: _formKey,
@@ -485,7 +483,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
           if (_isEditing)
             Switch(
               value: isOpen,
-              activeColor: AppTheme.primary,
+              activeThumbColor: AppTheme.primary,
               onChanged: (value) {
                 setState(() {
                   if (value) {

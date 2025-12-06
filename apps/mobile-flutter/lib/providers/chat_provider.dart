@@ -18,10 +18,14 @@ class ChatProvider extends ChangeNotifier {
   int _totalUnreadCount = 0;
   bool _otherUserIsTyping = false;
 
+  // Track active chat room ID to prevent race conditions with stream callbacks
+  String? _activeChatRoomId;
+
   // Streams
   Stream<List<ChatRoom>>? _chatRoomsStream;
   Stream<List<ChatMessage>>? _messagesStream;
   Stream<List<ChatRoom>>? _pendingRequestsStream;
+  StreamSubscription<List<ChatMessage>>? _messagesStreamSubscription;
   StreamSubscription<bool>? _typingStatusSubscription;
 
   ChatProvider(this._chatService);
@@ -143,23 +147,39 @@ class ChatProvider extends ChangeNotifier {
   Future<void> selectChatRoom(String chatRoomId) async {
     try {
       _setLoading(true);
+      developer.log('selectChatRoom called: $chatRoomId', name: 'ChatProvider');
 
       // Get chat room details
       _currentChatRoom = await _chatService.getChatRoom(chatRoomId);
 
       if (_currentChatRoom != null) {
+        // Set active chat room ID FIRST to enable read receipts
+        _activeChatRoomId = chatRoomId;
+        developer.log(
+          '_activeChatRoomId set to: $chatRoomId',
+          name: 'ChatProvider',
+        );
+
+        // Cancel any existing messages subscription before creating a new one
+        _messagesStreamSubscription?.cancel();
+
         // Initialize message stream
         _messagesStream = _chatService.messagesStream(chatRoomId);
         _currentMessages = await _chatService.getMessages(chatRoomId);
 
-        // Listen for real-time message updates
-        _messagesStream!.listen(updateMessagesFromStream);
+        // Listen for real-time message updates and store the subscription
+        _messagesStreamSubscription = _messagesStream!.listen(
+          updateMessagesFromStream,
+        );
 
         // Listen to typing status of the other user
         _listenToTypingStatus();
 
         // Mark messages as read
         await _chatService.markMessagesAsRead(chatRoomId);
+
+        //Update individual message statuses to 'read'
+        await _chatService.markMessagesAsReadStatus(chatRoomId);
 
         // Update total unread count
         await _updateTotalUnreadCount();
@@ -174,12 +194,32 @@ class ChatProvider extends ChangeNotifier {
 
   // Leave current chat room
   void leaveChatRoom() {
+    developer.log(
+      'leaveChatRoom called. Previous _activeChatRoomId: $_activeChatRoomId',
+      name: 'ChatProvider',
+    );
+
+    // Clear active chat room ID FIRST to prevent any race conditions
+    // with stream callbacks that might still fire
+    _activeChatRoomId = null;
+    developer.log('_activeChatRoomId cleared to null', name: 'ChatProvider');
+
     // Clean up typing status
     if (_currentChatRoom != null) {
       setTypingStatus(false);
     }
 
+    // Cancel messages stream subscription - pause first to stop events immediately
+    _messagesStreamSubscription?.pause();
+    _messagesStreamSubscription?.cancel();
+    _messagesStreamSubscription = null;
+    developer.log(
+      'Messages stream subscription cancelled',
+      name: 'ChatProvider',
+    );
+
     // Cancel typing status subscription
+    _typingStatusSubscription?.pause();
     _typingStatusSubscription?.cancel();
     _typingStatusSubscription = null;
     _otherUserIsTyping = false;
@@ -490,8 +530,83 @@ class ChatProvider extends ChangeNotifier {
 
   // Update messages from stream
   void updateMessagesFromStream(List<ChatMessage> messages) {
+    developer.log(
+      'updateMessagesFromStream called. _activeChatRoomId: $_activeChatRoomId, message count: ${messages.length}',
+      name: 'ChatProvider',
+    );
     _currentMessages = messages;
+
+    // Only mark messages as read if:
+    // 1. Chat is currently active (using _activeChatRoomId to prevent race conditions)
+    // 2. There are unread messages from the OTHER user
+    if (_activeChatRoomId != null) {
+      _maybeMarkMessagesAsRead(messages);
+    } else {
+      developer.log(
+        'Skipping _maybeMarkMessagesAsRead - chat not active',
+        name: 'ChatProvider',
+      );
+    }
+
     notifyListeners();
+  }
+
+  /// Check if there are unread messages from the other user and mark them as read
+  Future<void> _maybeMarkMessagesAsRead(List<ChatMessage> messages) async {
+    // Use _activeChatRoomId for the check - it's cleared immediately when leaving
+    final activeChatId = _activeChatRoomId;
+    developer.log(
+      '_maybeMarkMessagesAsRead called. activeChatId: $activeChatId',
+      name: 'ChatProvider',
+    );
+    if (activeChatId == null) {
+      developer.log('Skipping - activeChatId is null', name: 'ChatProvider');
+      return;
+    }
+
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    // Check if there are any unread messages from the OTHER user
+    final hasUnreadFromOther = messages.any(
+      (msg) =>
+          msg.senderId != currentUserId && msg.status == MessageStatus.sent,
+    );
+
+    // Only call Firestore if there are actually messages to mark as read
+    if (!hasUnreadFromOther) {
+      developer.log(
+        'Skipping - no unread messages from other',
+        name: 'ChatProvider',
+      );
+      return;
+    }
+
+    // Double-check the active chat hasn't changed during async operations
+    if (_activeChatRoomId != activeChatId) {
+      developer.log(
+        'Skipping - activeChatId changed during execution',
+        name: 'ChatProvider',
+      );
+      return;
+    }
+
+    developer.log(
+      'MARKING MESSAGES AS READ for chat: $activeChatId',
+      name: 'ChatProvider',
+    );
+
+    try {
+      // This updates message statuses in Firestore
+      await _chatService.markMessagesAsReadStatus(activeChatId);
+      // Also update the unread count on the chat room
+      await _chatService.markMessagesAsRead(activeChatId);
+    } catch (e) {
+      developer.log(
+        'Failed to mark new messages as read: $e',
+        name: 'ChatProvider',
+      );
+    }
   }
 
   // Update pending requests from stream

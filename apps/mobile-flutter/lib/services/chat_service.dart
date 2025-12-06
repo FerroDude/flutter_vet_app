@@ -210,21 +210,19 @@ class ChatService {
         .where('isActive', isEqualTo: true)
         .where('status', isEqualTo: ChatRoomStatus.pending.index)
         .snapshots()
-        .map(
-          (snap) {
-            final rooms = snap.docs
-                .map(
-                  (doc) => ChatRoom.fromJson(
-                    doc.data() as Map<String, dynamic>,
-                    doc.id,
-                  ),
-                )
-                .toList();
+        .map((snap) {
+          final rooms = snap.docs
+              .map(
+                (doc) => ChatRoom.fromJson(
+                  doc.data() as Map<String, dynamic>,
+                  doc.id,
+                ),
+              )
+              .toList();
 
-            rooms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-            return rooms;
-          },
-        );
+          rooms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return rooms;
+        });
   }
 
   /// Create a new chat request from a pet owner to a clinic (no vet assigned yet)
@@ -466,6 +464,47 @@ class ChatService {
       await chatRoomRef.update({'unreadCounts.${currentUser.uid}': 0});
     } catch (e) {
       throw Exception('Failed to mark messages as read: $e');
+    }
+  }
+
+  /// Mark individual messages from other users as 'read' status
+  Future<void> markMessagesAsReadStatus(String chatRoomId) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      // Get messages from other users that are still 'sent' status
+      final messagesSnapshot = await _getMessagesCollection(
+        chatRoomId,
+      ).where('senderId', isNotEqualTo: currentUser.uid).get();
+
+      if (messagesSnapshot.docs.isEmpty) return;
+
+      // Filter to only messages with 'sent' status and batch update them
+      final batch = _firestore.batch();
+      int updateCount = 0;
+
+      for (final doc in messagesSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final statusIndex = data['status'] as int? ?? 0;
+
+        // Only update if status is 'sent' (index 0)
+        if (statusIndex == MessageStatus.sent.index) {
+          batch.update(doc.reference, {
+            'status': MessageStatus.read.index,
+            'readAt': FieldValue.serverTimestamp(),
+          });
+          updateCount++;
+        }
+      }
+
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+    } catch (e) {
+      // Log but don't throw - read receipts are not critical
+      // ignore: avoid_print
+      print('Failed to update message read status: $e');
     }
   }
 

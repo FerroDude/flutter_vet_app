@@ -22,12 +22,24 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _typingTimer;
+  ChatProvider? _chatProvider;
 
   @override
   void initState() {
     super.initState();
-    _initializeChatRoom();
-    _setupTypingListener();
+    // Setup will happen in didChangeDependencies when provider is available
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Store reference to ChatProvider for safe disposal
+    if (_chatProvider == null) {
+      _chatProvider = context.read<ChatProvider>();
+      // Initialize chat room after we have the provider reference
+      _initializeChatRoom();
+      _setupTypingListener();
+    }
   }
 
   @override
@@ -35,13 +47,16 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     _typingTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
-    context.read<ChatProvider>().leaveChatRoom();
+    // Use stored reference to ensure leaveChatRoom is always called
+    _chatProvider?.leaveChatRoom();
     super.dispose();
   }
 
   void _setupTypingListener() {
     _messageController.addListener(() {
-      final chatProvider = context.read<ChatProvider>();
+      final chatProvider = _chatProvider;
+      if (chatProvider == null) return;
+
       final text = _messageController.text;
 
       if (text.isNotEmpty) {
@@ -51,7 +66,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         // Reset the timer - will set typing to false after 3 seconds of no typing
         _typingTimer?.cancel();
         _typingTimer = Timer(const Duration(seconds: 3), () {
-          chatProvider.setTypingStatus(false);
+          if (_chatProvider != null) {
+            _chatProvider!.setTypingStatus(false);
+          }
         });
       } else {
         // Text field is empty - stop typing status
@@ -63,7 +80,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   void _initializeChatRoom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().selectChatRoom(widget.chatRoom.id);
+      _chatProvider?.selectChatRoom(widget.chatRoom.id);
     });
   }
 
@@ -71,16 +88,15 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Widget build(BuildContext context) {
     return Consumer<ChatProvider>(
       builder: (context, chatProvider, child) {
-        final currentChatRoom =
-            chatProvider.currentChatRoom ?? widget.chatRoom;
+        final currentChatRoom = chatProvider.currentChatRoom ?? widget.chatRoom;
         final currentUserId = FirebaseAuth.instance.currentUser?.uid;
         final isPetOwner = currentUserId == currentChatRoom.petOwnerId;
         final isPendingAndPetOwner =
             isPetOwner && currentChatRoom.status == ChatRoomStatus.pending;
         final titleText = isPetOwner
             ? (currentChatRoom.vetName.isNotEmpty
-                ? currentChatRoom.vetName
-                : 'Clinic')
+                  ? currentChatRoom.vetName
+                  : 'Clinic')
             : currentChatRoom.petOwnerName;
 
         return Container(
@@ -211,14 +227,25 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       ),
                     ),
                     Gap(AppTheme.spacing1),
-                    Text(
-                      _formatTimestamp(message.timestamp),
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        color: isMe
-                            ? Colors.white.withValues(alpha: 0.7)
-                            : AppTheme.neutral700,
-                      ),
+                    // UPDATED: Row with timestamp and status icon
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _formatTimestamp(message.timestamp),
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: isMe
+                                ? Colors.white.withValues(alpha: 0.7)
+                                : AppTheme.neutral700,
+                          ),
+                        ),
+                        // Only show status icon for sender's own messages
+                        if (isMe) ...[
+                          Gap(4.w),
+                          _buildStatusIcon(message.status, isMe),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -228,6 +255,25 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         );
       },
     );
+  }
+
+  /// Builds the message status icon (sent/delivered/read)
+  Widget _buildStatusIcon(MessageStatus status, bool isMe) {
+    final Color iconColor = isMe
+        ? Colors.white.withValues(alpha: 0.7)
+        : AppTheme.neutral700;
+
+    switch (status) {
+      case MessageStatus.sent:
+        // Single checkmark for sent
+        return Icon(Icons.check, size: 14.sp, color: iconColor);
+      case MessageStatus.delivered:
+        // Double checkmark (gray) for delivered
+        return Icon(Icons.done_all, size: 14.sp, color: iconColor);
+      case MessageStatus.read:
+        // Double checkmark (blue) for read
+        return Icon(Icons.done_all, size: 14.sp, color: Colors.lightBlueAccent);
+    }
   }
 
   Widget _buildTypingIndicator() {
@@ -296,9 +342,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 
-  Widget _buildMessageInput(
-    ChatProvider chatProvider,
-  ) {
+  Widget _buildMessageInput(ChatProvider chatProvider) {
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing3),
       child: Row(
@@ -345,9 +389,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 
-  Future<void> _sendMessage(
-    ChatProvider chatProvider,
-  ) async {
+  Future<void> _sendMessage(ChatProvider chatProvider) async {
     final chatRoom = chatProvider.currentChatRoom ?? widget.chatRoom;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final isPetOwner = currentUserId == chatRoom.petOwnerId;
@@ -424,9 +466,10 @@ class _TypingDotState extends State<_TypingDot>
       vsync: this,
     );
 
-    _animation = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     // Delay the animation start
     Future.delayed(Duration(milliseconds: widget.delay), () {
