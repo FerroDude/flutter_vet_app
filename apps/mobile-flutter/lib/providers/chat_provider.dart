@@ -22,6 +22,9 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoadingMoreMessages = false;
   bool _hasMoreMessages = true;
 
+  // Scroll position cache per chat room (for restoring scroll position)
+  final Map<String, double> _scrollPositions = {};
+
   // Track active chat room ID to prevent race conditions with stream callbacks
   String? _activeChatRoomId;
 
@@ -49,6 +52,23 @@ class ChatProvider extends ChangeNotifier {
   // Stream getters
   Stream<List<ChatRoom>>? get chatRoomsStream => _chatRoomsStream;
   Stream<List<ChatMessage>>? get messagesStream => _messagesStream;
+
+  /// SCROLL POSITION PERSISTENCE ///
+
+  /// Save scroll position for a chat room
+  void saveScrollPosition(String chatRoomId, double position) {
+    _scrollPositions[chatRoomId] = position;
+  }
+
+  /// Get saved scroll position for a chat room (returns 0 if not saved)
+  double getSavedScrollPosition(String chatRoomId) {
+    return _scrollPositions[chatRoomId] ?? 0.0;
+  }
+
+  /// Clear saved scroll position for a chat room
+  void clearScrollPosition(String chatRoomId) {
+    _scrollPositions.remove(chatRoomId);
+  }
 
   void _setLoading(bool loading) {
     _isLoading = loading;

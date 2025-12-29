@@ -24,10 +24,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Timer? _typingTimer;
   ChatProvider? _chatProvider;
 
+  // Track if user has scrolled up from the bottom
+  bool _showScrollToBottom = false;
+  // Track message IDs that are UNSEEN (arrived while scrolled up)
+  final Set<String> _unseenMessageIds = {};
+  // Track message count when user was last at bottom
+  int _messageCountAtBottom = 0;
+  // Track message count to detect new messages
+  int _previousMessageCount = 0;
+
   @override
   void initState() {
     super.initState();
-    // Setup scroll listener for pagination
+    // Setup scroll listener for pagination and scroll-to-bottom button
     _scrollController.addListener(_onScroll);
   }
 
@@ -47,6 +56,15 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   void dispose() {
     _typingTimer?.cancel();
     _messageController.dispose();
+
+    // Save scroll position before disposing
+    if (_scrollController.hasClients && _chatProvider != null) {
+      _chatProvider!.saveScrollPosition(
+        widget.chatRoom.id,
+        _scrollController.position.pixels,
+      );
+    }
+
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     // Use stored reference to ensure leaveChatRoom is always called
@@ -55,18 +73,43 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   /// Handle scroll to load more messages when reaching the top
+  /// and show/hide scroll-to-bottom button
   void _onScroll() {
     if (_scrollController.hasClients) {
-      // Since we use reverse: true, "top" is actually maxScrollExtent
-      // User is scrolling up (towards older messages) when position approaches maxScrollExtent
       final position = _scrollController.position;
       final maxScroll = position.maxScrollExtent;
       final currentScroll = position.pixels;
+
+      // Since we use reverse: true, position 0 is the bottom (newest messages)
+      // Show scroll-to-bottom button when user scrolls up more than 300 pixels
+      final shouldShowButton = currentScroll > 300;
+      if (shouldShowButton != _showScrollToBottom) {
+        setState(() {
+          _showScrollToBottom = shouldShowButton;
+        });
+      }
+
+      // When user reaches bottom, clear unseen and update baseline count
+      if (currentScroll < 100) {
+        _unseenMessageIds.clear();
+        _messageCountAtBottom = _chatProvider?.currentMessages.length ?? 0;
+      }
 
       // Load more when user scrolls within 200 pixels of the top (older messages)
       if (maxScroll - currentScroll < 200) {
         _chatProvider?.loadMoreMessages();
       }
+    }
+  }
+
+  /// Scroll to the bottom of the chat (newest messages)
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0, // With reverse: true, 0 is the bottom (newest messages)
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -97,9 +140,38 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   void _initializeChatRoom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _chatProvider?.selectChatRoom(widget.chatRoom.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _chatProvider?.selectChatRoom(widget.chatRoom.id);
+
+      // Initialize message counts - this is our baseline
+      final count = _chatProvider?.currentMessages.length ?? 0;
+      _messageCountAtBottom = count;
+      _previousMessageCount = count;
+
+      // Restore scroll position after messages are loaded
+      _restoreScrollPosition();
     });
+  }
+
+  /// Restore scroll position if user previously scrolled in this chat
+  void _restoreScrollPosition() {
+    if (_chatProvider == null) return;
+
+    final savedPosition = _chatProvider!.getSavedScrollPosition(
+      widget.chatRoom.id,
+    );
+    if (savedPosition > 0 && _scrollController.hasClients) {
+      // Use a small delay to ensure the list is built
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.jumpTo(savedPosition);
+          // Update the scroll-to-bottom button state
+          setState(() {
+            _showScrollToBottom = savedPosition > 300;
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -116,6 +188,55 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   ? currentChatRoom.vetName
                   : 'Clinic')
             : currentChatRoom.petOwnerName;
+
+        // Simple unseen tracking:
+        // - When scrolled up and new messages arrive, add to unseen
+        // - When at bottom, clear unseen and update baseline
+
+        final messages = chatProvider.currentMessages;
+        final currentCount = messages.length;
+        final isAtBottom =
+            !_scrollController.hasClients ||
+            (_scrollController.hasClients &&
+                _scrollController.position.pixels < 100);
+
+        // Detect new messages arriving while scrolled up
+        final hasNewMessages = currentCount > _previousMessageCount;
+        final wasScrolledUp = _showScrollToBottom;
+
+        if (isAtBottom) {
+          // At bottom: clear unseen and update baseline
+          _unseenMessageIds.clear();
+          _messageCountAtBottom = currentCount;
+        } else if (currentCount > _messageCountAtBottom) {
+          // Scrolled up and we have NEW messages - add new ones from other user to unseen
+          final newMessageCount = currentCount - _messageCountAtBottom;
+          for (int i = currentCount - newMessageCount; i < currentCount; i++) {
+            final msg = messages[i];
+            if (msg.senderId != currentUserId &&
+                !_unseenMessageIds.contains(msg.id)) {
+              _unseenMessageIds.add(msg.id);
+            }
+          }
+          // Update baseline so we don't re-add these
+          _messageCountAtBottom = currentCount;
+        }
+
+        // If new messages arrived while scrolled up, maintain scroll position
+        // by jumping back after the frame is rendered
+        if (hasNewMessages && wasScrolledUp && _scrollController.hasClients) {
+          final savedPosition = _scrollController.position.pixels;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted &&
+                _scrollController.hasClients &&
+                _showScrollToBottom) {
+              _scrollController.jumpTo(savedPosition);
+            }
+          });
+        }
+
+        _previousMessageCount = currentCount;
+        final unseenCount = _unseenMessageIds.length;
 
         return Container(
           decoration: const BoxDecoration(
@@ -154,9 +275,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             body: Column(
               children: [
                 Expanded(
-                  child: _buildMessagesList(
-                    chatProvider,
-                    isPendingAndPetOwner: isPendingAndPetOwner,
+                  child: Stack(
+                    children: [
+                      _buildMessagesList(
+                        chatProvider,
+                        isPendingAndPetOwner: isPendingAndPetOwner,
+                      ),
+                      // Scroll to bottom floating button with unread count
+                      if (_showScrollToBottom)
+                        Positioned(
+                          right: AppTheme.spacing4,
+                          bottom: AppTheme.spacing4,
+                          child: _buildScrollToBottomButton(unseenCount),
+                        ),
+                    ],
                   ),
                 ),
                 if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
@@ -226,15 +358,27 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         final messageIndex = hasMore ? index : index;
         // Since reverse: true, we need to reverse the index
         final reversedIndex = messages.length - 1 - messageIndex;
-        
+
         if (reversedIndex < 0 || reversedIndex >= messages.length) {
           return const SizedBox.shrink();
         }
-        
+
         final message = messages[reversedIndex];
         final isMe = message.senderId == currentUserId;
 
+        // Remove from unseen when rendered on screen
+        if (_unseenMessageIds.contains(message.id)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _unseenMessageIds.contains(message.id)) {
+              setState(() {
+                _unseenMessageIds.remove(message.id);
+              });
+            }
+          });
+        }
+
         return Padding(
+          key: ValueKey(message.id),
           padding: EdgeInsets.only(bottom: AppTheme.spacing2),
           child: Row(
             mainAxisAlignment: isMe
@@ -332,6 +476,61 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   ),
                 ),
               ),
+      ),
+    );
+  }
+
+  /// Build the floating scroll-to-bottom button (WhatsApp style)
+  Widget _buildScrollToBottomButton(int unseenCount) {
+    return GestureDetector(
+      onTap: _scrollToBottom,
+      child: Container(
+        padding: EdgeInsets.all(AppTheme.spacing3),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              Icons.keyboard_arrow_down,
+              color: AppTheme.primary,
+              size: 24.sp,
+            ),
+            // Show badge with unread message count if any
+            if (unseenCount > 0)
+              Positioned(
+                top: -8,
+                right: -8,
+                child: Container(
+                  padding: EdgeInsets.all(4.w),
+                  constraints: BoxConstraints(minWidth: 18.w, minHeight: 18.w),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      unseenCount > 99 ? '99+' : unseenCount.toString(),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -494,14 +693,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
     await chatProvider.sendTextMessage(text);
 
-    // With reverse: true, scroll to 0 to show the latest message (at bottom)
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    // Scroll to bottom - messages will be marked as seen when rendered
+    setState(() {
+      _showScrollToBottom = false;
+    });
+    _scrollToBottom();
   }
 
   String _formatTimestamp(DateTime timestamp) {
