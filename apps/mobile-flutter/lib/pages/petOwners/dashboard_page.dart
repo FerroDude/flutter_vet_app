@@ -8,12 +8,14 @@ import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../models/event_model.dart';
 import '../../theme/app_theme.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'pet_details_page.dart';
 import 'pet_form_page.dart';
+import 'home_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -43,6 +45,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             slivers: [
               SliverToBoxAdapter(child: _buildHeader(context)),
+              SliverToBoxAdapter(child: _buildUnreadMessagesCard(context)),
               SliverToBoxAdapter(child: _buildMyPetsSection(context)),
               SliverToBoxAdapter(child: _buildTodaySection(context)),
               SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
@@ -99,6 +102,112 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Builds a notification card when there are unread messages
+  Widget _buildUnreadMessagesCard(BuildContext context) {
+    return Consumer<ChatProvider>(
+      builder: (context, chatProvider, child) {
+        final unreadCount = chatProvider.totalUnreadCount;
+        
+        // Don't show if no unread messages
+        if (unreadCount <= 0) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: AppTheme.spacing4,
+            vertical: AppTheme.spacing2,
+          ),
+          child: InkWell(
+            onTap: () {
+              // Navigate to chat tab
+              final homeState = context.findAncestorStateOfType<MyHomePageState>();
+              homeState?.switchToChat();
+            },
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            child: Container(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.15),
+                    Colors.white.withValues(alpha: 0.08),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(AppTheme.radius4),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(AppTheme.spacing2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    ),
+                    child: Icon(
+                      Icons.chat_bubble,
+                      color: Colors.white,
+                      size: 20.sp,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          unreadCount == 1
+                              ? 'You have a new message'
+                              : 'You have $unreadCount new messages',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Gap(2.h),
+                        Text(
+                          'Tap to view your conversations',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    ),
+                    child: Text(
+                      unreadCount.toString(),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

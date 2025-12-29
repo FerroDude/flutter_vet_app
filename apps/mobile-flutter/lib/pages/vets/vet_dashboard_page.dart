@@ -8,6 +8,7 @@ import '../../providers/chat_provider.dart';
 import '../../theme/app_theme.dart';
 import '../petOwners/profile_page.dart';
 import '../petOwners/settings_page.dart';
+import 'vet_home_page.dart';
 
 class VetDashboardPage extends StatefulWidget {
   const VetDashboardPage({super.key});
@@ -98,6 +99,9 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                   ),
                 ),
                 Gap(AppTheme.spacing3),
+
+                // Unread Messages & Pending Requests Card
+                _buildNotificationsCard(context),
 
                 // Clinic Info Card
                 if (clinic != null)
@@ -319,6 +323,127 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                         ),
                       ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Builds a notification card for unread messages and pending chat requests
+  Widget _buildNotificationsCard(BuildContext context) {
+    return Consumer<ChatProvider>(
+      builder: (context, chatProvider, child) {
+        final unreadCount = chatProvider.totalUnreadCount;
+        final pendingCount = chatProvider.pendingRequests.length;
+        final totalNotifications = unreadCount + pendingCount;
+
+        // Don't show if no notifications
+        if (totalNotifications <= 0) {
+          return const SizedBox.shrink();
+        }
+
+        // Build notification text
+        String notificationText;
+        if (unreadCount > 0 && pendingCount > 0) {
+          notificationText =
+              '$unreadCount unread message${unreadCount != 1 ? 's' : ''} • $pendingCount pending request${pendingCount != 1 ? 's' : ''}';
+        } else if (unreadCount > 0) {
+          notificationText =
+              'You have $unreadCount unread message${unreadCount != 1 ? 's' : ''}';
+        } else {
+          notificationText =
+              'You have $pendingCount pending chat request${pendingCount != 1 ? 's' : ''}';
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: AppTheme.spacing3),
+          child: InkWell(
+            onTap: () {
+              // Navigate to chat tab
+              final homeState =
+                  context.findAncestorStateOfType<VetHomePageState>();
+              homeState?.switchToChat();
+            },
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            child: Container(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: 0.15),
+                    Colors.white.withValues(alpha: 0.08),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(AppTheme.radius4),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(AppTheme.spacing2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    ),
+                    child: Icon(
+                      pendingCount > 0
+                          ? Icons.pending_actions
+                          : Icons.chat_bubble,
+                      color: Colors.white,
+                      size: 20.sp,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pendingCount > 0
+                              ? 'New activity in Chats'
+                              : 'New messages',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Gap(2.h),
+                        Text(
+                          notificationText,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 10.w,
+                      vertical: 6.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    ),
+                    child: Text(
+                      totalNotifications.toString(),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

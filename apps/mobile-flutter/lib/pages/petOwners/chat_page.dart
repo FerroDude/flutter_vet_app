@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:getwidget/getwidget.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
@@ -244,6 +245,10 @@ class _ChatPageState extends State<ChatPage> {
       subtitle = lastMessage;
     }
 
+    // Format the timestamp for last message
+    final lastMessageTime = chatRoom.lastMessage?.timestamp ?? chatRoom.updatedAt;
+    final timeString = _formatChatTime(lastMessageTime);
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -262,12 +267,23 @@ class _ChatPageState extends State<ChatPage> {
       borderRadius: BorderRadius.circular(AppTheme.radius4),
       child: Container(
         decoration: BoxDecoration(
+          // Highlight unread chats with a subtle left border
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppTheme.radius4),
+          border: hasUnread
+              ? Border(
+                  left: BorderSide(
+                    color: AppTheme.primary,
+                    width: 4.w,
+                  ),
+                )
+              : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 8,
+              color: hasUnread
+                  ? AppTheme.primary.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.08),
+              blurRadius: hasUnread ? 12 : 8,
               offset: Offset(0, 2),
             ),
           ],
@@ -275,82 +291,152 @@ class _ChatPageState extends State<ChatPage> {
         padding: EdgeInsets.all(AppTheme.spacing3),
         child: Row(
           children: [
-            CircleAvatar(
-          backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-              radius: 24.r,
-          child: Text(
-            displayName[0].toUpperCase(),
-            style: TextStyle(
-              color: AppTheme.primary,
-              fontWeight: FontWeight.w600,
-              fontSize: 18.sp,
+            // Avatar with unread indicator
+            Stack(
+              children: [
+                CircleAvatar(
+                  backgroundColor: hasUnread
+                      ? AppTheme.primary.withValues(alpha: 0.15)
+                      : AppTheme.primary.withValues(alpha: 0.1),
+                  radius: 24.r,
+                  child: Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                    style: TextStyle(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 18.sp,
+                    ),
+                  ),
+                ),
+                // Small dot indicator for unread
+                if (hasUnread)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 12.w,
+                      height: 12.w,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          ),
-        ),
             Gap(AppTheme.spacing3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-          children: [
-            Expanded(
-              child: Text(
-                displayName,
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w500,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight:
+                                hasUnread ? FontWeight.w700 : FontWeight.w500,
                             color: AppTheme.primary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (hasUnread)
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Time indicator
+                      Text(
+                        timeString,
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          fontWeight:
+                              hasUnread ? FontWeight.w600 : FontWeight.w400,
+                          color: hasUnread
+                              ? AppTheme.primary
+                              : AppTheme.neutral700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Gap(4.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            fontWeight:
+                                hasUnread ? FontWeight.w500 : FontWeight.w400,
+                            color: hasUnread
+                                ? AppTheme.neutral800
+                                : AppTheme.neutral700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Unread count badge
+                      if (hasUnread)
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                          margin: EdgeInsets.only(left: AppTheme.spacing2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 4.h,
+                          ),
                           decoration: BoxDecoration(
-                color: AppTheme.primary,
+                            color: AppTheme.primary,
                             borderRadius: BorderRadius.circular(12.r),
                           ),
                           child: Text(
-                            unreadCount.toString(),
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-              ),
-          ],
-        ),
-                  Gap(4.h),
-                  Text(
-          subtitle,
-                    style: TextStyle(fontSize: 13.sp, color: AppTheme.neutral700),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
             if (userProvider.isPetOwner &&
                 chatRoom.status == ChatRoomStatus.pending)
               TextButton(
-                onPressed: () =>
-                    _confirmCancelRequest(chatRoom, chatProvider),
+                onPressed: () => _confirmCancelRequest(chatRoom, chatProvider),
                 child: const Text('Cancel'),
               )
             else if (userProvider.isVet || userProvider.isClinicAdmin)
               IconButton(
                 icon: const Icon(Icons.more_vert, color: AppTheme.neutral700),
-                    onPressed: () =>
-                        _showChatOptionsMenu(chatRoom, chatProvider, userProvider),
+                onPressed: () =>
+                    _showChatOptionsMenu(chatRoom, chatProvider, userProvider),
               ),
           ],
         ),
       ),
     );
+  }
+
+  /// Format chat timestamp to show relative time
+  String _formatChatTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
+
+    if (diff.inMinutes < 1) {
+      return 'Now';
+    } else if (diff.inHours < 1) {
+      return '${diff.inMinutes}m';
+    } else if (diff.inDays < 1) {
+      return DateFormat('h:mm a').format(timestamp);
+    } else if (diff.inDays < 7) {
+      return DateFormat('EEE').format(timestamp);
+    } else {
+      return DateFormat('MMM d').format(timestamp);
+    }
   }
 
   Future<void> _confirmCancelRequest(

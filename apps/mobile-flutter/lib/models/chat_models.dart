@@ -26,6 +26,7 @@ class ChatMessage {
   final MessageType type;
   final MessageStatus status;
   final DateTime timestamp;
+  final DateTime? deliveredAt;
   final DateTime? readAt;
   final String? imageUrl;
   final String? appointmentId;
@@ -42,6 +43,7 @@ class ChatMessage {
     required this.type,
     required this.status,
     required this.timestamp,
+    this.deliveredAt,
     this.readAt,
     this.imageUrl,
     this.appointmentId,
@@ -60,6 +62,9 @@ class ChatMessage {
       type: MessageType.values[json['type']],
       status: MessageStatus.values[json['status']],
       timestamp: _parseDateTime(json['timestamp']),
+      deliveredAt: json['deliveredAt'] != null
+          ? _parseDateTime(json['deliveredAt'])
+          : null,
       readAt: json['readAt'] != null ? _parseDateTime(json['readAt']) : null,
       imageUrl: json['imageUrl'],
       appointmentId: json['appointmentId'],
@@ -78,6 +83,7 @@ class ChatMessage {
       'type': type.index,
       'status': status.index,
       'timestamp': timestamp.millisecondsSinceEpoch,
+      'deliveredAt': deliveredAt?.millisecondsSinceEpoch,
       'readAt': readAt?.millisecondsSinceEpoch,
       'imageUrl': imageUrl,
       'appointmentId': appointmentId,
@@ -111,6 +117,7 @@ class ChatMessage {
     MessageType? type,
     MessageStatus? status,
     DateTime? timestamp,
+    DateTime? deliveredAt,
     DateTime? readAt,
     String? imageUrl,
     String? appointmentId,
@@ -127,6 +134,7 @@ class ChatMessage {
       type: type ?? this.type,
       status: status ?? this.status,
       timestamp: timestamp ?? this.timestamp,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
       imageUrl: imageUrl ?? this.imageUrl,
       appointmentId: appointmentId ?? this.appointmentId,

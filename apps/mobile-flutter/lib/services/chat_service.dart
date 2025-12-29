@@ -458,6 +458,47 @@ class ChatService {
     }
   }
 
+  /// Get older messages before a specific timestamp for pagination
+  /// Returns messages in chronological order (oldest first)
+  Future<({List<ChatMessage> messages, bool hasMore})> getOlderMessages(
+    String chatRoomId, {
+    required DateTime beforeTimestamp,
+    int limit = 30,
+  }) async {
+    try {
+      final snapshot = await _getMessagesCollection(chatRoomId)
+          .where(
+            'timestamp',
+            isLessThan: beforeTimestamp.millisecondsSinceEpoch,
+          )
+          .orderBy('timestamp', descending: true)
+          .limit(limit + 1) // Fetch one extra to check if there are more
+          .get();
+
+      final docs = snapshot.docs;
+      final hasMore = docs.length > limit;
+
+      // Take only the requested limit
+      final messageDocs = hasMore ? docs.sublist(0, limit) : docs;
+
+      // Reverse to get chronological order (oldest first)
+      final messages = messageDocs
+          .map(
+            (doc) => ChatMessage.fromJson(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
+          .toList()
+          .reversed
+          .toList();
+
+      return (messages: messages, hasMore: hasMore);
+    } catch (e) {
+      throw Exception('Failed to get older messages: $e');
+    }
+  }
+
   // Mark messages as read
   Future<void> markMessagesAsRead(String chatRoomId) async {
     try {
@@ -472,20 +513,20 @@ class ChatService {
     }
   }
 
-  /// Mark individual messages from other users as 'read' status
-  Future<void> markMessagesAsReadStatus(String chatRoomId) async {
+  /// Mark messages from other users as 'delivered' when recipient's app syncs
+  /// This should be called when recipient's device receives/syncs messages
+  Future<void> markMessagesAsDelivered(String chatRoomId) async {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser == null) return;
 
-      // Get messages from other users that are still 'sent' status
+      // Get messages from OTHER users that are still 'sent' status
       final messagesSnapshot = await _getMessagesCollection(
         chatRoomId,
       ).where('senderId', isNotEqualTo: currentUser.uid).get();
 
       if (messagesSnapshot.docs.isEmpty) return;
 
-      // Filter to only messages with 'sent' status and batch update them
       final batch = _firestore.batch();
       int updateCount = 0;
 
@@ -493,8 +534,50 @@ class ChatService {
         final data = doc.data() as Map<String, dynamic>;
         final statusIndex = data['status'] as int? ?? 0;
 
-        // Only update if status is 'sent' (index 0)
+        // Only update if status is 'sent' (index 0) - don't downgrade from read
         if (statusIndex == MessageStatus.sent.index) {
+          batch.update(doc.reference, {
+            'status': MessageStatus.delivered.index,
+            'deliveredAt': FieldValue.serverTimestamp(),
+          });
+          updateCount++;
+        }
+      }
+
+      if (updateCount > 0) {
+        await batch.commit();
+      }
+    } catch (e) {
+      // Log but don't throw - delivery receipts are not critical
+      // ignore: avoid_print
+      print('Failed to mark messages as delivered: $e');
+    }
+  }
+
+  /// Mark individual messages from other users as 'read' status
+  /// Only updates messages that are in 'sent' OR 'delivered' status
+  Future<void> markMessagesAsReadStatus(String chatRoomId) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      // Get messages from other users
+      final messagesSnapshot = await _getMessagesCollection(
+        chatRoomId,
+      ).where('senderId', isNotEqualTo: currentUser.uid).get();
+
+      if (messagesSnapshot.docs.isEmpty) return;
+
+      final batch = _firestore.batch();
+      int updateCount = 0;
+
+      for (final doc in messagesSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final statusIndex = data['status'] as int? ?? 0;
+
+        // Update if status is 'sent' (0) OR 'delivered' (1) - but not already 'read' (2)
+        if (statusIndex == MessageStatus.sent.index ||
+            statusIndex == MessageStatus.delivered.index) {
           batch.update(doc.reference, {
             'status': MessageStatus.read.index,
             'readAt': FieldValue.serverTimestamp(),
@@ -592,7 +675,7 @@ class ChatService {
                 ),
               )
               .toList()
-              .reversed  // Reverse to get chronological order for display
+              .reversed // Reverse to get chronological order for display
               .toList(),
         );
   }

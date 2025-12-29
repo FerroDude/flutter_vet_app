@@ -19,6 +19,7 @@ import '../../pages/vets/vet_home_page.dart';
 import 'email_verification_page.dart';
 import 'display_name_setup_page.dart';
 import 'auth_page.dart';
+import 'app_lifecycle_wrapper.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -80,7 +81,9 @@ class AuthWrapper extends StatelessWidget {
                         create: (context) => VetProvider(clinicService),
                       ),
                     ],
-                    child: Consumer<UserProvider>(
+                    // Wrap with AppLifecycleWrapper to handle delivery receipts on app resume
+                    child: AppLifecycleWrapper(
+                      child: Consumer<UserProvider>(
                       builder: (context, userProvider, child) {
                         if (userProvider.isLoading) {
                           return const Scaffold(
@@ -172,6 +175,7 @@ class AuthWrapper extends StatelessWidget {
                         // Pet owners and vets use the main app experience
                         return MyHomePage(title: 'VetPlus');
                       },
+                    ),
                     ),
                   );
                 },

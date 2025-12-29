@@ -18,6 +18,10 @@ class ChatProvider extends ChangeNotifier {
   int _totalUnreadCount = 0;
   bool _otherUserIsTyping = false;
 
+  // Pagination state
+  bool _isLoadingMoreMessages = false;
+  bool _hasMoreMessages = true;
+
   // Track active chat room ID to prevent race conditions with stream callbacks
   String? _activeChatRoomId;
 
@@ -39,6 +43,8 @@ class ChatProvider extends ChangeNotifier {
   String? get error => _error;
   int get totalUnreadCount => _totalUnreadCount;
   bool get isOtherUserTyping => _otherUserIsTyping;
+  bool get isLoadingMoreMessages => _isLoadingMoreMessages;
+  bool get hasMoreMessages => _hasMoreMessages;
 
   // Stream getters
   Stream<List<ChatRoom>>? get chatRoomsStream => _chatRoomsStream;
@@ -102,6 +108,9 @@ class ChatProvider extends ChangeNotifier {
       if (_pendingRequestsStream != null) {
         _pendingRequestsStream!.listen(updatePendingRequestsFromStream);
       }
+
+      // Mark any pending messages as delivered when chat rooms initialize
+      await markAllMessagesAsDeliveredOnSync();
     } catch (e) {
       _setError('Failed to initialize chat rooms: $e');
       _setLoading(false);
@@ -166,6 +175,10 @@ class ChatProvider extends ChangeNotifier {
         // Initialize message stream
         _messagesStream = _chatService.messagesStream(chatRoomId);
         _currentMessages = await _chatService.getMessages(chatRoomId);
+
+        // Reset pagination state for new chat
+        _hasMoreMessages = true;
+        _isLoadingMoreMessages = false;
 
         // Listen for real-time message updates and store the subscription
         _messagesStreamSubscription = _messagesStream!.listen(
@@ -279,6 +292,52 @@ class ChatProvider extends ChangeNotifier {
 
       _setError('Failed to send message: $e');
       return false;
+    }
+  }
+
+  /// Load older messages for pagination (when user scrolls up)
+  Future<void> loadMoreMessages() async {
+    if (_currentChatRoom == null) return;
+    if (_isLoadingMoreMessages) return;
+    if (!_hasMoreMessages) return;
+    if (_currentMessages.isEmpty) return;
+
+    try {
+      _isLoadingMoreMessages = true;
+      notifyListeners();
+
+      // Get the oldest message timestamp
+      final oldestMessage = _currentMessages.first;
+      final beforeTimestamp = oldestMessage.timestamp;
+
+      developer.log(
+        'Loading older messages before: $beforeTimestamp',
+        name: 'ChatProvider',
+      );
+
+      final result = await _chatService.getOlderMessages(
+        _currentChatRoom!.id,
+        beforeTimestamp: beforeTimestamp,
+      );
+
+      if (result.messages.isNotEmpty) {
+        // Prepend older messages to the beginning of the list
+        _currentMessages = [...result.messages, ..._currentMessages];
+      }
+
+      _hasMoreMessages = result.hasMore;
+
+      developer.log(
+        'Loaded ${result.messages.length} older messages. Has more: ${result.hasMore}',
+        name: 'ChatProvider',
+      );
+
+      _isLoadingMoreMessages = false;
+      notifyListeners();
+    } catch (e) {
+      developer.log('Failed to load more messages: $e', name: 'ChatProvider');
+      _isLoadingMoreMessages = false;
+      notifyListeners();
     }
   }
 
@@ -526,6 +585,34 @@ class ChatProvider extends ChangeNotifier {
     _chatRooms = chatRooms;
     _updateTotalUnreadCount();
     notifyListeners();
+
+    // Mark messages as delivered for all chats when they arrive on this device
+    // This ensures "delivered" status (✓✓ gray) appears when recipient's device
+    // receives the message, not just when they open the specific chat
+    _markNewMessagesAsDelivered(chatRooms);
+  }
+
+  /// Mark messages as delivered for chat rooms that have new unread messages
+  /// This is called when the chat list updates with new messages
+  Future<void> _markNewMessagesAsDelivered(List<ChatRoom> chatRooms) async {
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    for (final chatRoom in chatRooms) {
+      // Check if there are unread messages in this chat (messages from other user)
+      final unreadCount = chatRoom.getUnreadCount(currentUserId);
+      if (unreadCount > 0) {
+        // Mark these messages as delivered
+        try {
+          await _chatService.markMessagesAsDelivered(chatRoom.id);
+        } catch (e) {
+          developer.log(
+            'Failed to mark messages as delivered for chat ${chatRoom.id}: $e',
+            name: 'ChatProvider',
+          );
+        }
+      }
+    }
   }
 
   // Update messages from stream
@@ -536,19 +623,55 @@ class ChatProvider extends ChangeNotifier {
     );
     _currentMessages = messages;
 
-    // Only mark messages as read if:
-    // 1. Chat is currently active (using _activeChatRoomId to prevent race conditions)
-    // 2. There are unread messages from the OTHER user
+    // Only process status updates if chat is currently active
     if (_activeChatRoomId != null) {
+      // STEP 1: Mark incoming messages as DELIVERED first
+      _maybeMarkMessagesAsDelivered(messages);
+
+      // STEP 2: Then mark as READ (existing behavior)
       _maybeMarkMessagesAsRead(messages);
     } else {
       developer.log(
-        'Skipping _maybeMarkMessagesAsRead - chat not active',
+        'Skipping message status updates - chat not active',
         name: 'ChatProvider',
       );
     }
 
     notifyListeners();
+  }
+
+  /// Mark messages from other user as 'delivered' when they arrive on this device
+  Future<void> _maybeMarkMessagesAsDelivered(List<ChatMessage> messages) async {
+    final activeChatId = _activeChatRoomId;
+    if (activeChatId == null) return;
+
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    // Check if there are any messages from OTHER user still in 'sent' status
+    final hasUndeliveredFromOther = messages.any(
+      (msg) =>
+          msg.senderId != currentUserId && msg.status == MessageStatus.sent,
+    );
+
+    if (!hasUndeliveredFromOther) return;
+
+    // Double-check active chat hasn't changed
+    if (_activeChatRoomId != activeChatId) return;
+
+    developer.log(
+      'MARKING MESSAGES AS DELIVERED for chat: $activeChatId',
+      name: 'ChatProvider',
+    );
+
+    try {
+      await _chatService.markMessagesAsDelivered(activeChatId);
+    } catch (e) {
+      developer.log(
+        'Failed to mark messages as delivered: $e',
+        name: 'ChatProvider',
+      );
+    }
   }
 
   /// Check if there are unread messages from the other user and mark them as read
@@ -568,9 +691,12 @@ class ChatProvider extends ChangeNotifier {
     if (currentUserId == null) return;
 
     // Check if there are any unread messages from the OTHER user
+    // Messages can be in 'sent' or 'delivered' status - both need to be marked as read
     final hasUnreadFromOther = messages.any(
       (msg) =>
-          msg.senderId != currentUserId && msg.status == MessageStatus.sent,
+          msg.senderId != currentUserId &&
+          (msg.status == MessageStatus.sent ||
+              msg.status == MessageStatus.delivered),
     );
 
     // Only call Firestore if there are actually messages to mark as read
@@ -613,6 +739,30 @@ class ChatProvider extends ChangeNotifier {
   void updatePendingRequestsFromStream(List<ChatRoom> requests) {
     _pendingRequests = requests;
     notifyListeners();
+  }
+
+  /// Called when app comes to foreground or user logs in
+  /// Marks all undelivered messages across all chats as 'delivered'
+  Future<void> markAllMessagesAsDeliveredOnSync() async {
+    try {
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) return;
+
+      // Mark delivered for all active chat rooms
+      for (final chatRoom in _chatRooms) {
+        await _chatService.markMessagesAsDelivered(chatRoom.id);
+      }
+
+      developer.log(
+        'Marked messages as delivered across ${_chatRooms.length} chats',
+        name: 'ChatProvider',
+      );
+    } catch (e) {
+      developer.log(
+        'Failed to mark messages as delivered on sync: $e',
+        name: 'ChatProvider',
+      );
+    }
   }
 
   // Clear error

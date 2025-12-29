@@ -27,7 +27,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   void initState() {
     super.initState();
-    // Setup will happen in didChangeDependencies when provider is available
+    // Setup scroll listener for pagination
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -46,10 +47,27 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   void dispose() {
     _typingTimer?.cancel();
     _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     // Use stored reference to ensure leaveChatRoom is always called
     _chatProvider?.leaveChatRoom();
     super.dispose();
+  }
+
+  /// Handle scroll to load more messages when reaching the top
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      // Since we use reverse: true, "top" is actually maxScrollExtent
+      // User is scrolling up (towards older messages) when position approaches maxScrollExtent
+      final position = _scrollController.position;
+      final maxScroll = position.maxScrollExtent;
+      final currentScroll = position.pixels;
+
+      // Load more when user scrolls within 200 pixels of the top (older messages)
+      if (maxScroll - currentScroll < 200) {
+        _chatProvider?.loadMoreMessages();
+      }
+    }
   }
 
   void _setupTypingListener() {
@@ -161,6 +179,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }) {
     final messages = chatProvider.currentMessages;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final isLoadingMore = chatProvider.isLoadingMoreMessages;
+    final hasMore = chatProvider.hasMoreMessages;
 
     if (messages.isEmpty) {
       return Center(
@@ -187,14 +207,30 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
+    // Extra item for loading indicator at the top (shown when there are more messages)
+    final itemCount = messages.length + (hasMore ? 1 : 0);
+
     return ListView.builder(
       controller: _scrollController,
       reverse: true,
       padding: EdgeInsets.all(AppTheme.spacing4),
-      itemCount: messages.length,
+      itemCount: itemCount,
       itemBuilder: (context, index) {
+        // Since reverse: true, index 0 is the newest message (bottom)
+        // The "load more" indicator should be at the highest index (oldest, top)
+        if (hasMore && index == itemCount - 1) {
+          return _buildLoadMoreIndicator(isLoadingMore);
+        }
+
+        // Adjust index for the extra loading item
+        final messageIndex = hasMore ? index : index;
         // Since reverse: true, we need to reverse the index
-        final reversedIndex = messages.length - 1 - index;
+        final reversedIndex = messages.length - 1 - messageIndex;
+        
+        if (reversedIndex < 0 || reversedIndex >= messages.length) {
+          return const SizedBox.shrink();
+        }
+        
         final message = messages[reversedIndex];
         final isMe = message.senderId == currentUserId;
 
@@ -227,7 +263,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       ),
                     ),
                     Gap(AppTheme.spacing1),
-                    // UPDATED: Row with timestamp and status icon
+                    // Row with timestamp and status icon
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -254,6 +290,49 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           ),
         );
       },
+    );
+  }
+
+  /// Build loading indicator shown when loading older messages
+  Widget _buildLoadMoreIndicator(bool isLoading) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: AppTheme.spacing4),
+      child: Center(
+        child: isLoading
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 16.w,
+                    height: 16.w,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'Loading older messages...',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              )
+            : TextButton(
+                onPressed: () => _chatProvider?.loadMoreMessages(),
+                child: Text(
+                  'Load older messages',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+      ),
     );
   }
 
