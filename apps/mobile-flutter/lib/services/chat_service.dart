@@ -425,21 +425,24 @@ class ChatService {
   }
 
   // Get messages for a chat room
+  // Returns messages in chronological order (oldest first for display)
   Future<List<ChatMessage>> getMessages(
     String chatRoomId, {
     int limit = 50,
     DocumentSnapshot? startAfter,
   }) async {
     try {
+      // Query newest messages first to get the most recent ones
       Query query = _getMessagesCollection(
         chatRoomId,
-      ).orderBy('timestamp', descending: false).limit(limit);
+      ).orderBy('timestamp', descending: true).limit(limit);
 
       if (startAfter != null) {
         query = query.startAfterDocument(startAfter);
       }
 
       final snapshot = await query.get();
+      // Reverse to get chronological order (oldest first) for display
       return snapshot.docs
           .map(
             (doc) => ChatMessage.fromJson(
@@ -447,6 +450,8 @@ class ChatService {
               doc.id,
             ),
           )
+          .toList()
+          .reversed
           .toList();
     } catch (e) {
       throw Exception('Failed to get messages: $e');
@@ -568,12 +573,14 @@ class ChatService {
   }
 
   // Stream messages for a chat room
+  // Returns messages in chronological order (oldest first for display)
   Stream<List<ChatMessage>> messagesStream(
     String chatRoomId, {
     int limit = 50,
   }) {
+    // Query newest messages first to get the most recent ones
     return _getMessagesCollection(chatRoomId)
-        .orderBy('timestamp', descending: false)
+        .orderBy('timestamp', descending: true)
         .limit(limit)
         .snapshots()
         .map(
@@ -584,6 +591,8 @@ class ChatService {
                   doc.id,
                 ),
               )
+              .toList()
+              .reversed  // Reverse to get chronological order for display
               .toList(),
         );
   }
