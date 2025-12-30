@@ -1,12 +1,16 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'package:image_picker/image_picker.dart';
 import '../models/chat_models.dart';
 import '../services/chat_service.dart';
+import '../services/media_service.dart';
 
 class ChatProvider extends ChangeNotifier {
   final ChatService _chatService;
+  final MediaService _mediaService = MediaService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   List<ChatRoom> _chatRooms = [];
@@ -17,6 +21,10 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
   int _totalUnreadCount = 0;
   bool _otherUserIsTyping = false;
+  
+  // Media upload state
+  bool _isUploadingMedia = false;
+  double _uploadProgress = 0.0;
 
   // Pagination state
   bool _isLoadingMoreMessages = false;
@@ -24,6 +32,12 @@ class ChatProvider extends ChangeNotifier {
 
   // Scroll position cache per chat room (for restoring scroll position)
   final Map<String, double> _scrollPositions = {};
+
+  // UI freeze state - prevents new messages from triggering rebuilds while user reads
+  bool _uiFrozen = false;
+  List<ChatMessage>? _frozenMessages; // Snapshot of messages when frozen
+  Set<String> _frozenMessageIds = {}; // IDs of messages when frozen
+  Set<String> _newMessageIds = {}; // IDs of NEW messages that arrived while frozen
 
   // Track active chat room ID to prevent race conditions with stream callbacks
   String? _activeChatRoomId;
@@ -40,7 +54,7 @@ class ChatProvider extends ChangeNotifier {
   // Getters
   List<ChatRoom> get chatRooms => _chatRooms;
   ChatRoom? get currentChatRoom => _currentChatRoom;
-  List<ChatMessage> get currentMessages => _currentMessages;
+  // currentMessages getter is defined below with freeze-aware logic
   List<ChatRoom> get pendingRequests => _pendingRequests;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -48,6 +62,24 @@ class ChatProvider extends ChangeNotifier {
   bool get isOtherUserTyping => _otherUserIsTyping;
   bool get isLoadingMoreMessages => _isLoadingMoreMessages;
   bool get hasMoreMessages => _hasMoreMessages;
+  bool get isUiFrozen => _uiFrozen;
+  bool get isUploadingMedia => _isUploadingMedia;
+  double get uploadProgress => _uploadProgress;
+  MediaService get mediaService => _mediaService;
+  
+  /// Returns the count of new messages that arrived while UI is frozen
+  int get pendingMessageCount {
+    if (!_uiFrozen) return 0;
+    return _newMessageIds.length;
+  }
+  
+  /// Returns frozen messages when frozen, otherwise current messages
+  List<ChatMessage> get currentMessages {
+    if (_uiFrozen && _frozenMessages != null) {
+      return _frozenMessages!;
+    }
+    return _currentMessages;
+  }
 
   // Stream getters
   Stream<List<ChatRoom>>? get chatRoomsStream => _chatRoomsStream;
@@ -68,6 +100,31 @@ class ChatProvider extends ChangeNotifier {
   /// Clear saved scroll position for a chat room
   void clearScrollPosition(String chatRoomId) {
     _scrollPositions.remove(chatRoomId);
+  }
+
+  /// UI FREEZE - Prevents message updates from triggering rebuilds while user reads ///
+
+  /// Freeze UI updates - snapshot current messages and ignore new ones
+  void freezeUI() {
+    if (_uiFrozen) return;
+    
+    _uiFrozen = true;
+    _frozenMessages = List.from(_currentMessages); // Snapshot current state
+    _frozenMessageIds = _currentMessages.map((m) => m.id).toSet(); // Track IDs
+    _newMessageIds = {}; // Reset new message tracking
+  }
+
+  /// Unfreeze UI and show any pending messages
+  void unfreezeUI() {
+    if (!_uiFrozen) return;
+    
+    _uiFrozen = false;
+    _frozenMessages = null;
+    _frozenMessageIds = {};
+    _newMessageIds = {};
+    
+    // Always trigger rebuild to show current state
+    notifyListeners();
   }
 
   void _setLoading(bool loading) {
@@ -315,6 +372,146 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  /// MEDIA MESSAGE METHODS ///
+
+  /// Pick and send an image from gallery
+  Future<bool> pickAndSendImageFromGallery() async {
+    return _pickAndSendImage(ImageSource.gallery);
+  }
+
+  /// Pick and send an image from camera
+  Future<bool> pickAndSendImageFromCamera() async {
+    return _pickAndSendImage(ImageSource.camera);
+  }
+
+  /// Pick and send a video from gallery
+  Future<bool> pickAndSendVideoFromGallery() async {
+    return _pickAndSendVideo(ImageSource.gallery);
+  }
+
+  /// Pick and send a video from camera
+  Future<bool> pickAndSendVideoFromCamera() async {
+    return _pickAndSendVideo(ImageSource.camera);
+  }
+
+  /// Pick and send files
+  Future<bool> pickAndSendFiles() async {
+    if (_currentChatRoom == null) return false;
+
+    try {
+      final files = await _mediaService.pickFiles();
+      if (files.isEmpty) return false;
+
+      for (final file in files) {
+        await _sendMediaFile(file);
+      }
+      return true;
+    } catch (e) {
+      _setError('Failed to send files: $e');
+      return false;
+    }
+  }
+
+  /// Internal method to pick and send an image
+  Future<bool> _pickAndSendImage(ImageSource source) async {
+    if (_currentChatRoom == null) return false;
+
+    try {
+      final file = await _mediaService.pickImage(source: source);
+      if (file == null) return false;
+
+      return await _sendMediaFile(file);
+    } catch (e) {
+      _setError('Failed to send image: $e');
+      return false;
+    }
+  }
+
+  /// Internal method to pick and send a video
+  Future<bool> _pickAndSendVideo(ImageSource source) async {
+    if (_currentChatRoom == null) return false;
+
+    try {
+      final file = await _mediaService.pickVideo(source: source);
+      if (file == null) return false;
+
+      return await _sendMediaFile(file);
+    } catch (e) {
+      _setError('Failed to send video: $e');
+      return false;
+    }
+  }
+
+  /// Send a media file (image, video, or document)
+  Future<bool> _sendMediaFile(File file) async {
+    if (_currentChatRoom == null) return false;
+
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      _isUploadingMedia = true;
+      _uploadProgress = 0.0;
+      notifyListeners();
+
+      // Upload the file
+      final result = await _mediaService.uploadMedia(
+        file: file,
+        chatRoomId: _currentChatRoom!.id,
+        senderId: user.uid,
+        onProgress: (progress) {
+          _uploadProgress = progress;
+          notifyListeners();
+        },
+      );
+
+      // Determine message type and content
+      MessageType messageType;
+      String content;
+      switch (result.mediaType) {
+        case MediaType.image:
+          messageType = MessageType.image;
+          content = '📷 Photo';
+          break;
+        case MediaType.video:
+          messageType = MessageType.video;
+          content = '🎬 Video';
+          break;
+        case MediaType.file:
+          messageType = MessageType.file;
+          content = '📎 ${result.fileName}';
+          break;
+      }
+
+      // Send the message with media info
+      await _chatService.sendMessage(
+        chatRoomId: _currentChatRoom!.id,
+        content: content,
+        senderName: user.displayName ?? 'User',
+        senderRole: _getUserRole(),
+        type: messageType,
+        mediaUrl: result.mediaUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        fileName: result.fileName,
+        fileSize: result.fileSize,
+        mimeType: result.mimeType,
+      );
+
+      _isUploadingMedia = false;
+      _uploadProgress = 0.0;
+      notifyListeners();
+
+      return true;
+    } catch (e) {
+      _isUploadingMedia = false;
+      _uploadProgress = 0.0;
+      notifyListeners();
+
+      _setError('Failed to send media: $e');
+      return false;
+    }
+  }
+
   /// Load older messages for pagination (when user scrolls up)
   Future<void> loadMoreMessages() async {
     if (_currentChatRoom == null) return;
@@ -326,14 +523,10 @@ class ChatProvider extends ChangeNotifier {
       _isLoadingMoreMessages = true;
       notifyListeners();
 
-      // Get the oldest message timestamp
+      // Get the oldest message timestamp (first in chronologically sorted list)
       final oldestMessage = _currentMessages.first;
       final beforeTimestamp = oldestMessage.timestamp;
 
-      developer.log(
-        'Loading older messages before: $beforeTimestamp',
-        name: 'ChatProvider',
-      );
 
       final result = await _chatService.getOlderMessages(
         _currentChatRoom!.id,
@@ -343,14 +536,19 @@ class ChatProvider extends ChangeNotifier {
       if (result.messages.isNotEmpty) {
         // Prepend older messages to the beginning of the list
         _currentMessages = [...result.messages, ..._currentMessages];
+        
+        // If UI is frozen, also update frozen messages (for pagination while scrolled up)
+        if (_uiFrozen && _frozenMessages != null) {
+          _frozenMessages = [...result.messages, ..._frozenMessages!];
+          // Add these IDs to frozen set so they're not counted as "new"
+          for (final msg in result.messages) {
+            _frozenMessageIds.add(msg.id);
+          }
+        }
       }
 
       _hasMoreMessages = result.hasMore;
 
-      developer.log(
-        'Loaded ${result.messages.length} older messages. Has more: ${result.hasMore}',
-        name: 'ChatProvider',
-      );
 
       _isLoadingMoreMessages = false;
       notifyListeners();
@@ -638,9 +836,11 @@ class ChatProvider extends ChangeNotifier {
   // Update messages from stream
   void updateMessagesFromStream(List<ChatMessage> messages) {
     developer.log(
-      'updateMessagesFromStream called. _activeChatRoomId: $_activeChatRoomId, message count: ${messages.length}',
+      'updateMessagesFromStream called. _activeChatRoomId: $_activeChatRoomId, message count: ${messages.length}, frozen: $_uiFrozen',
       name: 'ChatProvider',
     );
+    
+    // Always update the internal messages list
     _currentMessages = messages;
 
     // Only process status updates if chat is currently active
@@ -657,6 +857,19 @@ class ChatProvider extends ChangeNotifier {
       );
     }
 
+    // If UI is frozen, track NEW messages by checking IDs we haven't seen
+    if (_uiFrozen) {
+      final currentUserId = _auth.currentUser?.uid;
+      for (final msg in messages) {
+        // Only count messages from OTHER user that weren't in frozen set
+        if (!_frozenMessageIds.contains(msg.id) && 
+            msg.senderId != currentUserId) {
+          _newMessageIds.add(msg.id);
+        }
+      }
+    }
+
+    // Always notify - but currentMessages getter returns frozen snapshot when frozen
     notifyListeners();
   }
 

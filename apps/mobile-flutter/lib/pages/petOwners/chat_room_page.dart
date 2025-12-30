@@ -5,8 +5,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
+import '../../services/media_service.dart';
 import '../../theme/app_theme.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -24,29 +30,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Timer? _typingTimer;
   ChatProvider? _chatProvider;
 
-  // Track if user has scrolled up from the bottom
+  // Track if user has scrolled up from the bottom (for showing scroll button)
   bool _showScrollToBottom = false;
-  // Track message IDs that are UNSEEN (arrived while scrolled up)
-  final Set<String> _unseenMessageIds = {};
-  // Track message count when user was last at bottom
-  int _messageCountAtBottom = 0;
-  // Track message count to detect new messages
-  int _previousMessageCount = 0;
 
   @override
   void initState() {
     super.initState();
-    // Setup scroll listener for pagination and scroll-to-bottom button
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Store reference to ChatProvider for safe disposal
     if (_chatProvider == null) {
       _chatProvider = context.read<ChatProvider>();
-      // Initialize chat room after we have the provider reference
       _initializeChatRoom();
       _setupTypingListener();
     }
@@ -65,52 +62,59 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
+    // Unfreeze UI when leaving chat
+    _chatProvider?.unfreezeUI();
+
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    // Use stored reference to ensure leaveChatRoom is always called
     _chatProvider?.leaveChatRoom();
     super.dispose();
   }
 
-  /// Handle scroll to load more messages when reaching the top
-  /// and show/hide scroll-to-bottom button
+  /// Handle scroll events for pagination and scroll-to-bottom button
   void _onScroll() {
-    if (_scrollController.hasClients) {
-      final position = _scrollController.position;
-      final maxScroll = position.maxScrollExtent;
-      final currentScroll = position.pixels;
+    if (!_scrollController.hasClients) return;
 
-      // Since we use reverse: true, position 0 is the bottom (newest messages)
-      // Show scroll-to-bottom button when user scrolls up more than 300 pixels
-      final shouldShowButton = currentScroll > 300;
-      if (shouldShowButton != _showScrollToBottom) {
-        setState(() {
-          _showScrollToBottom = shouldShowButton;
-        });
-      }
+    final position = _scrollController.position;
+    final currentScroll = position.pixels;
+    final maxScroll = position.maxScrollExtent;
 
-      // When user reaches bottom, clear unseen and update baseline count
-      if (currentScroll < 100) {
-        _unseenMessageIds.clear();
-        _messageCountAtBottom = _chatProvider?.currentMessages.length ?? 0;
-      }
+    // With reverse: true, position 0 is bottom (newest), maxScroll is top (oldest)
+    // Show button when user scrolls up more than 300 pixels from bottom
+    final shouldShowButton = currentScroll > 300;
 
-      // Load more when user scrolls within 200 pixels of the top (older messages)
-      if (maxScroll - currentScroll < 200) {
-        _chatProvider?.loadMoreMessages();
-      }
+    if (shouldShowButton && !_showScrollToBottom) {
+      // User scrolled up - freeze UI to prevent message bumping
+      _chatProvider?.freezeUI();
+      setState(() => _showScrollToBottom = true);
+    } else if (!shouldShowButton && _showScrollToBottom) {
+      // User scrolled back to bottom - unfreeze to show new messages
+      _chatProvider?.unfreezeUI();
+      setState(() => _showScrollToBottom = false);
+    }
+
+    // Load more when near the top (high scroll offset with reverse: true)
+    if (maxScroll - currentScroll < 200) {
+      _chatProvider?.loadMoreMessages();
     }
   }
 
   /// Scroll to the bottom of the chat (newest messages)
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0, // With reverse: true, 0 is the bottom (newest messages)
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    // Unfreeze to show any pending messages
+    _chatProvider?.unfreezeUI();
+    setState(() => _showScrollToBottom = false);
+
+    // With reverse: true, position 0 is the bottom (newest messages)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _scrollController.hasClients) {
+        _scrollController.animateTo(
+          0, // With reverse: true, 0 is the bottom
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _setupTypingListener() {
@@ -143,11 +147,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _chatProvider?.selectChatRoom(widget.chatRoom.id);
 
-      // Initialize message counts - this is our baseline
-      final count = _chatProvider?.currentMessages.length ?? 0;
-      _messageCountAtBottom = count;
-      _previousMessageCount = count;
-
       // Restore scroll position after messages are loaded
       _restoreScrollPosition();
     });
@@ -160,18 +159,23 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final savedPosition = _chatProvider!.getSavedScrollPosition(
       widget.chatRoom.id,
     );
-    if (savedPosition > 0 && _scrollController.hasClients) {
-      // Use a small delay to ensure the list is built
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted && _scrollController.hasClients) {
-          _scrollController.jumpTo(savedPosition);
-          // Update the scroll-to-bottom button state
-          setState(() {
-            _showScrollToBottom = savedPosition > 300;
-          });
+
+    // Use a small delay to ensure the list is built
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted || !_scrollController.hasClients) return;
+
+      if (savedPosition > 0) {
+        // Restore saved position
+        _scrollController.jumpTo(savedPosition);
+        // With reverse: true, higher scroll offset means scrolled up (away from newest)
+        final isScrolledUp = savedPosition > 300;
+        if (isScrolledUp) {
+          _chatProvider?.freezeUI();
         }
-      });
-    }
+        setState(() => _showScrollToBottom = isScrolledUp);
+      }
+      // With reverse: true, position 0 is already at bottom (newest), no need to scroll
+    });
   }
 
   @override
@@ -189,54 +193,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   : 'Clinic')
             : currentChatRoom.petOwnerName;
 
-        // Simple unseen tracking:
-        // - When scrolled up and new messages arrive, add to unseen
-        // - When at bottom, clear unseen and update baseline
-
+        // Get messages from provider (provider handles freezing internally)
         final messages = chatProvider.currentMessages;
-        final currentCount = messages.length;
-        final isAtBottom =
-            !_scrollController.hasClients ||
-            (_scrollController.hasClients &&
-                _scrollController.position.pixels < 100);
 
-        // Detect new messages arriving while scrolled up
-        final hasNewMessages = currentCount > _previousMessageCount;
-        final wasScrolledUp = _showScrollToBottom;
-
-        if (isAtBottom) {
-          // At bottom: clear unseen and update baseline
-          _unseenMessageIds.clear();
-          _messageCountAtBottom = currentCount;
-        } else if (currentCount > _messageCountAtBottom) {
-          // Scrolled up and we have NEW messages - add new ones from other user to unseen
-          final newMessageCount = currentCount - _messageCountAtBottom;
-          for (int i = currentCount - newMessageCount; i < currentCount; i++) {
-            final msg = messages[i];
-            if (msg.senderId != currentUserId &&
-                !_unseenMessageIds.contains(msg.id)) {
-              _unseenMessageIds.add(msg.id);
-            }
-          }
-          // Update baseline so we don't re-add these
-          _messageCountAtBottom = currentCount;
-        }
-
-        // If new messages arrived while scrolled up, maintain scroll position
-        // by jumping back after the frame is rendered
-        if (hasNewMessages && wasScrolledUp && _scrollController.hasClients) {
-          final savedPosition = _scrollController.position.pixels;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted &&
-                _scrollController.hasClients &&
-                _showScrollToBottom) {
-              _scrollController.jumpTo(savedPosition);
-            }
-          });
-        }
-
-        _previousMessageCount = currentCount;
-        final unseenCount = _unseenMessageIds.length;
+        // Count of pending messages (arrived while UI was frozen)
+        final pendingCount = chatProvider.pendingMessageCount;
 
         return Container(
           decoration: const BoxDecoration(
@@ -280,13 +241,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       _buildMessagesList(
                         chatProvider,
                         isPendingAndPetOwner: isPendingAndPetOwner,
+                        messages: messages,
                       ),
-                      // Scroll to bottom floating button with unread count
+                      // Scroll to bottom floating button with pending message count
                       if (_showScrollToBottom)
                         Positioned(
                           right: AppTheme.spacing4,
                           bottom: AppTheme.spacing4,
-                          child: _buildScrollToBottomButton(unseenCount),
+                          child: _buildScrollToBottomButton(pendingCount),
                         ),
                     ],
                   ),
@@ -308,8 +270,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Widget _buildMessagesList(
     ChatProvider chatProvider, {
     required bool isPendingAndPetOwner,
+    required List<ChatMessage> messages,
   }) {
-    final messages = chatProvider.currentMessages;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final isLoadingMore = chatProvider.isLoadingMoreMessages;
     final hasMore = chatProvider.hasMoreMessages;
@@ -339,73 +301,84 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
-    // Extra item for loading indicator at the top (shown when there are more messages)
+    // With reverse: true, index 0 is newest (bottom), highest index is oldest (top)
+    // Add 1 for loading indicator at the top (highest index) if there are more
     final itemCount = messages.length + (hasMore ? 1 : 0);
 
     return ListView.builder(
       controller: _scrollController,
-      reverse: true,
+      reverse: true, // Newest at bottom, oldest at top - standard chat pattern
       padding: EdgeInsets.all(AppTheme.spacing4),
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        // Since reverse: true, index 0 is the newest message (bottom)
-        // The "load more" indicator should be at the highest index (oldest, top)
+        // Loading indicator at the highest index (top of reversed list)
         if (hasMore && index == itemCount - 1) {
           return _buildLoadMoreIndicator(isLoadingMore);
         }
 
-        // Adjust index for the extra loading item
-        final messageIndex = hasMore ? index : index;
-        // Since reverse: true, we need to reverse the index
-        final reversedIndex = messages.length - 1 - messageIndex;
+        // With reverse: true, we need to reverse the message index
+        // index 0 = newest message (bottom) = messages[length-1]
+        // index n = older message = messages[length-1-n]
+        final messageIndex = messages.length - 1 - index;
 
-        if (reversedIndex < 0 || reversedIndex >= messages.length) {
+        if (messageIndex < 0 || messageIndex >= messages.length) {
           return const SizedBox.shrink();
         }
 
-        final message = messages[reversedIndex];
+        final message = messages[messageIndex];
         final isMe = message.senderId == currentUserId;
 
-        // Remove from unseen when rendered on screen
-        if (_unseenMessageIds.contains(message.id)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && _unseenMessageIds.contains(message.id)) {
-              setState(() {
-                _unseenMessageIds.remove(message.id);
-              });
-            }
-          });
-        }
+        // Determine if this is the first message in a sequence from this sender
+        // (i.e., the previous message was from a different user or this is the first message)
+        final isFirstInSequence =
+            messageIndex == 0 ||
+            messages[messageIndex - 1].senderId != message.senderId;
 
         return Padding(
           key: ValueKey(message.id),
-          padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+          padding: EdgeInsets.only(
+            // Less space between same-person messages, more between different users
+            bottom: isFirstInSequence ? 2.w : 4.w,
+            top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
+          ),
           child: Row(
             mainAxisAlignment: isMe
                 ? MainAxisAlignment.end
                 : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start, // Align to top
             children: [
+              // Bubble tail for received messages (left side, top)
+              if (!isMe && isFirstInSequence)
+                CustomPaint(
+                  painter: _BubbleTailPainter(color: Colors.white, isMe: false),
+                  size: Size(12.w, 16.w),
+                ),
               Container(
-                constraints: BoxConstraints(maxWidth: 250.w),
+                constraints: BoxConstraints(maxWidth: 250.w, minWidth: 140.w),
                 padding: EdgeInsets.symmetric(
                   horizontal: AppTheme.spacing3,
                   vertical: AppTheme.spacing2,
                 ),
                 decoration: BoxDecoration(
                   color: isMe ? AppTheme.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(AppTheme.radius3),
+                  borderRadius: BorderRadius.only(
+                    // Hide top corner where tail attaches (radius 0)
+                    topLeft: Radius.circular(
+                      !isMe && isFirstInSequence ? 0 : AppTheme.radius3,
+                    ),
+                    topRight: Radius.circular(
+                      isMe && isFirstInSequence ? 0 : AppTheme.radius3,
+                    ),
+                    bottomLeft: Radius.circular(AppTheme.radius3),
+                    bottomRight: Radius.circular(AppTheme.radius3),
+                  ),
                   boxShadow: isMe ? null : AppTheme.cardShadow,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      message.content,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: isMe ? Colors.white : AppTheme.primary,
-                      ),
-                    ),
+                    // Build content based on message type
+                    _buildMessageContent(message, isMe),
                     Gap(AppTheme.spacing1),
                     // Row with timestamp and status icon
                     Row(
@@ -430,11 +403,304 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   ],
                 ),
               ),
+              // Bubble tail for sent messages (right side, top)
+              if (isMe && isFirstInSequence)
+                CustomPaint(
+                  painter: _BubbleTailPainter(
+                    color: AppTheme.primary,
+                    isMe: true,
+                  ),
+                  size: Size(12.w, 16.w),
+                ),
             ],
           ),
         );
       },
     );
+  }
+
+  /// Build message content based on type
+  Widget _buildMessageContent(ChatMessage message, bool isMe) {
+    switch (message.type) {
+      case MessageType.image:
+        return _buildImageMessage(message, isMe);
+      case MessageType.video:
+        return _buildVideoMessage(message, isMe);
+      case MessageType.file:
+        return _buildFileMessage(message, isMe);
+      default:
+        // Text message
+        return Text(
+          message.content,
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: isMe ? Colors.white : AppTheme.primary,
+          ),
+        );
+    }
+  }
+
+  /// Build image message bubble
+  Widget _buildImageMessage(ChatMessage message, bool isMe) {
+    final imageUrl = message.mediaUrl ?? message.thumbnailUrl;
+    if (imageUrl == null) {
+      return Text(
+        message.content,
+        style: TextStyle(
+          fontSize: 14.sp,
+          color: isMe ? Colors.white : AppTheme.primary,
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _showFullScreenImage(imageUrl, message.fileName),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppTheme.radius2),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 200.w, maxHeight: 250.w),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              width: 150.w,
+              height: 150.w,
+              color: isMe
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : AppTheme.neutral700.withValues(alpha: 0.1),
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isMe ? Colors.white : AppTheme.primary,
+                  ),
+                ),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              width: 150.w,
+              height: 100.w,
+              color: isMe
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : AppTheme.neutral700.withValues(alpha: 0.1),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.broken_image,
+                    color: isMe ? Colors.white : AppTheme.neutral700,
+                    size: 32.sp,
+                  ),
+                  Gap(AppTheme.spacing1),
+                  Text(
+                    'Failed to load',
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      color: isMe
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : AppTheme.neutral700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build video message bubble
+  Widget _buildVideoMessage(ChatMessage message, bool isMe) {
+    return GestureDetector(
+      onTap: () => _openMediaFile(message),
+      child: Container(
+        width: 180.w,
+        height: 120.w,
+        decoration: BoxDecoration(
+          color: isMe
+              ? Colors.white.withValues(alpha: 0.2)
+              : AppTheme.neutral700.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppTheme.radius2),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Thumbnail if available
+            if (message.thumbnailUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                child: CachedNetworkImage(
+                  imageUrl: message.thumbnailUrl!,
+                  fit: BoxFit.cover,
+                  width: 180.w,
+                  height: 120.w,
+                ),
+              ),
+            // Play button overlay
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.play_arrow, color: Colors.white, size: 32.sp),
+            ),
+            // File size badge
+            if (message.fileSize != null)
+              Positioned(
+                bottom: 8.w,
+                right: 8.w,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.w),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(4.w),
+                  ),
+                  child: Text(
+                    MediaService.formatFileSize(message.fileSize!),
+                    style: TextStyle(fontSize: 10.sp, color: Colors.white),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build file message bubble
+  Widget _buildFileMessage(ChatMessage message, bool isMe) {
+    return GestureDetector(
+      onTap: () => _openMediaFile(message),
+      child: Container(
+        padding: EdgeInsets.all(AppTheme.spacing2),
+        decoration: BoxDecoration(
+          color: isMe
+              ? Colors.white.withValues(alpha: 0.15)
+              : AppTheme.neutral700.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppTheme.radius2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacing2),
+              decoration: BoxDecoration(
+                color: isMe
+                    ? Colors.white.withValues(alpha: 0.2)
+                    : AppTheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+              ),
+              child: Text(
+                MediaService.getFileIcon(message.mimeType),
+                style: TextStyle(fontSize: 24.sp),
+              ),
+            ),
+            Gap(AppTheme.spacing2),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.fileName ?? 'File',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w500,
+                      color: isMe ? Colors.white : AppTheme.primary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (message.fileSize != null)
+                    Text(
+                      MediaService.formatFileSize(message.fileSize!),
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        color: isMe
+                            ? Colors.white.withValues(alpha: 0.7)
+                            : AppTheme.neutral700,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Gap(AppTheme.spacing2),
+            Icon(
+              Icons.download,
+              color: isMe ? Colors.white : AppTheme.primary,
+              size: 20.sp,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show full screen image viewer
+  void _showFullScreenImage(String imageUrl, String? fileName) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            _FullScreenImageViewer(imageUrl: imageUrl, fileName: fileName),
+      ),
+    );
+  }
+
+  /// Open media file (video or document)
+  Future<void> _openMediaFile(ChatMessage message) async {
+    if (message.mediaUrl == null) return;
+
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16.w,
+                height: 16.w,
+                child: const CircularProgressIndicator(strokeWidth: 2),
+              ),
+              Gap(AppTheme.spacing2),
+              const Text('Opening file...'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Download file to temp directory
+      final tempDir = await getTemporaryDirectory();
+      final fileName = message.fileName ?? 'file_${message.id}';
+      final filePath = '${tempDir.path}/$fileName';
+      final file = File(filePath);
+
+      // Check if file already exists
+      if (!await file.exists()) {
+        // Download the file
+        final response = await http.get(Uri.parse(message.mediaUrl!));
+        await file.writeAsBytes(response.bodyBytes);
+      }
+
+      // Open the file
+      final result = await OpenFilex.open(filePath);
+      if (result.type != ResultType.done) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open file: ${result.message}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to open file: $e')));
+      }
+    }
   }
 
   /// Build loading indicator shown when loading older messages
@@ -505,7 +771,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               color: AppTheme.primary,
               size: 24.sp,
             ),
-            // Show badge with unread message count if any
+            // Show badge only when there are new unread messages
             if (unseenCount > 0)
               Positioned(
                 top: -8,
@@ -621,45 +887,243 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   Widget _buildMessageInput(ChatProvider chatProvider) {
-    return Container(
-      padding: EdgeInsets.all(AppTheme.spacing3),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppTheme.radius3),
-                boxShadow: AppTheme.cardShadow,
-              ),
-              child: TextField(
-                controller: _messageController,
-                style: TextStyle(color: AppTheme.primary, fontSize: 14.sp),
-                decoration: InputDecoration(
-                  hintText: 'Type a message...',
-                  hintStyle: TextStyle(
-                    color: AppTheme.neutral700.withValues(alpha: 0.5),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacing3,
-                    vertical: AppTheme.spacing3,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Upload progress indicator
+        if (chatProvider.isUploadingMedia)
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacing4,
+              vertical: AppTheme.spacing2,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16.w,
+                  height: 16.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: chatProvider.uploadProgress,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
-                maxLines: null,
-              ),
+                Gap(AppTheme.spacing2),
+                Text(
+                  'Uploading... ${(chatProvider.uploadProgress * 100).toInt()}%',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
             ),
           ),
-          Gap(AppTheme.spacing2),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: AppTheme.cardShadow,
+        Container(
+          padding: EdgeInsets.all(AppTheme.spacing3),
+          child: Row(
+            children: [
+              // Attachment button
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.attach_file, color: AppTheme.primary),
+                  onPressed: chatProvider.isUploadingMedia
+                      ? null
+                      : () => _showAttachmentOptions(chatProvider),
+                ),
+              ),
+              Gap(AppTheme.spacing2),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: TextField(
+                    controller: _messageController,
+                    style: TextStyle(color: AppTheme.primary, fontSize: 14.sp),
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      hintStyle: TextStyle(
+                        color: AppTheme.neutral700.withValues(alpha: 0.5),
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacing3,
+                        vertical: AppTheme.spacing3,
+                      ),
+                    ),
+                    maxLines: null,
+                  ),
+                ),
+              ),
+              Gap(AppTheme.spacing2),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.send, color: AppTheme.primary),
+                  onPressed: chatProvider.isUploadingMedia
+                      ? null
+                      : () => _sendMessage(chatProvider),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Show attachment options bottom sheet
+  void _showAttachmentOptions(ChatProvider chatProvider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppTheme.radius4),
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40.w,
+                  height: 4.w,
+                  decoration: BoxDecoration(
+                    color: AppTheme.neutral700.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2.w),
+                  ),
+                ),
+                Gap(AppTheme.spacing4),
+                Text(
+                  'Share Media',
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primary,
+                  ),
+                ),
+                Gap(AppTheme.spacing4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildAttachmentOption(
+                      icon: Icons.photo_library,
+                      label: 'Gallery',
+                      color: Colors.purple,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await chatProvider.pickAndSendImageFromGallery();
+                      },
+                    ),
+                    _buildAttachmentOption(
+                      icon: Icons.camera_alt,
+                      label: 'Camera',
+                      color: Colors.blue,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await chatProvider.pickAndSendImageFromCamera();
+                      },
+                    ),
+                    _buildAttachmentOption(
+                      icon: Icons.videocam,
+                      label: 'Video',
+                      color: Colors.red,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await chatProvider.pickAndSendVideoFromGallery();
+                      },
+                    ),
+                    _buildAttachmentOption(
+                      icon: Icons.insert_drive_file,
+                      label: 'File',
+                      color: Colors.orange,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await chatProvider.pickAndSendFiles();
+                      },
+                    ),
+                  ],
+                ),
+                Gap(AppTheme.spacing4),
+                // File size limits info
+                Container(
+                  padding: EdgeInsets.all(AppTheme.spacing3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.neutral700.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(AppTheme.radius2),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16.sp,
+                        color: AppTheme.neutral700.withValues(alpha: 0.7),
+                      ),
+                      Gap(AppTheme.spacing2),
+                      Expanded(
+                        child: Text(
+                          'Max sizes: Images 5MB, Videos 25MB, Files 10MB',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: AppTheme.neutral700.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            child: IconButton(
-              icon: Icon(Icons.send, color: AppTheme.primary),
-              onPressed: () => _sendMessage(chatProvider),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: EdgeInsets.all(AppTheme.spacing3),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28.sp),
+          ),
+          Gap(AppTheme.spacing2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: AppTheme.neutral700,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -770,6 +1234,101 @@ class _TypingDotState extends State<_TypingDot>
         decoration: BoxDecoration(
           color: AppTheme.neutral700,
           shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom painter for chat bubble tail/pointer at top corner
+class _BubbleTailPainter extends CustomPainter {
+  final Color color;
+  final bool isMe;
+
+  _BubbleTailPainter({required this.color, required this.isMe});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+
+    if (isMe) {
+      // Tail pointing right at top (for sent messages)
+      // Starts at the top-left of the tail area, curves up and right
+      path.moveTo(0, 0); // Top-left corner (connects to bubble)
+      path.lineTo(0, size.height); // Go down along the bubble edge
+      path.quadraticBezierTo(
+        0,
+        size.height * 0.3,
+        size.width,
+        0,
+      ); // Curve up to the point
+      path.close();
+    } else {
+      // Tail pointing left at top (for received messages)
+      // Starts at the top-right of the tail area, curves up and left
+      path.moveTo(size.width, 0); // Top-right corner (connects to bubble)
+      path.lineTo(size.width, size.height); // Go down along the bubble edge
+      path.quadraticBezierTo(
+        size.width,
+        size.height * 0.3,
+        0,
+        0,
+      ); // Curve up to the point
+      path.close();
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BubbleTailPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.isMe != isMe;
+  }
+}
+
+/// Full screen image viewer
+class _FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+  final String? fileName;
+
+  const _FullScreenImageViewer({required this.imageUrl, this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(fileName ?? 'Photo', style: TextStyle(fontSize: 16.sp)),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+            errorWidget: (context, url, error) => Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image, color: Colors.white54, size: 64.sp),
+                Gap(AppTheme.spacing2),
+                Text(
+                  'Failed to load image',
+                  style: TextStyle(color: Colors.white54, fontSize: 14.sp),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

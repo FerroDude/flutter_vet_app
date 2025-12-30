@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MessageType { text, image, appointment, medication }
+enum MessageType { text, image, video, file, appointment, medication }
 
 enum MessageStatus { sent, delivered, read }
 
@@ -28,7 +28,11 @@ class ChatMessage {
   final DateTime timestamp;
   final DateTime? deliveredAt;
   final DateTime? readAt;
-  final String? imageUrl;
+  final String? mediaUrl; // URL for image, video, or file
+  final String? thumbnailUrl; // Thumbnail for video/large images
+  final String? fileName; // Original file name for files
+  final int? fileSize; // File size in bytes
+  final String? mimeType; // MIME type of the file
   final String? appointmentId;
   final String? medicationId;
   final Map<String, dynamic>? metadata;
@@ -45,7 +49,11 @@ class ChatMessage {
     required this.timestamp,
     this.deliveredAt,
     this.readAt,
-    this.imageUrl,
+    this.mediaUrl,
+    this.thumbnailUrl,
+    this.fileName,
+    this.fileSize,
+    this.mimeType,
     this.appointmentId,
     this.medicationId,
     this.metadata,
@@ -66,7 +74,12 @@ class ChatMessage {
           ? _parseDateTime(json['deliveredAt'])
           : null,
       readAt: json['readAt'] != null ? _parseDateTime(json['readAt']) : null,
-      imageUrl: json['imageUrl'],
+      // Support both old 'imageUrl' and new 'mediaUrl' fields for backwards compatibility
+      mediaUrl: json['mediaUrl'] ?? json['imageUrl'],
+      thumbnailUrl: json['thumbnailUrl'],
+      fileName: json['fileName'],
+      fileSize: json['fileSize'],
+      mimeType: json['mimeType'],
       appointmentId: json['appointmentId'],
       medicationId: json['medicationId'],
       metadata: json['metadata'] as Map<String, dynamic>?,
@@ -85,7 +98,11 @@ class ChatMessage {
       'timestamp': timestamp.millisecondsSinceEpoch,
       'deliveredAt': deliveredAt?.millisecondsSinceEpoch,
       'readAt': readAt?.millisecondsSinceEpoch,
-      'imageUrl': imageUrl,
+      'mediaUrl': mediaUrl,
+      'thumbnailUrl': thumbnailUrl,
+      'fileName': fileName,
+      'fileSize': fileSize,
+      'mimeType': mimeType,
       'appointmentId': appointmentId,
       'medicationId': medicationId,
       'metadata': metadata,
@@ -119,7 +136,11 @@ class ChatMessage {
     DateTime? timestamp,
     DateTime? deliveredAt,
     DateTime? readAt,
-    String? imageUrl,
+    String? mediaUrl,
+    String? thumbnailUrl,
+    String? fileName,
+    int? fileSize,
+    String? mimeType,
     String? appointmentId,
     String? medicationId,
     Map<String, dynamic>? metadata,
@@ -136,7 +157,11 @@ class ChatMessage {
       timestamp: timestamp ?? this.timestamp,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
-      imageUrl: imageUrl ?? this.imageUrl,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      fileName: fileName ?? this.fileName,
+      fileSize: fileSize ?? this.fileSize,
+      mimeType: mimeType ?? this.mimeType,
       appointmentId: appointmentId ?? this.appointmentId,
       medicationId: medicationId ?? this.medicationId,
       metadata: metadata ?? this.metadata,
