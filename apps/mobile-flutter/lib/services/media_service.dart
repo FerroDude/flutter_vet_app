@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:mime/mime.dart';
 import 'package:uuid/uuid.dart';
+import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Configuration for media limits
 class MediaConfig {
@@ -14,6 +15,8 @@ class MediaConfig {
   static const int maxImageSize = 5 * 1024 * 1024; // 5MB
   static const int maxVideoSize = 25 * 1024 * 1024; // 25MB
   static const int maxFileSize = 10 * 1024 * 1024; // 10MB
+  static const int maxVoiceSize = 5 * 1024 * 1024; // 5MB
+  static const int maxVoiceDuration = 120; // 2 minutes in seconds
 
   // Image compression settings
   static const int imageQuality = 70; // 0-100
@@ -49,6 +52,7 @@ class MediaUploadResult {
   final int fileSize;
   final String mimeType;
   final MediaType mediaType;
+  final int? audioDuration; // Duration in seconds for voice messages
 
   MediaUploadResult({
     required this.mediaUrl,
@@ -57,16 +61,201 @@ class MediaUploadResult {
     required this.fileSize,
     required this.mimeType,
     required this.mediaType,
+    this.audioDuration,
   });
 }
 
-enum MediaType { image, video, file }
+enum MediaType { image, video, file, voice }
 
 /// Service for handling media picking, compression, and upload
 class MediaService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _imagePicker = ImagePicker();
   final Uuid _uuid = const Uuid();
+  RecorderController? _recorderController;
+  
+  // Voice recording state
+  DateTime? _recordingStartTime;
+  String? _currentRecordingPath;
+  
+  /// Get the recorder controller for waveform display
+  RecorderController? get recorderController => _recorderController;
+  
+  /// Check if currently recording
+  bool isRecording() {
+    return _recorderController?.isRecording ?? false;
+  }
+  
+  /// Request microphone permission
+  Future<bool> requestMicrophonePermission() async {
+    final status = await Permission.microphone.request();
+    return status.isGranted;
+  }
+  
+  /// Start voice recording
+  Future<bool> startRecording() async {
+    try {
+      // Check permission
+      final hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        throw Exception('Microphone permission denied');
+      }
+      
+      // Create recorder controller
+      _recorderController = RecorderController()
+        ..androidEncoder = AndroidEncoder.aac
+        ..androidOutputFormat = AndroidOutputFormat.mpeg4
+        ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+        ..sampleRate = 44100
+        ..bitRate = 128000;
+      
+      // Create temp file path
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      _currentRecordingPath = '${tempDir.path}/$fileName';
+      
+      // Start recording
+      await _recorderController!.record(path: _currentRecordingPath);
+      
+      _recordingStartTime = DateTime.now();
+      return true;
+    } catch (e) {
+      _currentRecordingPath = null;
+      _recordingStartTime = null;
+      _recorderController?.dispose();
+      _recorderController = null;
+      throw Exception('Failed to start recording: $e');
+    }
+  }
+  
+  /// Stop voice recording and return the file with duration
+  Future<({File file, int durationSeconds})?> stopRecording() async {
+    try {
+      if (_recorderController == null || !_recorderController!.isRecording) {
+        return null;
+      }
+      
+      final path = await _recorderController!.stop();
+      if (path == null || _currentRecordingPath == null) {
+        return null;
+      }
+      
+      final file = File(_currentRecordingPath!);
+      if (!await file.exists()) {
+        return null;
+      }
+      
+      // Calculate duration
+      final durationSeconds = _recordingStartTime != null
+          ? DateTime.now().difference(_recordingStartTime!).inSeconds
+          : 0;
+      
+      _currentRecordingPath = null;
+      _recordingStartTime = null;
+      _recorderController?.dispose();
+      _recorderController = null;
+      
+      return (file: file, durationSeconds: durationSeconds);
+    } catch (e) {
+      _currentRecordingPath = null;
+      _recordingStartTime = null;
+      _recorderController?.dispose();
+      _recorderController = null;
+      return null;
+    }
+  }
+  
+  /// Cancel voice recording
+  Future<void> cancelRecording() async {
+    try {
+      if (_recorderController != null && _recorderController!.isRecording) {
+        await _recorderController!.stop();
+      }
+      
+      // Delete the temp file if it exists
+      if (_currentRecordingPath != null) {
+        final file = File(_currentRecordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+    } finally {
+      _currentRecordingPath = null;
+      _recordingStartTime = null;
+      _recorderController?.dispose();
+      _recorderController = null;
+    }
+  }
+  
+  /// Get current recording duration in seconds
+  int getRecordingDuration() {
+    if (_recordingStartTime == null) return 0;
+    return DateTime.now().difference(_recordingStartTime!).inSeconds;
+  }
+  
+  /// Upload a voice message
+  Future<MediaUploadResult> uploadVoiceMessage({
+    required File file,
+    required int durationSeconds,
+    required String chatRoomId,
+    required String senderId,
+    void Function(double progress)? onProgress,
+  }) async {
+    try {
+      final fileSize = await file.length();
+      
+      // Check size limit
+      if (fileSize > MediaConfig.maxVoiceSize) {
+        throw Exception(
+          'Voice message is too large. Maximum size is ${MediaConfig.maxVoiceSize ~/ (1024 * 1024)}MB',
+        );
+      }
+      
+      final uniqueFileName = '${_uuid.v4()}_voice.m4a';
+      final storagePath = 'chats/$chatRoomId/voice/$senderId/$uniqueFileName';
+      
+      // Upload file
+      final ref = _storage.ref().child(storagePath);
+      final uploadTask = ref.putFile(
+        file,
+        SettableMetadata(contentType: 'audio/mp4'),
+      );
+      
+      // Track progress
+      if (onProgress != null) {
+        uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+          final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+          onProgress(progress);
+        });
+      }
+      
+      await uploadTask;
+      final mediaUrl = await ref.getDownloadURL();
+      
+      return MediaUploadResult(
+        mediaUrl: mediaUrl,
+        fileName: uniqueFileName,
+        fileSize: fileSize,
+        mimeType: 'audio/mp4',
+        mediaType: MediaType.voice,
+        audioDuration: durationSeconds,
+      );
+    } catch (e) {
+      throw Exception('Failed to upload voice message: $e');
+    }
+  }
+  
+  /// Format duration for display (e.g., "0:45" or "1:23")
+  static String formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+  
+  /// Dispose resources
+  void dispose() {
+    _recorderController?.dispose();
+  }
 
   /// Pick an image from gallery or camera
   Future<File?> pickImage({required ImageSource source}) async {

@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:audio_waveforms/audio_waveforms.dart';
 import 'dart:io';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
@@ -37,6 +38,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    // Listen to text changes to switch between mic and send button
+    _messageController.addListener(() {
+      setState(() {}); // Rebuild to show correct button
+    });
   }
 
   @override
@@ -428,6 +433,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         return _buildVideoMessage(message, isMe);
       case MessageType.file:
         return _buildFileMessage(message, isMe);
+      case MessageType.voice:
+        return _VoiceMessagePlayer(message: message, isMe: isMe);
       default:
         // Text message
         return Text(
@@ -887,6 +894,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   Widget _buildMessageInput(ChatProvider chatProvider) {
+    final isRecording = chatProvider.isRecording;
+    final isBusy = chatProvider.isUploadingMedia || isRecording;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -919,69 +929,185 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               ],
             ),
           ),
-        Container(
-          padding: EdgeInsets.all(AppTheme.spacing3),
-          child: Row(
-            children: [
-              // Attachment button
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: AppTheme.cardShadow,
-                ),
-                child: IconButton(
-                  icon: Icon(Icons.attach_file, color: AppTheme.primary),
-                  onPressed: chatProvider.isUploadingMedia
-                      ? null
-                      : () => _showAttachmentOptions(chatProvider),
-                ),
-              ),
-              Gap(AppTheme.spacing2),
-              Expanded(
-                child: Container(
+        // Voice recording UI
+        if (isRecording)
+          _buildVoiceRecordingUI(chatProvider)
+        else
+          Container(
+            padding: EdgeInsets.all(AppTheme.spacing3),
+            child: Row(
+              children: [
+                // Attachment button
+                Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    shape: BoxShape.circle,
                     boxShadow: AppTheme.cardShadow,
                   ),
-                  child: TextField(
-                    controller: _messageController,
-                    style: TextStyle(color: AppTheme.primary, fontSize: 14.sp),
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle: TextStyle(
-                        color: AppTheme.neutral700.withValues(alpha: 0.5),
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing3,
-                        vertical: AppTheme.spacing3,
-                      ),
-                    ),
-                    maxLines: null,
+                  child: IconButton(
+                    icon: Icon(Icons.attach_file, color: AppTheme.primary),
+                    onPressed: isBusy
+                        ? null
+                        : () => _showAttachmentOptions(chatProvider),
                   ),
                 ),
-              ),
-              Gap(AppTheme.spacing2),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: AppTheme.cardShadow,
+                Gap(AppTheme.spacing2),
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius3),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: TextField(
+                      controller: _messageController,
+                      style: TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 14.sp,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Type a message...',
+                        hintStyle: TextStyle(
+                          color: AppTheme.neutral700.withValues(alpha: 0.5),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacing3,
+                          vertical: AppTheme.spacing3,
+                        ),
+                      ),
+                      maxLines: null,
+                    ),
+                  ),
                 ),
-                child: IconButton(
-                  icon: Icon(Icons.send, color: AppTheme.primary),
-                  onPressed: chatProvider.isUploadingMedia
-                      ? null
-                      : () => _sendMessage(chatProvider),
+                Gap(AppTheme.spacing2),
+                // Send or Mic button (show mic when text is empty)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: AppTheme.cardShadow,
+                  ),
+                  child: _messageController.text.trim().isEmpty
+                      ? GestureDetector(
+                          onLongPressStart: (_) =>
+                              _startVoiceRecording(chatProvider),
+                          child: IconButton(
+                            icon: Icon(Icons.mic, color: AppTheme.primary),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Hold to record a voice message',
+                                  ),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : IconButton(
+                          icon: Icon(Icons.send, color: AppTheme.primary),
+                          onPressed: isBusy
+                              ? null
+                              : () => _sendMessage(chatProvider),
+                        ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
       ],
     );
+  }
+
+  /// Build voice recording UI
+  Widget _buildVoiceRecordingUI(ChatProvider chatProvider) {
+    return Container(
+      padding: EdgeInsets.all(AppTheme.spacing3),
+      child: Row(
+        children: [
+          // Cancel button
+          GestureDetector(
+            onTap: () => chatProvider.cancelVoiceRecording(),
+            child: Container(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.close, color: Colors.red, size: 24.sp),
+            ),
+          ),
+          Gap(AppTheme.spacing3),
+          // Recording indicator and duration
+          Expanded(
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.spacing4,
+                vertical: AppTheme.spacing3,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radius3),
+                boxShadow: AppTheme.cardShadow,
+              ),
+              child: Row(
+                children: [
+                  // Pulsing red dot
+                  _PulsingDot(),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'Recording',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    MediaService.formatDuration(chatProvider.recordingDuration),
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: AppTheme.neutral700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Gap(AppTheme.spacing3),
+          // Send button
+          GestureDetector(
+            onTap: () => chatProvider.stopAndSendVoiceRecording(),
+            child: Container(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                shape: BoxShape.circle,
+                boxShadow: AppTheme.cardShadow,
+              ),
+              child: Icon(Icons.send, color: Colors.white, size: 24.sp),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Start voice recording
+  Future<void> _startVoiceRecording(ChatProvider chatProvider) async {
+    final success = await chatProvider.startVoiceRecording();
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not start recording. Check microphone permission.',
+          ),
+        ),
+      );
+    }
   }
 
   /// Show attachment options bottom sheet
@@ -1035,7 +1161,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                     ),
                     _buildAttachmentOption(
                       icon: Icons.camera_alt,
-                      label: 'Camera',
+                      label: 'Photo',
                       color: Colors.blue,
                       onTap: () async {
                         Navigator.pop(context);
@@ -1052,6 +1178,21 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       },
                     ),
                     _buildAttachmentOption(
+                      icon: Icons.fiber_manual_record,
+                      label: 'Record',
+                      color: Colors.redAccent,
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await chatProvider.pickAndSendVideoFromCamera();
+                      },
+                    ),
+                  ],
+                ),
+                Gap(AppTheme.spacing3),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildAttachmentOption(
                       icon: Icons.insert_drive_file,
                       label: 'File',
                       color: Colors.orange,
@@ -1060,6 +1201,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         await chatProvider.pickAndSendFiles();
                       },
                     ),
+                    // Spacers to maintain alignment
+                    SizedBox(width: 60.w),
+                    SizedBox(width: 60.w),
+                    SizedBox(width: 60.w),
                   ],
                 ),
                 Gap(AppTheme.spacing4),
@@ -1330,6 +1475,259 @@ class _FullScreenImageViewer extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Pulsing red dot for recording indicator
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _animation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        width: 12.w,
+        height: 12.w,
+        decoration: const BoxDecoration(
+          color: Colors.red,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
+/// Voice message player widget
+class _VoiceMessagePlayer extends StatefulWidget {
+  final ChatMessage message;
+  final bool isMe;
+
+  const _VoiceMessagePlayer({required this.message, required this.isMe});
+
+  @override
+  State<_VoiceMessagePlayer> createState() => _VoiceMessagePlayerState();
+}
+
+class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
+  PlayerController? _playerController;
+  bool _isPlaying = false;
+  int _durationSeconds = 0;
+  int _positionSeconds = 0;
+  bool _isLoading = false;
+  bool _isPrepared = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set initial duration from message metadata
+    if (widget.message.audioDuration != null) {
+      _durationSeconds = widget.message.audioDuration!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _playerController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _preparePlayer() async {
+    if (_isPrepared || widget.message.mediaUrl == null) return;
+
+    try {
+      setState(() => _isLoading = true);
+
+      _playerController = PlayerController();
+
+      // Download the file first (audio_waveforms needs a local file)
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'voice_${widget.message.id}.m4a';
+      final filePath = '${tempDir.path}/$fileName';
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        final response = await http.get(Uri.parse(widget.message.mediaUrl!));
+        await file.writeAsBytes(response.bodyBytes);
+      }
+
+      await _playerController!.preparePlayer(
+        path: filePath,
+        shouldExtractWaveform: false,
+      );
+
+      _playerController!.onPlayerStateChanged.listen((state) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = state == PlayerState.playing;
+            if (state == PlayerState.stopped) {
+              _positionSeconds = 0;
+            }
+          });
+        }
+      });
+
+      _playerController!.onCurrentDurationChanged.listen((duration) {
+        if (mounted) {
+          setState(() => _positionSeconds = (duration / 1000).round());
+        }
+      });
+
+      final maxDuration = _playerController!.maxDuration;
+      if (maxDuration > 0) {
+        _durationSeconds = (maxDuration / 1000).round();
+      }
+
+      _isPrepared = true;
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load audio: $e')));
+      }
+    }
+  }
+
+  Future<void> _togglePlayPause() async {
+    if (widget.message.mediaUrl == null) return;
+
+    try {
+      if (!_isPrepared) {
+        await _preparePlayer();
+        if (!_isPrepared) return;
+      }
+
+      if (_isPlaying) {
+        await _playerController?.pausePlayer();
+      } else {
+        await _playerController?.startPlayer();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to play audio: $e')));
+      }
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = _durationSeconds > 0
+        ? _positionSeconds / _durationSeconds
+        : 0.0;
+
+    return Container(
+      width: 180.w,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Play/Pause button
+          GestureDetector(
+            onTap: _isLoading ? null : _togglePlayPause,
+            child: Container(
+              padding: EdgeInsets.all(8.w),
+              decoration: BoxDecoration(
+                color: widget.isMe
+                    ? Colors.white.withValues(alpha: 0.2)
+                    : AppTheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: 20.w,
+                      height: 20.w,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          widget.isMe ? Colors.white : AppTheme.primary,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      _isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: widget.isMe ? Colors.white : AppTheme.primary,
+                      size: 20.sp,
+                    ),
+            ),
+          ),
+          Gap(AppTheme.spacing2),
+          // Progress bar and duration
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4.w),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: widget.isMe
+                        ? Colors.white.withValues(alpha: 0.3)
+                        : AppTheme.neutral700.withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.isMe ? Colors.white : AppTheme.primary,
+                    ),
+                    minHeight: 4.w,
+                  ),
+                ),
+                Gap(4.w),
+                // Duration
+                Text(
+                  _isPlaying || _positionSeconds > 0
+                      ? _formatDuration(_positionSeconds)
+                      : _formatDuration(_durationSeconds),
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: widget.isMe
+                        ? Colors.white.withValues(alpha: 0.7)
+                        : AppTheme.neutral700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

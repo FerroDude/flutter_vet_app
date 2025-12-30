@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum MessageType { text, image, video, file, appointment, medication }
+enum MessageType { text, image, video, file, voice, appointment, medication }
 
 enum MessageStatus { sent, delivered, read }
 
@@ -33,6 +33,7 @@ class ChatMessage {
   final String? fileName; // Original file name for files
   final int? fileSize; // File size in bytes
   final String? mimeType; // MIME type of the file
+  final int? audioDuration; // Duration in seconds for voice messages
   final String? appointmentId;
   final String? medicationId;
   final Map<String, dynamic>? metadata;
@@ -54,6 +55,7 @@ class ChatMessage {
     this.fileName,
     this.fileSize,
     this.mimeType,
+    this.audioDuration,
     this.appointmentId,
     this.medicationId,
     this.metadata,
@@ -80,6 +82,7 @@ class ChatMessage {
       fileName: json['fileName'],
       fileSize: json['fileSize'],
       mimeType: json['mimeType'],
+      audioDuration: json['audioDuration'],
       appointmentId: json['appointmentId'],
       medicationId: json['medicationId'],
       metadata: json['metadata'] as Map<String, dynamic>?,
@@ -103,6 +106,7 @@ class ChatMessage {
       'fileName': fileName,
       'fileSize': fileSize,
       'mimeType': mimeType,
+      'audioDuration': audioDuration,
       'appointmentId': appointmentId,
       'medicationId': medicationId,
       'metadata': metadata,
@@ -141,6 +145,7 @@ class ChatMessage {
     String? fileName,
     int? fileSize,
     String? mimeType,
+    int? audioDuration,
     String? appointmentId,
     String? medicationId,
     Map<String, dynamic>? metadata,
@@ -162,6 +167,7 @@ class ChatMessage {
       fileName: fileName ?? this.fileName,
       fileSize: fileSize ?? this.fileSize,
       mimeType: mimeType ?? this.mimeType,
+      audioDuration: audioDuration ?? this.audioDuration,
       appointmentId: appointmentId ?? this.appointmentId,
       medicationId: medicationId ?? this.medicationId,
       metadata: metadata ?? this.metadata,

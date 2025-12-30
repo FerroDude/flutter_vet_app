@@ -41,6 +41,10 @@ dependencies:
   cached_network_image: ^3.4.1
   open_filex: ^4.6.0
   http: ^1.2.2
+  
+  # Audio/Voice Messages
+  audio_waveforms: ^1.2.0
+  permission_handler: ^11.3.1
 
 
 dev_dependencies:

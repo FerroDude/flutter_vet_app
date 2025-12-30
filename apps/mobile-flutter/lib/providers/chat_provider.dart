@@ -25,6 +25,10 @@ class ChatProvider extends ChangeNotifier {
   // Media upload state
   bool _isUploadingMedia = false;
   double _uploadProgress = 0.0;
+  
+  // Voice recording state
+  bool _isRecording = false;
+  int _recordingDuration = 0;
 
   // Pagination state
   bool _isLoadingMoreMessages = false;
@@ -66,6 +70,8 @@ class ChatProvider extends ChangeNotifier {
   bool get isUploadingMedia => _isUploadingMedia;
   double get uploadProgress => _uploadProgress;
   MediaService get mediaService => _mediaService;
+  bool get isRecording => _isRecording;
+  int get recordingDuration => _recordingDuration;
   
   /// Returns the count of new messages that arrived while UI is frozen
   int get pendingMessageCount {
@@ -481,6 +487,10 @@ class ChatProvider extends ChangeNotifier {
           messageType = MessageType.file;
           content = '📎 ${result.fileName}';
           break;
+        case MediaType.voice:
+          messageType = MessageType.voice;
+          content = '🎤 Voice message';
+          break;
       }
 
       // Send the message with media info
@@ -495,6 +505,7 @@ class ChatProvider extends ChangeNotifier {
         fileName: result.fileName,
         fileSize: result.fileSize,
         mimeType: result.mimeType,
+        audioDuration: result.audioDuration,
       );
 
       _isUploadingMedia = false;
@@ -510,6 +521,135 @@ class ChatProvider extends ChangeNotifier {
       _setError('Failed to send media: $e');
       return false;
     }
+  }
+
+  /// VOICE RECORDING METHODS ///
+
+  /// Start voice recording
+  Future<bool> startVoiceRecording() async {
+    if (_currentChatRoom == null) return false;
+    if (_isRecording) return false;
+
+    try {
+      final started = await _mediaService.startRecording();
+      if (started) {
+        _isRecording = true;
+        _recordingDuration = 0;
+        notifyListeners();
+        
+        // Start duration timer
+        _startRecordingTimer();
+      }
+      return started;
+    } catch (e) {
+      _setError('Failed to start recording: $e');
+      return false;
+    }
+  }
+
+  /// Timer to update recording duration
+  void _startRecordingTimer() {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!_isRecording) return false;
+      
+      _recordingDuration = _mediaService.getRecordingDuration();
+      notifyListeners();
+      
+      // Auto-stop at max duration
+      if (_recordingDuration >= MediaConfig.maxVoiceDuration) {
+        await stopAndSendVoiceRecording();
+        return false;
+      }
+      
+      return true;
+    });
+  }
+
+  /// Stop recording and send voice message
+  Future<bool> stopAndSendVoiceRecording() async {
+    if (_currentChatRoom == null) return false;
+    if (!_isRecording) return false;
+
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      _isRecording = false;
+      notifyListeners();
+
+      final result = await _mediaService.stopRecording();
+      if (result == null) {
+        _setError('Failed to stop recording');
+        return false;
+      }
+
+      // Don't send if too short (less than 1 second)
+      if (result.durationSeconds < 1) {
+        await result.file.delete();
+        return false;
+      }
+
+      _isUploadingMedia = true;
+      _uploadProgress = 0.0;
+      notifyListeners();
+
+      // Upload the voice message
+      final uploadResult = await _mediaService.uploadVoiceMessage(
+        file: result.file,
+        durationSeconds: result.durationSeconds,
+        chatRoomId: _currentChatRoom!.id,
+        senderId: user.uid,
+        onProgress: (progress) {
+          _uploadProgress = progress;
+          notifyListeners();
+        },
+      );
+
+      // Send the message
+      await _chatService.sendMessage(
+        chatRoomId: _currentChatRoom!.id,
+        content: '🎤 Voice message',
+        senderName: user.displayName ?? 'User',
+        senderRole: _getUserRole(),
+        type: MessageType.voice,
+        mediaUrl: uploadResult.mediaUrl,
+        fileName: uploadResult.fileName,
+        fileSize: uploadResult.fileSize,
+        mimeType: uploadResult.mimeType,
+        audioDuration: uploadResult.audioDuration,
+      );
+
+      // Clean up temp file
+      await result.file.delete();
+
+      _isUploadingMedia = false;
+      _uploadProgress = 0.0;
+      _recordingDuration = 0;
+      notifyListeners();
+
+      return true;
+    } catch (e) {
+      _isRecording = false;
+      _isUploadingMedia = false;
+      _uploadProgress = 0.0;
+      _recordingDuration = 0;
+      notifyListeners();
+
+      _setError('Failed to send voice message: $e');
+      return false;
+    }
+  }
+
+  /// Cancel voice recording
+  Future<void> cancelVoiceRecording() async {
+    if (!_isRecording) return;
+
+    _isRecording = false;
+    _recordingDuration = 0;
+    notifyListeners();
+
+    await _mediaService.cancelRecording();
   }
 
   /// Load older messages for pagination (when user scrolls up)
