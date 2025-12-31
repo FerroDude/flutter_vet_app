@@ -147,3 +147,81 @@ class PetSymptom {
     throw ArgumentError('Invalid datetime value: $value');
   }
 }
+
+/// Enriched symptom with pet and owner info for vet dashboard display
+class EnrichedSymptom {
+  final PetSymptom symptom;
+  final String petName;
+  final String ownerName;
+
+  const EnrichedSymptom({
+    required this.symptom,
+    required this.petName,
+    required this.ownerName,
+  });
+}
+
+/// Activity types for the unified activity feed
+enum ActivityType {
+  newMessage,
+  newSymptom,
+  newPatient,
+  chatRequest,
+}
+
+/// Unified activity item for the vet dashboard feed
+class ActivityItem {
+  final ActivityType type;
+  final String title;
+  final String subtitle;
+  final DateTime timestamp;
+  final String? avatarText;
+  final Map<String, dynamic>? metadata;
+
+  const ActivityItem({
+    required this.type,
+    required this.title,
+    required this.subtitle,
+    required this.timestamp,
+    this.avatarText,
+    this.metadata,
+  });
+}
+
+/// Helper function to get human-readable symptom label
+String getSymptomLabel(SymptomType type) {
+  switch (type) {
+    case SymptomType.vomiting:
+      return 'Vomiting';
+    case SymptomType.diarrhea:
+      return 'Diarrhea';
+    case SymptomType.cough:
+      return 'Cough';
+    case SymptomType.sneezing:
+      return 'Sneezing';
+    case SymptomType.choking:
+      return 'Choking';
+    case SymptomType.seizure:
+      return 'Seizure';
+    case SymptomType.disorientation:
+      return 'Disorientation';
+    case SymptomType.circling:
+      return 'Circling';
+    case SymptomType.restlessness:
+      return 'Restlessness';
+    case SymptomType.limping:
+      return 'Limping';
+    case SymptomType.jointDiscomfort:
+      return 'Joint Discomfort';
+    case SymptomType.itching:
+      return 'Itching';
+    case SymptomType.ocularDischarge:
+      return 'Ocular Discharge';
+    case SymptomType.vaginalDischarge:
+      return 'Vaginal Discharge';
+    case SymptomType.estrus:
+      return 'Estrus';
+    case SymptomType.other:
+      return 'Other';
+  }
+}

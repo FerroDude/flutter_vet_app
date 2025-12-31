@@ -15,7 +15,7 @@ class VetHomePage extends StatefulWidget {
   State<VetHomePage> createState() => VetHomePageState();
 }
 
-/// Made public so child widgets can access switchToChat()
+/// Made public so child widgets can access switchToChat() and switchToPatients()
 class VetHomePageState extends State<VetHomePage> {
   int _selectedIndex = 0;
   bool _chatInitialized = false;
@@ -36,6 +36,13 @@ class VetHomePageState extends State<VetHomePage> {
   void switchToChat() {
     setState(() {
       _selectedIndex = 2;
+    });
+  }
+
+  /// Switch to the Patients tab (index 1)
+  void switchToPatients() {
+    setState(() {
+      _selectedIndex = 1;
     });
   }
 

@@ -434,6 +434,85 @@ class ChatService {
     }
   }
 
+  /// Add or toggle a reaction on a message
+  /// If the user already has this reaction, it will be removed
+  Future<void> toggleReaction({
+    required String chatRoomId,
+    required String messageId,
+    required String emoji,
+    required String userName,
+  }) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) throw Exception('User not authenticated');
+
+      final messageRef = _getMessagesCollection(chatRoomId).doc(messageId);
+      final messageDoc = await messageRef.get();
+
+      if (!messageDoc.exists) {
+        throw Exception('Message not found');
+      }
+
+      final data = messageDoc.data() as Map<String, dynamic>;
+      final metadata = Map<String, dynamic>.from(data['metadata'] ?? {});
+      final reactions = List<Map<String, dynamic>>.from(
+        metadata['reactions'] ?? [],
+      );
+
+      // Find if this emoji reaction already exists
+      final existingReactionIndex = reactions.indexWhere(
+        (r) => r['emoji'] == emoji,
+      );
+
+      if (existingReactionIndex >= 0) {
+        final existingReaction = reactions[existingReactionIndex];
+        final userIds = List<String>.from(existingReaction['userIds'] ?? []);
+        final userNames = List<String>.from(existingReaction['userNames'] ?? []);
+
+        if (userIds.contains(currentUser.uid)) {
+          // User already reacted - remove their reaction
+          final userIndex = userIds.indexOf(currentUser.uid);
+          userIds.removeAt(userIndex);
+          if (userIndex < userNames.length) {
+            userNames.removeAt(userIndex);
+          }
+
+          if (userIds.isEmpty) {
+            // Remove the entire reaction if no users left
+            reactions.removeAt(existingReactionIndex);
+          } else {
+            reactions[existingReactionIndex] = {
+              'emoji': emoji,
+              'userIds': userIds,
+              'userNames': userNames,
+            };
+          }
+        } else {
+          // Add user to existing reaction
+          userIds.add(currentUser.uid);
+          userNames.add(userName);
+          reactions[existingReactionIndex] = {
+            'emoji': emoji,
+            'userIds': userIds,
+            'userNames': userNames,
+          };
+        }
+      } else {
+        // Add new reaction
+        reactions.add({
+          'emoji': emoji,
+          'userIds': [currentUser.uid],
+          'userNames': [userName],
+        });
+      }
+
+      metadata['reactions'] = reactions;
+      await messageRef.update({'metadata': metadata});
+    } catch (e) {
+      throw Exception('Failed to toggle reaction: $e');
+    }
+  }
+
   // Get messages for a chat room
   // Returns messages in chronological order (oldest first for display)
   Future<List<ChatMessage>> getMessages(

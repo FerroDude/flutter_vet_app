@@ -328,8 +328,8 @@ class ChatProvider extends ChangeNotifier {
 
   /// MESSAGE MANAGEMENT ///
 
-  // Send a text message
-  Future<bool> sendTextMessage(String content) async {
+  // Send a text message with optional reply metadata
+  Future<bool> sendTextMessage(String content, {Map<String, dynamic>? metadata}) async {
     if (_currentChatRoom == null || content.trim().isEmpty) return false;
     final trimmed = content.trim();
 
@@ -349,6 +349,7 @@ class ChatProvider extends ChangeNotifier {
         type: MessageType.text,
         status: MessageStatus.sent,
         timestamp: now,
+        metadata: metadata,
       );
 
       // Messages are ordered oldest-first, so append at the end
@@ -360,6 +361,7 @@ class ChatProvider extends ChangeNotifier {
         content: trimmed,
         senderName: user.displayName ?? 'User',
         senderRole: _getUserRole(),
+        metadata: metadata,
       );
 
       // When Firestore sends the updated messages via the stream,
@@ -898,6 +900,30 @@ class ChatProvider extends ChangeNotifier {
             notifyListeners();
           }
         });
+  }
+
+  /// REACTION METHODS ///
+
+  /// Toggle a reaction on a message (add or remove)
+  Future<bool> toggleReaction(String messageId, String emoji) async {
+    if (_currentChatRoom == null) return false;
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      await _chatService.toggleReaction(
+        chatRoomId: _currentChatRoom!.id,
+        messageId: messageId,
+        emoji: emoji,
+        userName: user.displayName ?? 'User',
+      );
+
+      return true;
+    } catch (e) {
+      developer.log('Failed to toggle reaction: $e', name: 'ChatProvider');
+      return false;
+    }
   }
 
   /// UTILITY METHODS ///

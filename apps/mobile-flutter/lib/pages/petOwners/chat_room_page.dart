@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
@@ -15,6 +16,7 @@ import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/media_service.dart';
 import '../../theme/app_theme.dart';
+import '../../shared/widgets/chat_widgets.dart';
 
 class ChatRoomPage extends StatefulWidget {
   final ChatRoom chatRoom;
@@ -28,11 +30,27 @@ class ChatRoomPage extends StatefulWidget {
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
   Timer? _typingTimer;
   ChatProvider? _chatProvider;
 
   // Track if user has scrolled up from the bottom (for showing scroll button)
   bool _showScrollToBottom = false;
+
+  // Reply state
+  ReplyData? _replyingTo;
+
+  // Search state
+  bool _isSearching = false;
+  String _searchQuery = '';
+  List<String> _searchMatchIds = [];
+  int _currentSearchIndex = 0;
+
+  // Highlight state (for scrolling to replied message)
+  String? _highlightedMessageId;
+
+  // Reaction picker state
+  OverlayEntry? _reactionOverlay;
 
   @override
   void initState() {
@@ -58,6 +76,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   void dispose() {
     _typingTimer?.cancel();
     _messageController.dispose();
+    _searchController.dispose();
+    _reactionOverlay?.remove();
 
     // Save scroll position before disposing
     if (_scrollController.hasClients && _chatProvider != null) {
@@ -183,6 +203,183 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     });
   }
 
+  // ==================== REPLY METHODS ====================
+
+  void _startReply(ChatMessage message) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _replyingTo = ReplyData.fromMessage(message);
+    });
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyingTo = null;
+    });
+  }
+
+  // ==================== SEARCH METHODS ====================
+
+  void _toggleSearch(List<ChatMessage> messages) {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _closeSearch();
+      }
+    });
+  }
+
+  void _closeSearch() {
+    setState(() {
+      _isSearching = false;
+      _searchQuery = '';
+      _searchMatchIds = [];
+      _currentSearchIndex = 0;
+      _searchController.clear();
+      _highlightedMessageId = null;
+    });
+  }
+
+  void _performSearch(String query, List<ChatMessage> messages) {
+    setState(() {
+      _searchQuery = query.toLowerCase();
+      if (_searchQuery.isEmpty) {
+        _searchMatchIds = [];
+        _currentSearchIndex = 0;
+        return;
+      }
+
+      _searchMatchIds = messages
+          .where((m) => m.content.toLowerCase().contains(_searchQuery))
+          .map((m) => m.id)
+          .toList();
+      _currentSearchIndex = _searchMatchIds.isNotEmpty ? 0 : 0;
+
+      if (_searchMatchIds.isNotEmpty) {
+        _scrollToMessage(_searchMatchIds[_currentSearchIndex], messages);
+      }
+    });
+  }
+
+  void _navigateSearch(int direction, List<ChatMessage> messages) {
+    if (_searchMatchIds.isEmpty) return;
+
+    setState(() {
+      _currentSearchIndex =
+          (_currentSearchIndex + direction) % _searchMatchIds.length;
+      if (_currentSearchIndex < 0) {
+        _currentSearchIndex = _searchMatchIds.length - 1;
+      }
+      _scrollToMessage(_searchMatchIds[_currentSearchIndex], messages);
+    });
+  }
+
+  void _scrollToMessage(String messageId, List<ChatMessage> messages) {
+    final index = messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
+
+    // With reverse: true, we need to calculate the scroll position
+    // index 0 is oldest (top), length-1 is newest (bottom at position 0)
+    final reversedIndex = messages.length - 1 - index;
+
+    // Estimate scroll position (rough approximation)
+    final estimatedOffset = reversedIndex * 80.0; // Average message height
+
+    _scrollController.animateTo(
+      estimatedOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+
+    // Highlight the message briefly
+    setState(() {
+      _highlightedMessageId = messageId;
+    });
+
+    // Clear highlight after animation
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        setState(() {
+          _highlightedMessageId = null;
+        });
+      }
+    });
+  }
+
+  // ==================== REACTION METHODS ====================
+
+  void _showReactionPicker(
+    BuildContext context,
+    ChatMessage message,
+    Offset position,
+  ) {
+    _reactionOverlay?.remove();
+    HapticFeedback.mediumImpact();
+
+    _reactionOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        left: position.dx - 100,
+        top: position.dy - 60,
+        child: Material(
+          color: Colors.transparent,
+          child: EmojiReactionPicker(
+            onEmojiSelected: (emoji) {
+              _addReaction(message.id, emoji);
+              _reactionOverlay?.remove();
+              _reactionOverlay = null;
+            },
+            onClose: () {
+              _reactionOverlay?.remove();
+              _reactionOverlay = null;
+            },
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_reactionOverlay!);
+
+    // Auto-dismiss after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      _reactionOverlay?.remove();
+      _reactionOverlay = null;
+    });
+  }
+
+  void _addReaction(String messageId, String emoji) {
+    _chatProvider?.toggleReaction(messageId, emoji);
+  }
+
+  // ==================== REPLY SCROLL ====================
+
+  void _scrollToRepliedMessage(String messageId, List<ChatMessage> messages) {
+    _scrollToMessage(messageId, messages);
+  }
+
+  // ==================== HELPER METHODS ====================
+
+  /// Extract reactions from message metadata
+  List<ReactionData> _getReactions(ChatMessage message) {
+    final metadata = message.metadata;
+    if (metadata == null) return [];
+
+    final reactions = metadata['reactions'] as List<dynamic>?;
+    if (reactions == null) return [];
+
+    return reactions
+        .map((r) => ReactionData.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Check if message has a reply
+  ReplyData? _getReplyData(ChatMessage message) {
+    final metadata = message.metadata;
+    if (metadata == null) return null;
+    if (metadata['replyToId'] == null) return null;
+
+    return ReplyData.fromJson(metadata);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ChatProvider>(
@@ -237,9 +434,29 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                     ),
                 ],
               ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () => _toggleSearch(messages),
+                  tooltip: 'Search messages',
+                ),
+              ],
             ),
             body: Column(
               children: [
+                // Search bar
+                if (_isSearching)
+                  ChatSearchBar(
+                    controller: _searchController,
+                    onClose: _closeSearch,
+                    onChanged: (query) => _performSearch(query, messages),
+                    matchCount: _searchMatchIds.length,
+                    currentMatch: _searchMatchIds.isEmpty
+                        ? 0
+                        : _currentSearchIndex + 1,
+                    onPrevious: () => _navigateSearch(-1, messages),
+                    onNext: () => _navigateSearch(1, messages),
+                  ),
                 Expanded(
                   child: Stack(
                     children: [
@@ -260,6 +477,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 ),
                 if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
                   _buildTypingIndicator(),
+                // Reply preview
+                if (_replyingTo != null && !isPendingAndPetOwner)
+                  ReplyPreview(
+                    replyData: _replyingTo!,
+                    onCancel: _cancelReply,
+                    isMe: true,
+                  ),
                 if (isPendingAndPetOwner)
                   _buildPendingNotice()
                 else
@@ -339,85 +563,172 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             messageIndex == 0 ||
             messages[messageIndex - 1].senderId != message.senderId;
 
-        return Padding(
+        // Get reply and reactions data
+        final replyData = _getReplyData(message);
+        final reactions = _getReactions(message);
+        final shouldHighlight = _highlightedMessageId == message.id;
+
+        return MessageHighlight(
           key: ValueKey(message.id),
-          padding: EdgeInsets.only(
-            // Less space between same-person messages, more between different users
-            bottom: isFirstInSequence ? 2.w : 4.w,
-            top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
-          ),
-          child: Row(
-            mainAxisAlignment: isMe
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start, // Align to top
-            children: [
-              // Bubble tail for received messages (left side, top)
-              if (!isMe && isFirstInSequence)
-                CustomPaint(
-                  painter: _BubbleTailPainter(color: Colors.white, isMe: false),
-                  size: Size(12.w, 16.w),
+          shouldHighlight: shouldHighlight,
+          child: SwipeableMessage(
+            isMe: isMe,
+            onSwipeReply: () => _startReply(message),
+            child: GestureDetector(
+              // Only allow reactions on OTHER people's messages, not your own
+              onLongPressStart: isMe
+                  ? null
+                  : (details) {
+                      _showReactionPicker(
+                        context,
+                        message,
+                        details.globalPosition,
+                      );
+                    },
+              onDoubleTap: isMe
+                  ? null
+                  : () {
+                      // Quick react with ❤️
+                      _addReaction(message.id, '❤️');
+                    },
+              child: Padding(
+                padding: EdgeInsets.only(
+                  // Less space between same-person messages, more between different users
+                  bottom: isFirstInSequence ? 2.w : 4.w,
+                  top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
                 ),
-              Container(
-                constraints: BoxConstraints(maxWidth: 250.w, minWidth: 140.w),
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacing3,
-                  vertical: AppTheme.spacing2,
-                ),
-                decoration: BoxDecoration(
-                  color: isMe ? AppTheme.primary : Colors.white,
-                  borderRadius: BorderRadius.only(
-                    // Hide top corner where tail attaches (radius 0)
-                    topLeft: Radius.circular(
-                      !isMe && isFirstInSequence ? 0 : AppTheme.radius3,
-                    ),
-                    topRight: Radius.circular(
-                      isMe && isFirstInSequence ? 0 : AppTheme.radius3,
-                    ),
-                    bottomLeft: Radius.circular(AppTheme.radius3),
-                    bottomRight: Radius.circular(AppTheme.radius3),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    // Add bottom padding when reactions exist to make room
+                    bottom: reactions.isNotEmpty ? 14.h : 0,
                   ),
-                  boxShadow: isMe ? null : AppTheme.cardShadow,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Build content based on message type
-                    _buildMessageContent(message, isMe),
-                    Gap(AppTheme.spacing1),
-                    // Row with timestamp and status icon
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _formatTimestamp(message.timestamp),
-                          style: TextStyle(
-                            fontSize: 11.sp,
-                            color: isMe
-                                ? Colors.white.withValues(alpha: 0.7)
-                                : AppTheme.neutral700,
+                  child: Row(
+                    mainAxisAlignment: isMe
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start, // Align to top
+                    children: [
+                      // Bubble tail for received messages (left side, top)
+                      if (!isMe && isFirstInSequence)
+                        CustomPaint(
+                          painter: _BubbleTailPainter(
+                            color: Colors.white,
+                            isMe: false,
                           ),
+                          size: Size(12.w, 16.w),
                         ),
-                        // Only show status icon for sender's own messages
-                        if (isMe) ...[
-                          Gap(4.w),
-                          _buildStatusIcon(message.status, isMe),
+                      // Stack wraps just the bubble so reactions position correctly
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            constraints: BoxConstraints(
+                              maxWidth: 250.w,
+                              minWidth: 140.w,
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppTheme.spacing3,
+                              vertical: AppTheme.spacing2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isMe ? AppTheme.primary : Colors.white,
+                              borderRadius: BorderRadius.only(
+                                // Hide top corner where tail attaches (radius 0)
+                                topLeft: Radius.circular(
+                                  !isMe && isFirstInSequence
+                                      ? 0
+                                      : AppTheme.radius3,
+                                ),
+                                topRight: Radius.circular(
+                                  isMe && isFirstInSequence
+                                      ? 0
+                                      : AppTheme.radius3,
+                                ),
+                                bottomLeft: Radius.circular(AppTheme.radius3),
+                                bottomRight: Radius.circular(AppTheme.radius3),
+                              ),
+                              boxShadow: isMe ? null : AppTheme.cardShadow,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Reply bubble if this is a reply
+                                if (replyData != null)
+                                  ReplyBubble(
+                                    replyData: replyData,
+                                    isMe: isMe,
+                                    onTap: () => _scrollToRepliedMessage(
+                                      replyData.messageId,
+                                      messages,
+                                    ),
+                                  ),
+                                // Build content based on message type
+                                _buildMessageContent(message, isMe),
+                                // Link preview for text messages with URLs
+                                if (message.type == MessageType.text &&
+                                    UrlUtils.hasUrl(message.content))
+                                  LinkPreviewWidget(
+                                    url: UrlUtils.extractUrls(
+                                      message.content,
+                                    ).first,
+                                    isMe: isMe,
+                                  ),
+                                Gap(AppTheme.spacing1),
+                                // Row with timestamp and status icon
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _formatTimestamp(message.timestamp),
+                                      style: TextStyle(
+                                        fontSize: 11.sp,
+                                        color: isMe
+                                            ? Colors.white.withValues(
+                                                alpha: 0.7,
+                                              )
+                                            : AppTheme.neutral700,
+                                      ),
+                                    ),
+                                    // Only show status icon for sender's own messages
+                                    if (isMe) ...[
+                                      Gap(4.w),
+                                      _buildStatusIcon(message.status, isMe),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Reactions positioned at bottom-right corner of bubble
+                          if (reactions.isNotEmpty)
+                            Positioned(
+                              bottom: -12.h,
+                              right: 4.w,
+                              child: ReactionsDisplay(
+                                reactions: reactions,
+                                currentUserId: currentUserId ?? '',
+                                onReactionTap: (emoji) =>
+                                    _addReaction(message.id, emoji),
+                                isMe: isMe,
+                              ),
+                            ),
                         ],
-                      ],
-                    ),
-                  ],
+                      ),
+                      // Bubble tail for sent messages (right side, top)
+                      if (isMe && isFirstInSequence)
+                        CustomPaint(
+                          painter: _BubbleTailPainter(
+                            color: AppTheme.primary,
+                            isMe: true,
+                          ),
+                          size: Size(12.w, 16.w),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-              // Bubble tail for sent messages (right side, top)
-              if (isMe && isFirstInSequence)
-                CustomPaint(
-                  painter: _BubbleTailPainter(
-                    color: AppTheme.primary,
-                    isMe: true,
-                  ),
-                  size: Size(12.w, 16.w),
-                ),
-            ],
+            ),
           ),
         );
       },
@@ -1298,9 +1609,16 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    _messageController.clear();
+    // Prepare reply metadata if replying
+    Map<String, dynamic>? metadata;
+    if (_replyingTo != null) {
+      metadata = _replyingTo!.toJson();
+    }
 
-    await chatProvider.sendTextMessage(text);
+    _messageController.clear();
+    _cancelReply(); // Clear reply state
+
+    await chatProvider.sendTextMessage(text, metadata: metadata);
 
     // Scroll to bottom - messages will be marked as seen when rendered
     setState(() {

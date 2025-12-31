@@ -23,6 +23,30 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   String? _lastClinicId;
   String? _lastPetOwnerId;
+  
+  // Search state
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -76,43 +100,99 @@ class _ChatPageState extends State<ChatPage> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
           appBar: AppBar(
-            title: Text(
-              'Chat',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w600,
-                    color: Colors.white,
-              ),
-            ),
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
+            title: _isSearching
+                ? Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius3),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      style: TextStyle(color: AppTheme.primary, fontSize: 16.sp),
+                      decoration: InputDecoration(
+                        hintText: 'Search chats...',
+                        hintStyle: TextStyle(
+                          color: AppTheme.neutral600,
+                          fontSize: 16.sp,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        icon: Icon(Icons.search, color: AppTheme.neutral600, size: 20.sp),
+                      ),
+                    ),
+                  )
+                : Text(
+                    'Chats',
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            leading: _isSearching
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = false;
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                : null,
             actions: [
-              IconButton(
-                icon: Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SettingsPage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                tooltip: 'Settings',
-              ),
-              IconButton(
-                icon: Icon(Icons.person_outline),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProfilePage(injectedUserProvider: userProvider),
-                    ),
-                  );
-                },
-                tooltip: 'Profile',
-              ),
+              if (!_isSearching)
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = true;
+                    });
+                  },
+                  tooltip: 'Search',
+                ),
+              if (_isSearching && _searchController.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                  tooltip: 'Clear',
+                ),
+              if (!_isSearching) ...[
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SettingsPage(injectedUserProvider: userProvider),
+                      ),
+                    );
+                  },
+                  tooltip: 'Settings',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.person_outline),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfilePage(injectedUserProvider: userProvider),
+                      ),
+                    );
+                  },
+                  tooltip: 'Profile',
+                ),
+              ],
             ],
           ),
           body: RefreshIndicator(
@@ -161,23 +241,69 @@ class _ChatPageState extends State<ChatPage> {
       );
     }
 
-    final chatRooms = chatProvider.chatRooms;
+    var chatRooms = chatProvider.chatRooms;
 
     // For vets/admins, also show pending requests
-    final pendingRequests = userProvider.isVet || userProvider.isClinicAdmin
+    var pendingRequests = userProvider.isVet || userProvider.isClinicAdmin
         ? chatProvider.pendingRequests
         : const <ChatRoom>[];
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      chatRooms = chatRooms.where((room) {
+        final name = _getDisplayName(room, userProvider).toLowerCase();
+        final lastMsg = (room.lastMessage?.content ?? '').toLowerCase();
+        final topic = (room.topic ?? '').toLowerCase();
+        return name.contains(_searchQuery) ||
+            lastMsg.contains(_searchQuery) ||
+            topic.contains(_searchQuery);
+      }).toList();
+
+      pendingRequests = pendingRequests.where((room) {
+        final name = _getDisplayName(room, userProvider).toLowerCase();
+        final desc = (room.requestDescription ?? '').toLowerCase();
+        return name.contains(_searchQuery) || desc.contains(_searchQuery);
+      }).toList();
+    }
 
     if (chatRooms.isEmpty && pendingRequests.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text(
-            'No conversations yet',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _searchQuery.isNotEmpty ? Icons.search_off : Icons.chat_bubble_outline,
+                size: 64.sp,
+                color: Colors.white.withOpacity(0.5),
+              ),
+              Gap(AppTheme.spacing3),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'No chats found for "$_searchQuery"'
+                    : 'No conversations yet',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (_searchQuery.isNotEmpty) ...[
+                Gap(AppTheme.spacing2),
+                TextButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _isSearching = false;
+                    });
+                  },
+                  child: Text(
+                    'Clear search',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       );
