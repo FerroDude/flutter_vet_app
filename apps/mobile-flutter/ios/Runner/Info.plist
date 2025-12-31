@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VetPlus needs microphone access to record voice messages for chat.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>VetPlus needs camera access to take photos and record videos for chat.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>VetPlus needs photo library access to share images and videos in chat.</string>
 </dict>
 </plist>

@@ -11,6 +11,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:audio_waveforms/audio_waveforms.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
@@ -1407,18 +1408,67 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 
-  /// Start voice recording
+  /// Start voice recording with permission handling
   Future<void> _startVoiceRecording(ChatProvider chatProvider) async {
+    // First check microphone permission status
+    final status = await Permission.microphone.status;
+    
+    if (status.isPermanentlyDenied) {
+      // Show dialog to guide user to settings
+      if (mounted) {
+        _showPermissionDeniedDialog(
+          title: 'Microphone Access Required',
+          message: 'Voice messages require microphone access. Please enable it in your device settings.',
+        );
+      }
+      return;
+    }
+    
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final success = await chatProvider.startVoiceRecording();
     if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Could not start recording. Check microphone permission.',
+      // Check if it was a permission issue
+      final newStatus = await Permission.microphone.status;
+      if (newStatus.isDenied || newStatus.isPermanentlyDenied) {
+        _showPermissionDeniedDialog(
+          title: 'Microphone Access Required',
+          message: 'Voice messages require microphone access. Please allow microphone access to record voice messages.',
+        );
+      } else {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not start recording. Please try again.'),
           ),
-        ),
-      );
+        );
+      }
     }
+  }
+
+  /// Show permission denied dialog with option to open settings
+  void _showPermissionDeniedDialog({required String title, required String message}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+            ),
+            child: const Text('Open Settings', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Show attachment options bottom sheet
@@ -1475,7 +1525,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       label: 'Photo',
                       color: Colors.blue,
                       onTap: () async {
-                        Navigator.pop(context);
+                        final navigator = Navigator.of(context);
+                        // Check camera permission
+                        final cameraStatus = await Permission.camera.status;
+                        if (cameraStatus.isPermanentlyDenied) {
+                          navigator.pop();
+                          if (mounted) {
+                            _showPermissionDeniedDialog(
+                              title: 'Camera Access Required',
+                              message: 'Taking photos requires camera access. Please enable it in your device settings.',
+                            );
+                          }
+                          return;
+                        }
+                        navigator.pop();
                         await chatProvider.pickAndSendImageFromCamera();
                       },
                     ),
@@ -1485,7 +1548,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       color: Colors.red,
                       onTap: () async {
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        Navigator.pop(context);
+                        final navigator = Navigator.of(context);
+                        navigator.pop();
                         final success = await chatProvider.pickAndSendVideoFromGallery();
                         if (!success && chatProvider.error != null && mounted) {
                           scaffoldMessenger.showSnackBar(
@@ -1503,8 +1567,24 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       label: 'Record',
                       color: Colors.redAccent,
                       onTap: () async {
+                        final navigator = Navigator.of(context);
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        Navigator.pop(context);
+                        // Check camera and microphone permissions for video recording
+                        final cameraStatus = await Permission.camera.status;
+                        final micStatus = await Permission.microphone.status;
+                        
+                        if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+                          navigator.pop();
+                          if (mounted) {
+                            _showPermissionDeniedDialog(
+                              title: 'Camera & Microphone Required',
+                              message: 'Recording videos requires camera and microphone access. Please enable them in your device settings.',
+                            );
+                          }
+                          return;
+                        }
+                        
+                        navigator.pop();
                         final success = await chatProvider.pickAndSendVideoFromCamera();
                         if (!success && chatProvider.error != null && mounted) {
                           scaffoldMessenger.showSnackBar(

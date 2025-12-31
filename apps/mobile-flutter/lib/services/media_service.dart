@@ -88,10 +88,66 @@ class MediaService {
     return _recorderController?.isRecording ?? false;
   }
   
-  /// Request microphone permission
+  /// Request microphone permission with proper handling for denied/permanently denied
   Future<bool> requestMicrophonePermission() async {
-    final status = await Permission.microphone.request();
-    return status.isGranted;
+    var status = await Permission.microphone.status;
+    
+    if (status.isGranted) {
+      return true;
+    }
+    
+    if (status.isDenied) {
+      // Request the permission
+      status = await Permission.microphone.request();
+      return status.isGranted;
+    }
+    
+    if (status.isPermanentlyDenied) {
+      // Permission was permanently denied, user needs to go to settings
+      throw Exception('Microphone permission is permanently denied. Please enable it in app settings.');
+    }
+    
+    return false;
+  }
+
+  /// Request camera permission with proper handling
+  Future<bool> requestCameraPermission() async {
+    var status = await Permission.camera.status;
+    
+    if (status.isGranted) {
+      return true;
+    }
+    
+    if (status.isDenied) {
+      status = await Permission.camera.request();
+      return status.isGranted;
+    }
+    
+    if (status.isPermanentlyDenied) {
+      throw Exception('Camera permission is permanently denied. Please enable it in app settings.');
+    }
+    
+    return false;
+  }
+
+  /// Request all media permissions (camera + microphone) at once
+  Future<Map<Permission, PermissionStatus>> requestMediaPermissions() async {
+    return await [
+      Permission.camera,
+      Permission.microphone,
+    ].request();
+  }
+
+  /// Check if we have both camera and microphone permissions
+  Future<bool> hasMediaPermissions() async {
+    final camera = await Permission.camera.isGranted;
+    final microphone = await Permission.microphone.isGranted;
+    return camera && microphone;
+  }
+
+  /// Open app settings (useful when permission is permanently denied)
+  Future<bool> openPermissionSettings() async {
+    return await openAppSettings();
   }
   
   /// Start voice recording
@@ -100,7 +156,7 @@ class MediaService {
       // Check permission
       final hasPermission = await requestMicrophonePermission();
       if (!hasPermission) {
-        throw Exception('Microphone permission denied');
+        throw Exception('Microphone permission is required to record voice messages. Please allow microphone access.');
       }
       
       // Create recorder controller
