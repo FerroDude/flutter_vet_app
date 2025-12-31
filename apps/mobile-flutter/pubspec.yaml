@@ -49,6 +49,7 @@ dependencies:
   # Chat Enhancements
   any_link_preview: ^3.0.2
   url_launcher: ^6.3.1
+  video_compress: ^3.1.4
 
 
 dev_dependencies:

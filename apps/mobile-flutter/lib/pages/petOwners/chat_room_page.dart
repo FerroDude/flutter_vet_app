@@ -1484,8 +1484,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       label: 'Video',
                       color: Colors.red,
                       onTap: () async {
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
-                        await chatProvider.pickAndSendVideoFromGallery();
+                        final success = await chatProvider.pickAndSendVideoFromGallery();
+                        if (!success && chatProvider.error != null && mounted) {
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text(chatProvider.error!),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        }
                       },
                     ),
                     _buildAttachmentOption(
@@ -1493,8 +1503,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       label: 'Record',
                       color: Colors.redAccent,
                       onTap: () async {
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
-                        await chatProvider.pickAndSendVideoFromCamera();
+                        final success = await chatProvider.pickAndSendVideoFromCamera();
+                        if (!success && chatProvider.error != null && mounted) {
+                          scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text(chatProvider.error!),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        }
                       },
                     ),
                   ],
@@ -1536,7 +1556,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                       Gap(AppTheme.spacing2),
                       Expanded(
                         child: Text(
-                          'Max sizes: Images 5MB, Videos 25MB, Files 10MB',
+                          'Max sizes: Images 5MB, Videos 25MB (15s max), Files 10MB',
                           style: TextStyle(
                             fontSize: 12.sp,
                             color: AppTheme.neutral700.withValues(alpha: 0.7),

@@ -445,7 +445,11 @@ class ChatProvider extends ChangeNotifier {
 
       return await _sendMediaFile(file);
     } catch (e) {
-      _setError('Failed to send video: $e');
+      // Extract clean error message without "Exception:" prefix
+      final errorMessage = e.toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('Failed to pick video: ', '');
+      _setError(errorMessage);
       return false;
     }
   }

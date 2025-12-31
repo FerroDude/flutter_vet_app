@@ -8,6 +8,7 @@ import 'package:mime/mime.dart';
 import 'package:uuid/uuid.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:video_compress/video_compress.dart';
 
 /// Configuration for media limits
 class MediaConfig {
@@ -17,6 +18,7 @@ class MediaConfig {
   static const int maxFileSize = 10 * 1024 * 1024; // 10MB
   static const int maxVoiceSize = 5 * 1024 * 1024; // 5MB
   static const int maxVoiceDuration = 120; // 2 minutes in seconds
+  static const int maxVideoDuration = 15; // 15 seconds for video recording
 
   // Image compression settings
   static const int imageQuality = 70; // 0-100
@@ -274,12 +276,12 @@ class MediaService {
     }
   }
 
-  /// Pick a video from gallery or camera
+  /// Pick a video from gallery or camera with duration limit and auto-compression
   Future<File?> pickVideo({required ImageSource source}) async {
     try {
       final XFile? pickedFile = await _imagePicker.pickVideo(
         source: source,
-        maxDuration: const Duration(minutes: 3), // Limit video length
+        maxDuration: Duration(seconds: MediaConfig.maxVideoDuration), // 15 seconds limit
       );
 
       if (pickedFile == null) return null;
@@ -287,17 +289,73 @@ class MediaService {
       final file = File(pickedFile.path);
       final fileSize = await file.length();
 
-      // Check file size
-      if (fileSize > MediaConfig.maxVideoSize) {
+      // If file is under limit, return as-is
+      if (fileSize <= MediaConfig.maxVideoSize) {
+        return file;
+      }
+
+      // Try to compress the video
+      final compressedFile = await compressVideo(file);
+      if (compressedFile == null) {
         throw Exception(
-          'Video is too large. Maximum size is ${MediaConfig.maxVideoSize ~/ (1024 * 1024)}MB',
+          'Video is too large (${formatFileSize(fileSize)}). Maximum size is 25MB. Try recording a shorter video.',
         );
       }
 
-      return file;
+      final compressedSize = await compressedFile.length();
+      if (compressedSize > MediaConfig.maxVideoSize) {
+        throw Exception(
+          'Video is still too large after compression (${formatFileSize(compressedSize)}). Please record a shorter video.',
+        );
+      }
+
+      return compressedFile;
     } catch (e) {
+      if (e.toString().contains('Video is')) {
+        rethrow; // Don't wrap our own exceptions
+      }
       throw Exception('Failed to pick video: $e');
     }
+  }
+
+  /// Compress a video file to reduce size
+  /// Tries progressively lower quality until file is under 25MB
+  Future<File?> compressVideo(File file, {VideoQuality quality = VideoQuality.MediumQuality}) async {
+    try {
+      final MediaInfo? info = await VideoCompress.compressVideo(
+        file.path,
+        quality: quality,
+        deleteOrigin: false, // Keep original
+        includeAudio: true,
+      );
+      
+      if (info == null || info.file == null) {
+        return null;
+      }
+      
+      final compressedFile = info.file!;
+      final compressedSize = await compressedFile.length();
+      
+      // If still too large and we can reduce quality more, try again
+      if (compressedSize > MediaConfig.maxVideoSize) {
+        if (quality == VideoQuality.MediumQuality) {
+          return compressVideo(file, quality: VideoQuality.LowQuality);
+        } else if (quality == VideoQuality.LowQuality) {
+          return compressVideo(file, quality: VideoQuality.Res640x480Quality);
+        }
+        // Can't compress further
+        return null;
+      }
+      
+      return compressedFile;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Cancel any ongoing video compression
+  Future<void> cancelVideoCompression() async {
+    await VideoCompress.cancelCompression();
   }
 
   /// Pick files using file picker
