@@ -10,6 +10,7 @@ import 'models/notification_service.dart';
 import 'services/clinic_service.dart';
 import 'services/cache_service.dart';
 import 'services/chat_service.dart';
+import 'services/media_cache_service.dart';
 
 import 'core/auth/auth_wrapper.dart';
 
@@ -22,6 +23,9 @@ void main() async {
   // Initialize services
   final cacheService = CacheService();
   await cacheService.init();
+
+  // Initialize media cache (videos, voice, thumbnails, images)
+  await MediaCacheService.instance.init();
 
   final notificationService = NotificationService();
   await notificationService.initialize();

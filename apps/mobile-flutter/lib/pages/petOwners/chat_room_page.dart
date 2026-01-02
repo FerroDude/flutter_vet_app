@@ -12,10 +12,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import 'dart:io';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/media_service.dart';
+import '../../services/media_cache_service.dart';
 import '../../theme/app_theme.dart';
 import '../../shared/widgets/chat_widgets.dart';
 
@@ -49,6 +52,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   // Highlight state (for scrolling to replied message)
   String? _highlightedMessageId;
+
+  // Message keys for precise scrolling
+  final Map<String, GlobalKey> _messageKeys = {};
 
   // Reaction picker state
   OverlayEntry? _reactionOverlay;
@@ -279,18 +285,26 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final index = messages.indexWhere((m) => m.id == messageId);
     if (index == -1) return;
 
-    // With reverse: true, we need to calculate the scroll position
-    // index 0 is oldest (top), length-1 is newest (bottom at position 0)
-    final reversedIndex = messages.length - 1 - index;
-
-    // Estimate scroll position (rough approximation)
-    final estimatedOffset = reversedIndex * 80.0; // Average message height
-
-    _scrollController.animateTo(
-      estimatedOffset,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    // Get the GlobalKey for this message
+    final key = _messageKeys[messageId];
+    if (key?.currentContext != null) {
+      // Use ensureVisible for precise scrolling
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        alignment: 0.3, // Position message 30% from top of viewport
+      );
+    } else {
+      // Fallback: estimate scroll position if key not available
+      final reversedIndex = messages.length - 1 - index;
+      final estimatedOffset = reversedIndex * 100.0;
+      _scrollController.animateTo(
+        estimatedOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
 
     // Highlight the message briefly
     setState(() {
@@ -569,163 +583,176 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         final reactions = _getReactions(message);
         final shouldHighlight = _highlightedMessageId == message.id;
 
-        return MessageHighlight(
-          key: ValueKey(message.id),
-          shouldHighlight: shouldHighlight,
-          child: SwipeableMessage(
-            isMe: isMe,
-            onSwipeReply: () => _startReply(message),
-            child: GestureDetector(
-              // Only allow reactions on OTHER people's messages, not your own
-              onLongPressStart: isMe
-                  ? null
-                  : (details) {
-                      _showReactionPicker(
-                        context,
-                        message,
-                        details.globalPosition,
-                      );
-                    },
-              onDoubleTap: isMe
-                  ? null
-                  : () {
-                      // Quick react with ❤️
-                      _addReaction(message.id, '❤️');
-                    },
-              child: Padding(
-                padding: EdgeInsets.only(
-                  // Less space between same-person messages, more between different users
-                  bottom: isFirstInSequence ? 2.w : 4.w,
-                  top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
-                ),
+        // Create/get GlobalKey for this message (for precise scrolling)
+        _messageKeys.putIfAbsent(message.id, () => GlobalKey());
+
+        return Container(
+          key: _messageKeys[message.id],
+          child: MessageHighlight(
+            shouldHighlight: shouldHighlight,
+            child: SwipeableMessage(
+              isMe: isMe,
+              onSwipeReply: () => _startReply(message),
+              child: GestureDetector(
+                // Only allow reactions on OTHER people's messages, not your own
+                onLongPressStart: isMe
+                    ? null
+                    : (details) {
+                        _showReactionPicker(
+                          context,
+                          message,
+                          details.globalPosition,
+                        );
+                      },
+                onDoubleTap: isMe
+                    ? null
+                    : () {
+                        // Quick react with ❤️
+                        _addReaction(message.id, '❤️');
+                      },
                 child: Padding(
                   padding: EdgeInsets.only(
-                    // Add bottom padding when reactions exist to make room
-                    bottom: reactions.isNotEmpty ? 14.h : 0,
+                    // Less space between same-person messages, more between different users
+                    bottom: isFirstInSequence ? 2.w : 4.w,
+                    top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
                   ),
-                  child: Row(
-                    mainAxisAlignment: isMe
-                        ? MainAxisAlignment.end
-                        : MainAxisAlignment.start,
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start, // Align to top
-                    children: [
-                      // Bubble tail for received messages (left side, top)
-                      if (!isMe && isFirstInSequence)
-                        CustomPaint(
-                          painter: _BubbleTailPainter(
-                            color: Colors.white,
-                            isMe: false,
-                          ),
-                          size: Size(12.w, 16.w),
-                        ),
-                      // Stack wraps just the bubble so reactions position correctly
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            constraints: BoxConstraints(
-                              maxWidth: 250.w,
-                              minWidth: 140.w,
-                            ),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: AppTheme.spacing3,
-                              vertical: AppTheme.spacing2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isMe ? AppTheme.primary : Colors.white,
-                              borderRadius: BorderRadius.only(
-                                // Hide top corner where tail attaches (radius 0)
-                                topLeft: Radius.circular(
-                                  !isMe && isFirstInSequence
-                                      ? 0
-                                      : AppTheme.radius3,
-                                ),
-                                topRight: Radius.circular(
-                                  isMe && isFirstInSequence
-                                      ? 0
-                                      : AppTheme.radius3,
-                                ),
-                                bottomLeft: Radius.circular(AppTheme.radius3),
-                                bottomRight: Radius.circular(AppTheme.radius3),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      // Add bottom padding when reactions exist to make room
+                      bottom: reactions.isNotEmpty ? 14.h : 0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: isMe
+                          ? MainAxisAlignment.end
+                          : MainAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start, // Align to top
+                      children: [
+                        // Bubble tail for received messages (left side, top)
+                        // Always reserve space for alignment consistency
+                        if (!isMe)
+                          isFirstInSequence
+                              ? CustomPaint(
+                                  painter: _BubbleTailPainter(
+                                    color: Colors.white,
+                                    isMe: false,
+                                  ),
+                                  size: Size(12.w, 16.w),
+                                )
+                              : SizedBox(width: 12.w),
+                        // Stack wraps just the bubble so reactions position correctly
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              constraints: BoxConstraints(
+                                maxWidth: 250.w,
+                                minWidth: 140.w,
                               ),
-                              boxShadow: isMe ? null : AppTheme.cardShadow,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Reply bubble if this is a reply
-                                if (replyData != null)
-                                  ReplyBubble(
-                                    replyData: replyData,
-                                    isMe: isMe,
-                                    onTap: () => _scrollToRepliedMessage(
-                                      replyData.messageId,
-                                      messages,
-                                    ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacing3,
+                                vertical: AppTheme.spacing2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe ? AppTheme.primary : Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  // Hide top corner where tail attaches (radius 0)
+                                  topLeft: Radius.circular(
+                                    !isMe && isFirstInSequence
+                                        ? 0
+                                        : AppTheme.radius3,
                                   ),
-                                // Build content based on message type
-                                _buildMessageContent(message, isMe),
-                                // Link preview for text messages with URLs
-                                if (message.type == MessageType.text &&
-                                    UrlUtils.hasUrl(message.content))
-                                  LinkPreviewWidget(
-                                    url: UrlUtils.extractUrls(
-                                      message.content,
-                                    ).first,
-                                    isMe: isMe,
+                                  topRight: Radius.circular(
+                                    isMe && isFirstInSequence
+                                        ? 0
+                                        : AppTheme.radius3,
                                   ),
-                                Gap(AppTheme.spacing1),
-                                // Row with timestamp and status icon
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _formatTimestamp(message.timestamp),
-                                      style: TextStyle(
-                                        fontSize: 11.sp,
-                                        color: isMe
-                                            ? Colors.white.withValues(
-                                                alpha: 0.7,
-                                              )
-                                            : AppTheme.neutral700,
+                                  bottomLeft: Radius.circular(AppTheme.radius3),
+                                  bottomRight: Radius.circular(
+                                    AppTheme.radius3,
+                                  ),
+                                ),
+                                boxShadow: isMe ? null : AppTheme.cardShadow,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Reply bubble if this is a reply
+                                  if (replyData != null)
+                                    ReplyBubble(
+                                      replyData: replyData,
+                                      isMe: isMe,
+                                      onTap: () => _scrollToRepliedMessage(
+                                        replyData.messageId,
+                                        messages,
                                       ),
                                     ),
-                                    // Only show status icon for sender's own messages
-                                    if (isMe) ...[
-                                      Gap(4.w),
-                                      _buildStatusIcon(message.status, isMe),
+                                  // Build content based on message type
+                                  _buildMessageContent(message, isMe),
+                                  // Link preview for text messages with URLs
+                                  if (message.type == MessageType.text &&
+                                      UrlUtils.hasUrl(message.content))
+                                    LinkPreviewWidget(
+                                      url: UrlUtils.extractUrls(
+                                        message.content,
+                                      ).first,
+                                      isMe: isMe,
+                                    ),
+                                  Gap(AppTheme.spacing1),
+                                  // Row with timestamp and status icon
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _formatTimestamp(message.timestamp),
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          color: isMe
+                                              ? Colors.white.withValues(
+                                                  alpha: 0.7,
+                                                )
+                                              : AppTheme.neutral700,
+                                        ),
+                                      ),
+                                      // Only show status icon for sender's own messages
+                                      if (isMe) ...[
+                                        Gap(4.w),
+                                        _buildStatusIcon(message.status, isMe),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Reactions positioned at bottom-right corner of bubble
-                          if (reactions.isNotEmpty)
-                            Positioned(
-                              bottom: -12.h,
-                              right: 4.w,
-                              child: ReactionsDisplay(
-                                reactions: reactions,
-                                currentUserId: currentUserId ?? '',
-                                onReactionTap: (emoji) =>
-                                    _addReaction(message.id, emoji),
-                                isMe: isMe,
+                                  ),
+                                ],
                               ),
                             ),
-                        ],
-                      ),
-                      // Bubble tail for sent messages (right side, top)
-                      if (isMe && isFirstInSequence)
-                        CustomPaint(
-                          painter: _BubbleTailPainter(
-                            color: AppTheme.primary,
-                            isMe: true,
-                          ),
-                          size: Size(12.w, 16.w),
+                            // Reactions positioned at bottom-right corner of bubble
+                            if (reactions.isNotEmpty)
+                              Positioned(
+                                bottom: -12.h,
+                                right: 4.w,
+                                child: ReactionsDisplay(
+                                  reactions: reactions,
+                                  currentUserId: currentUserId ?? '',
+                                  onReactionTap: (emoji) =>
+                                      _addReaction(message.id, emoji),
+                                  isMe: isMe,
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
+                        // Bubble tail for sent messages (right side, top)
+                        // Always reserve space for alignment consistency
+                        if (isMe)
+                          isFirstInSequence
+                              ? CustomPaint(
+                                  painter: _BubbleTailPainter(
+                                    color: AppTheme.primary,
+                                    isMe: true,
+                                  ),
+                                  size: Size(12.w, 16.w),
+                                )
+                              : SizedBox(width: 12.w),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -831,60 +858,22 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   /// Build video message bubble
   Widget _buildVideoMessage(ChatMessage message, bool isMe) {
-    return GestureDetector(
-      onTap: () => _openMediaFile(message),
-      child: Container(
-        width: 180.w,
-        height: 120.w,
-        decoration: BoxDecoration(
-          color: isMe
-              ? Colors.white.withValues(alpha: 0.2)
-              : AppTheme.neutral700.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppTheme.radius2),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Thumbnail if available
-            if (message.thumbnailUrl != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppTheme.radius2),
-                child: CachedNetworkImage(
-                  imageUrl: message.thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  width: 180.w,
-                  height: 120.w,
-                ),
+    return _VideoMessageBubble(
+      message: message,
+      isMe: isMe,
+      onTap: () {
+        if (message.mediaUrl != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => _FullScreenVideoPlayer(
+                videoUrl: message.mediaUrl!,
+                fileName: message.fileName,
               ),
-            // Play button overlay
-            Container(
-              padding: EdgeInsets.all(AppTheme.spacing3),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.play_arrow, color: Colors.white, size: 32.sp),
             ),
-            // File size badge
-            if (message.fileSize != null)
-              Positioned(
-                bottom: 8.w,
-                right: 8.w,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.w),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(4.w),
-                  ),
-                  child: Text(
-                    MediaService.formatFileSize(message.fileSize!),
-                    style: TextStyle(fontSize: 10.sp, color: Colors.white),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+          );
+        }
+      },
     );
   }
 
@@ -1412,18 +1401,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Future<void> _startVoiceRecording(ChatProvider chatProvider) async {
     // First check microphone permission status
     final status = await Permission.microphone.status;
-    
+
     if (status.isPermanentlyDenied) {
       // Show dialog to guide user to settings
       if (mounted) {
         _showPermissionDeniedDialog(
           title: 'Microphone Access Required',
-          message: 'Voice messages require microphone access. Please enable it in your device settings.',
+          message:
+              'Voice messages require microphone access. Please enable it in your device settings.',
         );
       }
       return;
     }
-    
+
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final success = await chatProvider.startVoiceRecording();
     if (!success && mounted) {
@@ -1432,7 +1422,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       if (newStatus.isDenied || newStatus.isPermanentlyDenied) {
         _showPermissionDeniedDialog(
           title: 'Microphone Access Required',
-          message: 'Voice messages require microphone access. Please allow microphone access to record voice messages.',
+          message:
+              'Voice messages require microphone access. Please allow microphone access to record voice messages.',
         );
       } else {
         scaffoldMessenger.showSnackBar(
@@ -1445,7 +1436,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   /// Show permission denied dialog with option to open settings
-  void _showPermissionDeniedDialog({required String title, required String message}) {
+  void _showPermissionDeniedDialog({
+    required String title,
+    required String message,
+  }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1461,10 +1455,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               Navigator.pop(context);
               openAppSettings();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(color: Colors.white),
             ),
-            child: const Text('Open Settings', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1533,7 +1528,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                           if (mounted) {
                             _showPermissionDeniedDialog(
                               title: 'Camera Access Required',
-                              message: 'Taking photos requires camera access. Please enable it in your device settings.',
+                              message:
+                                  'Taking photos requires camera access. Please enable it in your device settings.',
                             );
                           }
                           return;
@@ -1550,7 +1546,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         final scaffoldMessenger = ScaffoldMessenger.of(context);
                         final navigator = Navigator.of(context);
                         navigator.pop();
-                        final success = await chatProvider.pickAndSendVideoFromGallery();
+                        final success = await chatProvider
+                            .pickAndSendVideoFromGallery();
                         if (!success && chatProvider.error != null && mounted) {
                           scaffoldMessenger.showSnackBar(
                             SnackBar(
@@ -1572,20 +1569,23 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         // Check camera and microphone permissions for video recording
                         final cameraStatus = await Permission.camera.status;
                         final micStatus = await Permission.microphone.status;
-                        
-                        if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+
+                        if (cameraStatus.isPermanentlyDenied ||
+                            micStatus.isPermanentlyDenied) {
                           navigator.pop();
                           if (mounted) {
                             _showPermissionDeniedDialog(
                               title: 'Camera & Microphone Required',
-                              message: 'Recording videos requires camera and microphone access. Please enable them in your device settings.',
+                              message:
+                                  'Recording videos requires camera and microphone access. Please enable them in your device settings.',
                             );
                           }
                           return;
                         }
-                        
+
                         navigator.pop();
-                        final success = await chatProvider.pickAndSendVideoFromCamera();
+                        final success = await chatProvider
+                            .pickAndSendVideoFromCamera();
                         if (!success && chatProvider.error != null && mounted) {
                           scaffoldMessenger.showSnackBar(
                             SnackBar(
@@ -1989,15 +1989,21 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
 
       _playerController = PlayerController();
 
-      // Download the file first (audio_waveforms needs a local file)
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'voice_${widget.message.id}.m4a';
-      final filePath = '${tempDir.path}/$fileName';
+      // Use centralized cache service
+      final cacheService = MediaCacheService.instance;
+      try {
+        cacheService.basePath;
+      } catch (_) {
+        await cacheService.init();
+      }
+
+      final filePath = cacheService.getVoiceCachePath(widget.message.id);
       final file = File(filePath);
 
+      // Download if not cached
       if (!await file.exists()) {
         final response = await http.get(Uri.parse(widget.message.mediaUrl!));
-        await file.writeAsBytes(response.bodyBytes);
+        await cacheService.cacheVoice(widget.message.id, response.bodyBytes);
       }
 
       await _playerController!.preparePlayer(
@@ -2074,7 +2080,7 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
         ? _positionSeconds / _durationSeconds
         : 0.0;
 
-    return Container(
+    return SizedBox(
       width: 180.w,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2146,6 +2152,432 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Video message bubble with thumbnail support
+class _VideoMessageBubble extends StatefulWidget {
+  final ChatMessage message;
+  final bool isMe;
+  final VoidCallback onTap;
+
+  const _VideoMessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.onTap,
+  });
+
+  @override
+  State<_VideoMessageBubble> createState() => _VideoMessageBubbleState();
+}
+
+class _VideoMessageBubbleState extends State<_VideoMessageBubble> {
+  File? _cachedThumbnail;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCachedThumbnail();
+  }
+
+  Future<void> _checkCachedThumbnail() async {
+    if (widget.message.mediaUrl == null) return;
+
+    // If there's already a network thumbnail, no need to check cache
+    if (widget.message.thumbnailUrl != null) return;
+
+    try {
+      final cacheService = MediaCacheService.instance;
+      try {
+        cacheService.basePath;
+      } catch (_) {
+        await cacheService.init();
+      }
+
+      // First check if thumbnail is already cached
+      var thumbnail = await cacheService.getCachedThumbnail(
+        widget.message.mediaUrl!,
+      );
+
+      // If no thumbnail but video is cached, generate one
+      if (thumbnail == null) {
+        final cachedVideo = await cacheService.getCachedVideo(
+          widget.message.mediaUrl!,
+          fileName: widget.message.fileName,
+        );
+        if (cachedVideo != null) {
+          thumbnail = await cacheService.generateAndCacheThumbnail(
+            widget.message.mediaUrl!,
+            cachedVideo.path,
+          );
+        }
+      }
+
+      if (mounted && thumbnail != null) {
+        setState(() {
+          _cachedThumbnail = thumbnail;
+        });
+      }
+    } catch (_) {
+      // Ignore errors - just won't show cached thumbnail
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message = widget.message;
+    final isMe = widget.isMe;
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        width: 180.w,
+        height: 120.w,
+        decoration: BoxDecoration(
+          color: isMe
+              ? Colors.white.withValues(alpha: 0.2)
+              : AppTheme.neutral700.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppTheme.radius2),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Priority: 1. Network thumbnail, 2. Cached thumbnail, 3. Placeholder
+            if (message.thumbnailUrl != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+                child: CachedNetworkImage(
+                  imageUrl: message.thumbnailUrl!,
+                  fit: BoxFit.cover,
+                  width: 180.w,
+                  height: 120.w,
+                  placeholder: (context, url) => _buildPlaceholder(isMe),
+                  errorWidget: (context, url, error) => _cachedThumbnail != null
+                      ? _buildCachedThumbnail()
+                      : _buildPlaceholder(isMe),
+                ),
+              )
+            else if (_cachedThumbnail != null)
+              _buildCachedThumbnail()
+            else
+              _buildPlaceholder(isMe),
+            // Play button overlay
+            Container(
+              padding: EdgeInsets.all(AppTheme.spacing3),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.play_arrow, color: Colors.white, size: 32.sp),
+            ),
+            // File size badge
+            if (message.fileSize != null)
+              Positioned(
+                bottom: 8.w,
+                right: 8.w,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.w),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(4.w),
+                  ),
+                  child: Text(
+                    MediaService.formatFileSize(message.fileSize!),
+                    style: TextStyle(fontSize: 10.sp, color: Colors.white),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCachedThumbnail() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTheme.radius2),
+      child: Image.file(
+        _cachedThumbnail!,
+        fit: BoxFit.cover,
+        width: 180.w,
+        height: 120.w,
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(bool isMe) {
+    return Container(
+      width: 180.w,
+      height: 120.w,
+      decoration: BoxDecoration(
+        color: isMe
+            ? Colors.white.withValues(alpha: 0.1)
+            : AppTheme.neutral700.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppTheme.radius2),
+      ),
+      child: Icon(
+        Icons.videocam,
+        color: isMe
+            ? Colors.white.withValues(alpha: 0.5)
+            : AppTheme.neutral700.withValues(alpha: 0.3),
+        size: 40.sp,
+      ),
+    );
+  }
+}
+
+/// Full screen video player
+class _FullScreenVideoPlayer extends StatefulWidget {
+  final String videoUrl;
+  final String? fileName;
+
+  const _FullScreenVideoPlayer({required this.videoUrl, this.fileName});
+
+  @override
+  State<_FullScreenVideoPlayer> createState() => _FullScreenVideoPlayerState();
+}
+
+class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
+  VideoPlayerController? _videoPlayerController;
+  ChewieController? _chewieController;
+  bool _isLoading = true;
+  String? _error;
+  double _downloadProgress = 0;
+  String? _cachedFilePath; // Store for fallback external playback
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    try {
+      // Initialize cache service if needed
+      final cacheService = MediaCacheService.instance;
+      try {
+        cacheService.basePath; // Check if initialized
+      } catch (_) {
+        await cacheService.init();
+      }
+
+      // Get cache path for this video
+      final filePath = cacheService.getVideoCachePath(
+        widget.videoUrl,
+        fileName: widget.fileName,
+      );
+      final file = File(filePath);
+
+      // Check if already cached
+      if (await file.exists()) {
+        // Video is cached, skip download
+        if (mounted) {
+          setState(() {
+            _downloadProgress = 1.0;
+          });
+        }
+      } else {
+        // Download video with progress
+        setState(() {
+          _downloadProgress = 0;
+        });
+
+        final request = http.Request('GET', Uri.parse(widget.videoUrl));
+        final response = await http.Client().send(request);
+        final contentLength = response.contentLength ?? 0;
+
+        final bytes = <int>[];
+        int received = 0;
+
+        await for (final chunk in response.stream) {
+          bytes.addAll(chunk);
+          received += chunk.length;
+          if (contentLength > 0 && mounted) {
+            setState(() {
+              _downloadProgress = received / contentLength;
+            });
+          }
+        }
+
+        // Save to cache
+        await cacheService.cacheVideo(
+          widget.videoUrl,
+          bytes,
+          fileName: widget.fileName,
+        );
+
+        // Generate thumbnail for future use
+        cacheService.generateAndCacheThumbnail(widget.videoUrl, filePath);
+      }
+
+      // Store cached file path for fallback
+      _cachedFilePath = filePath;
+
+      // Initialize video player with cached file
+      _videoPlayerController = VideoPlayerController.file(file);
+      await _videoPlayerController!.initialize();
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        aspectRatio: _videoPlayerController!.value.aspectRatio,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, color: Colors.white, size: 48.sp),
+                Gap(AppTheme.spacing2),
+                Text(
+                  'Error playing video',
+                  style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController?.dispose();
+    _chewieController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          widget.fileName ?? 'Video',
+          style: TextStyle(color: Colors.white, fontSize: 16.sp),
+        ),
+      ),
+      body: Center(
+        child: _isLoading
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_downloadProgress > 0 && _downloadProgress < 1) ...[
+                    SizedBox(
+                      width: 60.w,
+                      height: 60.w,
+                      child: CircularProgressIndicator(
+                        value: _downloadProgress,
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                    Gap(AppTheme.spacing3),
+                    Text(
+                      'Downloading... ${(_downloadProgress * 100).toInt()}%',
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                    ),
+                  ] else ...[
+                    const CircularProgressIndicator(color: Colors.white),
+                    Gap(AppTheme.spacing3),
+                    Text(
+                      'Preparing video...',
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
+                    ),
+                  ],
+                ],
+              )
+            : _error != null
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red, size: 48.sp),
+                  Gap(AppTheme.spacing2),
+                  Text(
+                    'Unable to play video in app',
+                    style: TextStyle(color: Colors.white, fontSize: 16.sp),
+                    textAlign: TextAlign.center,
+                  ),
+                  Gap(AppTheme.spacing1),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacing4,
+                    ),
+                    child: Text(
+                      'This may be an emulator limitation.\nTry opening in external player.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12.sp,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing4),
+                  // Fallback button to open externally
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      if (_cachedFilePath != null) {
+                        final result = await OpenFilex.open(_cachedFilePath!);
+                        if (result.type != ResultType.done && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Could not open: ${result.message}',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open in External Player'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacing4,
+                        vertical: AppTheme.spacing2,
+                      ),
+                    ),
+                  ),
+                  Gap(AppTheme.spacing3),
+                  // Show technical error details (smaller)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacing4,
+                    ),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 9.sp,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              )
+            : Chewie(controller: _chewieController!),
       ),
     );
   }

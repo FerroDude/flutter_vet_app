@@ -503,6 +503,24 @@ class MediaService {
     }
   }
 
+  /// Generate a thumbnail for a video (first frame)
+  Future<File?> generateVideoThumbnail(File videoFile) async {
+    try {
+      final thumbnailFile = await VideoCompress.getFileThumbnail(
+        videoFile.path,
+        quality: 75,
+        position: 0, // First frame
+      );
+
+      if (thumbnailFile.existsSync()) {
+        return thumbnailFile;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Upload a media file to Firebase Storage
   Future<MediaUploadResult> uploadMedia({
     required File file,
@@ -548,13 +566,27 @@ class MediaService {
       await uploadTask;
       final mediaUrl = await ref.getDownloadURL();
 
-      // Generate and upload thumbnail for images
+      // Generate and upload thumbnail for images and videos
       String? thumbnailUrl;
       if (mediaType == MediaType.image) {
         final thumbnail = await generateImageThumbnail(fileToUpload);
         if (thumbnail != null) {
           final thumbnailPath =
               'chats/$chatRoomId/thumbnails/$senderId/thumb_$uniqueFileName';
+          final thumbnailRef = _storage.ref().child(thumbnailPath);
+          await thumbnailRef.putFile(
+            thumbnail,
+            SettableMetadata(contentType: 'image/jpeg'),
+          );
+          thumbnailUrl = await thumbnailRef.getDownloadURL();
+        }
+      } else if (mediaType == MediaType.video) {
+        // Generate video thumbnail
+        final thumbnail = await generateVideoThumbnail(fileToUpload);
+        if (thumbnail != null) {
+          final thumbFileName = 'thumb_${uniqueFileName.split('.').first}.jpg';
+          final thumbnailPath =
+              'chats/$chatRoomId/thumbnails/$senderId/$thumbFileName';
           final thumbnailRef = _storage.ref().child(thumbnailPath);
           await thumbnailRef.putFile(
             thumbnail,
