@@ -685,6 +685,75 @@ class ChatService {
     }
   }
 
+  /// Mark a message as deleted (soft delete)
+  /// Only the sender can delete their own messages
+  Future<void> deleteMessage({
+    required String chatRoomId,
+    required String messageId,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final messageRef = _getMessagesCollection(chatRoomId).doc(messageId);
+    final messageDoc = await messageRef.get();
+
+    if (!messageDoc.exists) {
+      throw Exception('Message not found');
+    }
+
+    final messageData = messageDoc.data() as Map<String, dynamic>;
+    if (messageData['senderId'] != currentUser.uid) {
+      throw Exception('You can only delete your own messages');
+    }
+
+    // Soft delete - mark as deleted instead of removing
+    await messageRef.update({
+      'isDeleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Mark multiple messages as deleted (soft delete)
+  /// Only deletes messages belonging to the current user
+  Future<int> deleteMessages({
+    required String chatRoomId,
+    required List<String> messageIds,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final batch = _firestore.batch();
+    int deletedCount = 0;
+
+    for (final messageId in messageIds) {
+      final messageRef = _getMessagesCollection(chatRoomId).doc(messageId);
+      final messageDoc = await messageRef.get();
+
+      if (messageDoc.exists) {
+        final messageData = messageDoc.data() as Map<String, dynamic>;
+        if (messageData['senderId'] == currentUser.uid &&
+            messageData['isDeleted'] != true) {
+          // Soft delete - mark as deleted instead of removing
+          batch.update(messageRef, {
+            'isDeleted': true,
+            'deletedAt': FieldValue.serverTimestamp(),
+          });
+          deletedCount++;
+        }
+      }
+    }
+
+    if (deletedCount > 0) {
+      await batch.commit();
+    }
+
+    return deletedCount;
+  }
+
   /// STREAMS FOR REAL-TIME UPDATES ///
 
   // Stream chat rooms for a vet

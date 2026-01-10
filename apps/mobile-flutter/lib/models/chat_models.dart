@@ -37,6 +37,8 @@ class ChatMessage {
   final String? appointmentId;
   final String? medicationId;
   final Map<String, dynamic>? metadata;
+  final bool isDeleted; // Whether message was deleted by sender
+  final DateTime? deletedAt; // When message was deleted
 
   const ChatMessage({
     required this.id,
@@ -59,6 +61,8 @@ class ChatMessage {
     this.appointmentId,
     this.medicationId,
     this.metadata,
+    this.isDeleted = false,
+    this.deletedAt,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json, String id) {
@@ -86,6 +90,10 @@ class ChatMessage {
       appointmentId: json['appointmentId'],
       medicationId: json['medicationId'],
       metadata: json['metadata'] as Map<String, dynamic>?,
+      isDeleted: json['isDeleted'] ?? false,
+      deletedAt: json['deletedAt'] != null
+          ? _parseDateTime(json['deletedAt'])
+          : null,
     );
   }
 
@@ -110,6 +118,8 @@ class ChatMessage {
       'appointmentId': appointmentId,
       'medicationId': medicationId,
       'metadata': metadata,
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt?.millisecondsSinceEpoch,
     };
   }
 

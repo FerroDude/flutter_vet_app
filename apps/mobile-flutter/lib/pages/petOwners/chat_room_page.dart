@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,6 +16,7 @@ import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'dart:io';
 import '../../models/chat_models.dart';
 import '../../providers/chat_provider.dart';
@@ -21,6 +24,7 @@ import '../../services/media_service.dart';
 import '../../services/media_cache_service.dart';
 import '../../theme/app_theme.dart';
 import '../../shared/widgets/chat_widgets.dart';
+import '../vets/pet_detail_modal.dart';
 
 class ChatRoomPage extends StatefulWidget {
   final ChatRoom chatRoom;
@@ -56,8 +60,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   // Message keys for precise scrolling
   final Map<String, GlobalKey> _messageKeys = {};
 
-  // Reaction picker state
-  OverlayEntry? _reactionOverlay;
+  // Selection mode state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedMessageIds = {};
+
+  // Emoji picker state
+  bool _emojiPickerVisible = false;
+  final FocusNode _messageFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -84,7 +93,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     _typingTimer?.cancel();
     _messageController.dispose();
     _searchController.dispose();
-    _reactionOverlay?.remove();
+    _messageFocusNode.dispose();
 
     // Save scroll position before disposing
     if (_scrollController.hasClients && _chatProvider != null) {
@@ -225,6 +234,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     });
   }
 
+  // ==================== PET INFO METHODS ====================
+
+  /// Shows a detailed pet information modal for vets
+  /// Includes symptoms, appointments, and medications
+  void _showPetInfoPanel(ChatRoom chatRoom) {
+    if (chatRoom.petIds.isEmpty) return;
+
+    PetDetailModal.show(
+      context,
+      petOwnerId: chatRoom.petOwnerId,
+      petId: chatRoom.petIds.first,
+    );
+  }
+
   // ==================== SEARCH METHODS ====================
 
   void _toggleSearch(List<ChatMessage> messages) {
@@ -285,34 +308,48 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final index = messages.indexWhere((m) => m.id == messageId);
     if (index == -1) return;
 
-    // Get the GlobalKey for this message
-    final key = _messageKeys[messageId];
-    if (key?.currentContext != null) {
-      // Use ensureVisible for precise scrolling
-      Scrollable.ensureVisible(
-        key!.currentContext!,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        alignment: 0.3, // Position message 30% from top of viewport
-      );
-    } else {
-      // Fallback: estimate scroll position if key not available
-      final reversedIndex = messages.length - 1 - index;
-      final estimatedOffset = reversedIndex * 100.0;
-      _scrollController.animateTo(
-        estimatedOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    final message = messages[index];
+    // Don't scroll to deleted messages
+    if (message.isDeleted) return;
 
-    // Highlight the message briefly
+    // Just highlight the message (no selection mode)
     setState(() {
       _highlightedMessageId = messageId;
     });
 
-    // Clear highlight after animation
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Wait for next frame to ensure layout is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      // Get the GlobalKey for this message
+      final key = _messageKeys[messageId];
+      if (key?.currentContext != null) {
+        // Use ensureVisible for precise scrolling
+        // For reversed ListView: alignment 0.0 = bottom of viewport, 1.0 = top
+        // Use 0.5 to position the message in the center of the screen
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+          alignment: 0.5, // Center the message in viewport
+        );
+      } else {
+        // Fallback: estimate scroll position if key not available
+        final reversedIndex = messages.length - 1 - index;
+        final estimatedOffset = reversedIndex * 100.0;
+        _scrollController.animateTo(
+          estimatedOffset.clamp(
+            0.0,
+            _scrollController.position.maxScrollExtent,
+          ),
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+
+    // Clear highlight after a delay (flash effect)
+    Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
         setState(() {
           _highlightedMessageId = null;
@@ -323,46 +360,136 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   // ==================== REACTION METHODS ====================
 
-  void _showReactionPicker(
-    BuildContext context,
-    ChatMessage message,
-    Offset position,
-  ) {
-    _reactionOverlay?.remove();
+  void _addReaction(String messageId, String emoji) {
+    _chatProvider?.toggleReaction(messageId, emoji);
+  }
+
+  // ==================== SELECTION MODE ====================
+
+  void _enterSelectionMode(String messageId) {
     HapticFeedback.mediumImpact();
-
-    _reactionOverlay = OverlayEntry(
-      builder: (context) => Positioned(
-        left: position.dx - 100,
-        top: position.dy - 60,
-        child: Material(
-          color: Colors.transparent,
-          child: EmojiReactionPicker(
-            onEmojiSelected: (emoji) {
-              _addReaction(message.id, emoji);
-              _reactionOverlay?.remove();
-              _reactionOverlay = null;
-            },
-            onClose: () {
-              _reactionOverlay?.remove();
-              _reactionOverlay = null;
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_reactionOverlay!);
-
-    // Auto-dismiss after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      _reactionOverlay?.remove();
-      _reactionOverlay = null;
+    setState(() {
+      _isSelectionMode = true;
+      _selectedMessageIds.add(messageId);
     });
   }
 
-  void _addReaction(String messageId, String emoji) {
-    _chatProvider?.toggleReaction(messageId, emoji);
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedMessageIds.clear();
+    });
+  }
+
+  void _toggleMessageSelection(String messageId) {
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+        // Exit selection mode if no messages selected
+        if (_selectedMessageIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedMessageIds.add(messageId);
+      }
+    });
+  }
+
+  void _selectAllMessages(List<ChatMessage> messages) {
+    setState(() {
+      _selectedMessageIds.addAll(messages.map((m) => m.id));
+    });
+  }
+
+  List<ChatMessage> _getSelectedMessages(List<ChatMessage> messages) {
+    return messages.where((m) => _selectedMessageIds.contains(m.id)).toList();
+  }
+
+  Future<void> _copySelectedMessages(List<ChatMessage> messages) async {
+    final selectedMessages = _getSelectedMessages(messages);
+    // Sort by timestamp (oldest first)
+    selectedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    final textToCopy = selectedMessages
+        .where((m) => m.type == MessageType.text)
+        .map((m) => m.content)
+        .join('\n\n');
+
+    if (textToCopy.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: textToCopy));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              selectedMessages.length == 1
+                  ? 'Message copied'
+                  : '${selectedMessages.length} messages copied',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    _exitSelectionMode();
+  }
+
+  Future<void> _deleteSelectedMessages(List<ChatMessage> messages) async {
+    final selectedMessages = _getSelectedMessages(messages);
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // Filter to only own messages
+    final ownMessages = selectedMessages
+        .where((m) => m.senderId == currentUserId)
+        .toList();
+
+    if (ownMessages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only delete your own messages'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Messages'),
+        content: Text(
+          'Delete ${ownMessages.length} message${ownMessages.length > 1 ? 's' : ''}? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final messageIds = ownMessages.map((m) => m.id).toList();
+      final deletedCount = await _chatProvider?.deleteMessages(messageIds) ?? 0;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$deletedCount message${deletedCount > 1 ? 's' : ''} deleted',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    _exitSelectionMode();
   }
 
   // ==================== REPLY SCROLL ====================
@@ -416,98 +543,285 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         // Count of pending messages (arrived while UI was frozen)
         final pendingCount = chatProvider.pendingMessageCount;
 
-        return Container(
-          decoration: const BoxDecoration(
-            gradient: AppTheme.backgroundGradient,
-          ),
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    titleText,
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (currentChatRoom.topic != null)
-                    Text(
-                      currentChatRoom.topic!,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () => _toggleSearch(messages),
-                  tooltip: 'Search messages',
-                ),
-              ],
+        return PopScope(
+          canPop: !_isSelectionMode,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && _isSelectionMode) {
+              _exitSelectionMode();
+            }
+          },
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.backgroundGradient,
             ),
-            body: Column(
-              children: [
-                // Search bar
-                if (_isSearching)
-                  ChatSearchBar(
-                    controller: _searchController,
-                    onClose: _closeSearch,
-                    onChanged: (query) => _performSearch(query, messages),
-                    matchCount: _searchMatchIds.length,
-                    currentMatch: _searchMatchIds.isEmpty
-                        ? 0
-                        : _currentSearchIndex + 1,
-                    onPrevious: () => _navigateSearch(-1, messages),
-                    onNext: () => _navigateSearch(1, messages),
-                  ),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      _buildMessagesList(
-                        chatProvider,
-                        isPendingAndPetOwner: isPendingAndPetOwner,
-                        messages: messages,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: _isSelectionMode
+                  ? _buildSelectionAppBar(messages)
+                  : AppBar(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      toolbarHeight: 42.h,
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            titleText,
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          if (currentChatRoom.topic != null)
+                            Text(
+                              currentChatRoom.topic!,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                        ],
                       ),
-                      // Scroll to bottom floating button with pending message count
-                      if (_showScrollToBottom)
-                        Positioned(
-                          right: AppTheme.spacing4,
-                          bottom: AppTheme.spacing4,
-                          child: _buildScrollToBottomButton(pendingCount),
+                      actions: [
+                        // Pet info button for vets - shows pet initial
+                        if (!isPetOwner && currentChatRoom.petIds.isNotEmpty)
+                          _PetInitialButton(
+                            petOwnerId: currentChatRoom.petOwnerId,
+                            petId: currentChatRoom.petIds.first,
+                            onTap: () => _showPetInfoPanel(currentChatRoom),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () => _toggleSearch(messages),
+                          tooltip: 'Search messages',
                         ),
-                    ],
-                  ),
+                      ],
+                    ),
+              body: SafeArea(
+                top: false, // AppBar handles top padding
+                child: Column(
+                  children: [
+                    // Search bar
+                    if (_isSearching)
+                      ChatSearchBar(
+                        controller: _searchController,
+                        onClose: _closeSearch,
+                        onChanged: (query) => _performSearch(query, messages),
+                        matchCount: _searchMatchIds.length,
+                        currentMatch: _searchMatchIds.isEmpty
+                            ? 0
+                            : _currentSearchIndex + 1,
+                        onPrevious: () => _navigateSearch(-1, messages),
+                        onNext: () => _navigateSearch(1, messages),
+                      ),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          _buildMessagesList(
+                            chatProvider,
+                            isPendingAndPetOwner: isPendingAndPetOwner,
+                            messages: messages,
+                          ),
+                          // Scroll to bottom floating button with pending message count
+                          if (_showScrollToBottom)
+                            Positioned(
+                              right: AppTheme.spacing4,
+                              bottom: AppTheme.spacing4,
+                              child: _buildScrollToBottomButton(pendingCount),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
+                      _buildTypingIndicator(),
+                    // Reply preview
+                    if (_replyingTo != null && !isPendingAndPetOwner)
+                      ReplyPreview(
+                        replyData: _replyingTo!,
+                        onCancel: _cancelReply,
+                        isMe: true,
+                      ),
+                    if (isPendingAndPetOwner)
+                      _buildPendingNotice()
+                    else
+                      _buildMessageInput(chatProvider),
+                  ],
                 ),
-                if (chatProvider.isOtherUserTyping && !isPendingAndPetOwner)
-                  _buildTypingIndicator(),
-                // Reply preview
-                if (_replyingTo != null && !isPendingAndPetOwner)
-                  ReplyPreview(
-                    replyData: _replyingTo!,
-                    onCancel: _cancelReply,
-                    isMe: true,
-                  ),
-                if (isPendingAndPetOwner)
-                  _buildPendingNotice()
-                else
-                  _buildMessageInput(chatProvider),
-              ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+
+  /// Build a date separator widget - WhatsApp style
+  Widget _buildDateSeparator(DateTime date) {
+    return Center(
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppTheme.radius2),
+        ),
+        child: Text(
+          _formatDateSeparator(date),
+          style: TextStyle(
+            fontSize: 12.sp,
+            color: Colors.white.withValues(alpha: 0.9),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInlineEmojiBar(ChatMessage message, bool isMe) {
+    const quickEmojis = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: isMe ? 0 : 24.w, // Align with message bubble
+        right: isMe ? 24.w : 0,
+        bottom: 4.w,
+      ),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppTheme.spacing2,
+          vertical: AppTheme.spacing1,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.w),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: quickEmojis.map((emoji) {
+            return GestureDetector(
+              onTap: () {
+                _addReaction(message.id, emoji);
+                _exitSelectionMode();
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.w),
+                child: Text(emoji, style: TextStyle(fontSize: 20.sp)),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionCheckbox(bool isSelected, String messageId) {
+    return GestureDetector(
+      onTap: () => _toggleMessageSelection(messageId),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 18.w,
+        height: 18.w,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: isSelected ? AppTheme.primary : Colors.transparent,
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primary
+                : Colors.white.withValues(alpha: 0.6),
+            width: 1.5,
+          ),
+        ),
+        child: isSelected
+            ? Icon(Icons.check, size: 12.w, color: Colors.white)
+            : null,
+      ),
+    );
+  }
+
+  AppBar _buildSelectionAppBar(List<ChatMessage> messages) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final selectedMessages = _getSelectedMessages(messages);
+    final hasTextMessages = selectedMessages.any(
+      (m) => m.type == MessageType.text,
+    );
+    // All selected messages must be own messages to allow delete
+    final allOwnMessages = selectedMessages.every(
+      (m) => m.senderId == currentUserId,
+    );
+
+    return AppBar(
+      backgroundColor: AppTheme.primary.withValues(alpha: 0.95),
+      foregroundColor: Colors.white,
+      elevation: 2,
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: _exitSelectionMode,
+        tooltip: 'Cancel selection',
+      ),
+      title: Text(
+        '${_selectedMessageIds.length} selected',
+        style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
+      ),
+      actions: [
+        // Copy - only for text messages
+        if (hasTextMessages)
+          IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () => _copySelectedMessages(messages),
+            tooltip: 'Copy',
+          ),
+        // Reply - only for single message
+        if (selectedMessages.length == 1)
+          IconButton(
+            icon: const Icon(Icons.reply),
+            onPressed: () {
+              _startReply(selectedMessages.first);
+              _exitSelectionMode();
+            },
+            tooltip: 'Reply',
+          ),
+        // Delete - only if ALL selected messages are own messages
+        if (allOwnMessages && selectedMessages.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _deleteSelectedMessages(messages),
+            tooltip: 'Delete',
+          ),
+        // More options
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) {
+            switch (value) {
+              case 'select_all':
+                _selectAllMessages(messages);
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'select_all',
+              child: Row(
+                children: [
+                  Icon(Icons.select_all, size: 20),
+                  SizedBox(width: 12),
+                  Text('Select all'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -586,178 +900,275 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         // Create/get GlobalKey for this message (for precise scrolling)
         _messageKeys.putIfAbsent(message.id, () => GlobalKey());
 
-        return Container(
+        // Deleted messages cannot be selected
+        final isSelected =
+            !message.isDeleted && _selectedMessageIds.contains(message.id);
+        // Show emoji bar only for single non-own, non-deleted message selection
+        final showEmojiBar =
+            isSelected &&
+            _isSelectionMode &&
+            _selectedMessageIds.length == 1 &&
+            !isMe &&
+            !message.isDeleted;
+
+        return Column(
           key: _messageKeys[message.id],
-          child: MessageHighlight(
-            shouldHighlight: shouldHighlight,
-            child: SwipeableMessage(
-              isMe: isMe,
-              onSwipeReply: () => _startReply(message),
-              child: GestureDetector(
-                // Only allow reactions on OTHER people's messages, not your own
-                onLongPressStart: isMe
-                    ? null
-                    : (details) {
-                        _showReactionPicker(
-                          context,
-                          message,
-                          details.globalPosition,
-                        );
-                      },
-                onDoubleTap: isMe
-                    ? null
-                    : () {
-                        // Quick react with ❤️
-                        _addReaction(message.id, '❤️');
-                      },
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    // Less space between same-person messages, more between different users
-                    bottom: isFirstInSequence ? 2.w : 4.w,
-                    top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
-                  ),
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            // Date separator - must come FIRST in Column for reversed ListView
+            // Shows ABOVE the message that starts a new day
+            if (_shouldShowDateSeparator(messages, messageIndex))
+              _buildDateSeparator(message.timestamp),
+            // Emoji quick bar above the selected message
+            if (showEmojiBar) _buildInlineEmojiBar(message, isMe),
+            MessageHighlight(
+              shouldHighlight: shouldHighlight,
+              child: SwipeableMessage(
+                isMe: isMe,
+                onSwipeReply: () {
+                  // Don't allow reply to deleted messages
+                  if (!_isSelectionMode && !message.isDeleted) {
+                    _startReply(message);
+                  }
+                },
+                child: GestureDetector(
+                  // In selection mode: tap to toggle, long press does nothing
+                  // Normal mode: long press for reactions (non-own) or selection
+                  // Disable all interactions for deleted messages
+                  onTap: message.isDeleted
+                      ? null
+                      : (_isSelectionMode
+                            ? () => _toggleMessageSelection(message.id)
+                            : null),
+                  onLongPressStart: message.isDeleted
+                      ? null
+                      : (details) {
+                          if (_isSelectionMode) {
+                            // Already in selection mode, do nothing on long press
+                            return;
+                          }
+                          // Enter selection mode on any message
+                          _enterSelectionMode(message.id);
+                        },
+                  onDoubleTap: (_isSelectionMode || isMe || message.isDeleted)
+                      ? null
+                      : () {
+                          // Quick react with ❤️
+                          _addReaction(message.id, '❤️');
+                        },
                   child: Padding(
                     padding: EdgeInsets.only(
-                      // Add bottom padding when reactions exist to make room
-                      bottom: reactions.isNotEmpty ? 14.h : 0,
+                      // Less space between same-person messages, more between different users
+                      bottom: isFirstInSequence ? 2.w : 4.w,
+                      top: isFirstInSequence && messageIndex > 0 ? 12.w : 0,
                     ),
-                    child: Row(
-                      mainAxisAlignment: isMe
-                          ? MainAxisAlignment.end
-                          : MainAxisAlignment.start,
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start, // Align to top
-                      children: [
-                        // Bubble tail for received messages (left side, top)
-                        // Always reserve space for alignment consistency
-                        if (!isMe)
-                          isFirstInSequence
-                              ? CustomPaint(
-                                  painter: _BubbleTailPainter(
-                                    color: Colors.white,
-                                    isMe: false,
-                                  ),
-                                  size: Size(12.w, 16.w),
-                                )
-                              : SizedBox(width: 12.w),
-                        // Stack wraps just the bubble so reactions position correctly
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              constraints: BoxConstraints(
-                                maxWidth: 250.w,
-                                minWidth: 140.w,
-                              ),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: AppTheme.spacing3,
-                                vertical: AppTheme.spacing2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isMe ? AppTheme.primary : Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  // Hide top corner where tail attaches (radius 0)
-                                  topLeft: Radius.circular(
-                                    !isMe && isFirstInSequence
-                                        ? 0
-                                        : AppTheme.radius3,
-                                  ),
-                                  topRight: Radius.circular(
-                                    isMe && isFirstInSequence
-                                        ? 0
-                                        : AppTheme.radius3,
-                                  ),
-                                  bottomLeft: Radius.circular(AppTheme.radius3),
-                                  bottomRight: Radius.circular(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        // Add bottom padding when reactions exist to make room
+                        bottom: reactions.isNotEmpty ? 14.h : 0,
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Row(
+                            mainAxisAlignment: isMe
+                                ? MainAxisAlignment.end
+                                : MainAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start, // Align to top
+                            children: [
+                              // Bubble tail for received messages (left side, top)
+                              // Always reserve space for alignment consistency
+                              if (!isMe)
+                                isFirstInSequence
+                                    ? CustomPaint(
+                                        painter: _BubbleTailPainter(
+                                          color: Colors.white,
+                                          isMe: false,
+                                        ),
+                                        size: Size(12.w, 16.w),
+                                      )
+                                    : SizedBox(width: 12.w),
+                              // Selection background wraps just the bubble
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: EdgeInsets.all(
+                                  (isSelected && !message.isDeleted) ? 4.w : 0,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (isSelected && !message.isDeleted)
+                                      ? Colors.lightBlue.withValues(alpha: 0.45)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(
                                     AppTheme.radius3,
                                   ),
                                 ),
-                                boxShadow: isMe ? null : AppTheme.cardShadow,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Reply bubble if this is a reply
-                                  if (replyData != null)
-                                    ReplyBubble(
-                                      replyData: replyData,
-                                      isMe: isMe,
-                                      onTap: () => _scrollToRepliedMessage(
-                                        replyData.messageId,
-                                        messages,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      constraints: BoxConstraints(
+                                        maxWidth:
+                                            MediaQuery.of(context).size.width *
+                                            0.75,
+                                        // Min width crosses middle of screen
+                                        minWidth:
+                                            MediaQuery.of(context).size.width *
+                                            0.55,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: AppTheme.spacing3,
+                                        vertical: AppTheme.spacing2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isMe
+                                            ? AppTheme.primary
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.only(
+                                          // Hide top corner where tail attaches (radius 0)
+                                          topLeft: Radius.circular(
+                                            !isMe && isFirstInSequence
+                                                ? 0
+                                                : AppTheme.radius3,
+                                          ),
+                                          topRight: Radius.circular(
+                                            isMe && isFirstInSequence
+                                                ? 0
+                                                : AppTheme.radius3,
+                                          ),
+                                          bottomLeft: Radius.circular(
+                                            AppTheme.radius3,
+                                          ),
+                                          bottomRight: Radius.circular(
+                                            AppTheme.radius3,
+                                          ),
+                                        ),
+                                        boxShadow: isMe
+                                            ? null
+                                            : AppTheme.cardShadow,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Reply bubble if this is a reply (hide for deleted messages)
+                                          if (replyData != null &&
+                                              !message.isDeleted)
+                                            ReplyBubble(
+                                              replyData: replyData,
+                                              isMe: isMe,
+                                              onTap: () =>
+                                                  _scrollToRepliedMessage(
+                                                    replyData.messageId,
+                                                    messages,
+                                                  ),
+                                            ),
+                                          // Build content based on message type
+                                          _buildMessageContent(message, isMe),
+                                          // Link preview for text messages with URLs (hide for deleted)
+                                          if (message.type ==
+                                                  MessageType.text &&
+                                              UrlUtils.hasUrl(
+                                                message.content,
+                                              ) &&
+                                              !message.isDeleted)
+                                            LinkPreviewWidget(
+                                              url: UrlUtils.extractUrls(
+                                                message.content,
+                                              ).first,
+                                              isMe: isMe,
+                                            ),
+                                          Gap(AppTheme.spacing1),
+                                          // Row with timestamp and status icon
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                _formatTimestamp(
+                                                  message.timestamp,
+                                                ),
+                                                style: TextStyle(
+                                                  fontSize: 11.sp,
+                                                  color: isMe
+                                                      ? Colors.white.withValues(
+                                                          alpha: 0.7,
+                                                        )
+                                                      : AppTheme.neutral700,
+                                                ),
+                                              ),
+                                              // Only show status icon for sender's own messages
+                                              if (isMe) ...[
+                                                Gap(4.w),
+                                                _buildStatusIcon(
+                                                  message.status,
+                                                  isMe,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  // Build content based on message type
-                                  _buildMessageContent(message, isMe),
-                                  // Link preview for text messages with URLs
-                                  if (message.type == MessageType.text &&
-                                      UrlUtils.hasUrl(message.content))
-                                    LinkPreviewWidget(
-                                      url: UrlUtils.extractUrls(
-                                        message.content,
-                                      ).first,
-                                      isMe: isMe,
-                                    ),
-                                  Gap(AppTheme.spacing1),
-                                  // Row with timestamp and status icon
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _formatTimestamp(message.timestamp),
-                                        style: TextStyle(
-                                          fontSize: 11.sp,
-                                          color: isMe
-                                              ? Colors.white.withValues(
-                                                  alpha: 0.7,
-                                                )
-                                              : AppTheme.neutral700,
+                                    // Reactions positioned at bottom-right corner of bubble (hide for deleted)
+                                    if (reactions.isNotEmpty &&
+                                        !message.isDeleted)
+                                      Positioned(
+                                        bottom: -12.h,
+                                        right: 4.w,
+                                        child: ReactionsDisplay(
+                                          reactions: reactions,
+                                          currentUserId: currentUserId ?? '',
+                                          onReactionTap: (emoji) =>
+                                              _addReaction(message.id, emoji),
+                                          isMe: isMe,
                                         ),
                                       ),
-                                      // Only show status icon for sender's own messages
-                                      if (isMe) ...[
-                                        Gap(4.w),
-                                        _buildStatusIcon(message.status, isMe),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Reactions positioned at bottom-right corner of bubble
-                            if (reactions.isNotEmpty)
-                              Positioned(
-                                bottom: -12.h,
-                                right: 4.w,
-                                child: ReactionsDisplay(
-                                  reactions: reactions,
-                                  currentUserId: currentUserId ?? '',
-                                  onReactionTap: (emoji) =>
-                                      _addReaction(message.id, emoji),
-                                  isMe: isMe,
+                                  ],
                                 ),
                               ),
-                          ],
-                        ),
-                        // Bubble tail for sent messages (right side, top)
-                        // Always reserve space for alignment consistency
-                        if (isMe)
-                          isFirstInSequence
-                              ? CustomPaint(
-                                  painter: _BubbleTailPainter(
-                                    color: AppTheme.primary,
-                                    isMe: true,
+                              // Bubble tail for sent messages (right side, top)
+                              // Always reserve space for alignment consistency
+                              if (isMe)
+                                isFirstInSequence
+                                    ? CustomPaint(
+                                        painter: _BubbleTailPainter(
+                                          color: AppTheme.primary,
+                                          isMe: true,
+                                        ),
+                                        size: Size(12.w, 16.w),
+                                      )
+                                    : SizedBox(width: 12.w),
+                            ],
+                          ),
+                          // Selection checkbox - always rendered to avoid layout shifts
+                          // Positioned just outside the bubble, visibility controlled by opacity
+                          if (!message.isDeleted)
+                            Positioned(
+                              top: 4.w,
+                              left: isMe ? null : -14.w,
+                              right: isMe ? -14.w : null,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _isSelectionMode ? 1.0 : 0.0,
+                                child: IgnorePointer(
+                                  ignoring: !_isSelectionMode,
+                                  child: _buildSelectionCheckbox(
+                                    isSelected,
+                                    message.id,
                                   ),
-                                  size: Size(12.w, 16.w),
-                                )
-                              : SizedBox(width: 12.w),
-                      ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -765,6 +1176,33 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   /// Build message content based on type
   Widget _buildMessageContent(ChatMessage message, bool isMe) {
+    // Show deleted message placeholder
+    if (message.isDeleted) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.block,
+            size: 14.sp,
+            color: isMe
+                ? Colors.white.withValues(alpha: 0.7)
+                : AppTheme.neutral500,
+          ),
+          SizedBox(width: 4.w),
+          Text(
+            'This message was deleted',
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontStyle: FontStyle.italic,
+              color: isMe
+                  ? Colors.white.withValues(alpha: 0.7)
+                  : AppTheme.neutral500,
+            ),
+          ),
+        ],
+      );
+    }
+
     switch (message.type) {
       case MessageType.image:
         return _buildImageMessage(message, isMe);
@@ -1197,6 +1635,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Widget _buildMessageInput(ChatProvider chatProvider) {
     final isRecording = chatProvider.isRecording;
     final isBusy = chatProvider.isUploadingMedia || isRecording;
+    final hasText = _messageController.text.trim().isNotEmpty;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1234,89 +1673,219 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         if (isRecording)
           _buildVoiceRecordingUI(chatProvider)
         else
+          // WhatsApp-style input container
           Container(
-            padding: EdgeInsets.all(AppTheme.spacing3),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppTheme.spacing3,
+              vertical: AppTheme.spacing2,
+            ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Attachment button
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: AppTheme.cardShadow,
-                  ),
-                  child: IconButton(
-                    icon: Icon(Icons.attach_file, color: AppTheme.primary),
-                    onPressed: isBusy
-                        ? null
-                        : () => _showAttachmentOptions(chatProvider),
-                  ),
-                ),
-                Gap(AppTheme.spacing2),
+                // Main input pill container
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppTheme.radius3),
-                      boxShadow: AppTheme.cardShadow,
+                      borderRadius: BorderRadius.circular(24.r),
                     ),
-                    child: TextField(
-                      controller: _messageController,
-                      style: TextStyle(
-                        color: AppTheme.primary,
-                        fontSize: 14.sp,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        hintStyle: TextStyle(
-                          color: AppTheme.neutral700.withValues(alpha: 0.5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Emoji button - toggles emoji picker
+                        GestureDetector(
+                          onTap: () {
+                            if (_emojiPickerVisible) {
+                              // Hide emoji picker and show keyboard
+                              setState(() => _emojiPickerVisible = false);
+                              _messageFocusNode.requestFocus();
+                            } else {
+                              // Hide keyboard and show emoji picker
+                              _messageFocusNode.unfocus();
+                              setState(() => _emojiPickerVisible = true);
+                            }
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 8.w),
+                            child: Icon(
+                              _emojiPickerVisible
+                                  ? Icons.keyboard
+                                  : Icons.emoji_emotions_outlined,
+                              color: AppTheme.neutral700,
+                              size: 24.sp,
+                            ),
+                          ),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacing3,
-                          vertical: AppTheme.spacing3,
+                        // Text input
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _messageFocusNode,
+                            onTap: () {
+                              // Hide emoji picker when tapping on text field
+                              if (_emojiPickerVisible) {
+                                setState(() => _emojiPickerVisible = false);
+                              }
+                            },
+                            style: TextStyle(
+                              color: AppTheme.neutral900,
+                              fontSize: 16.sp,
+                              decoration: TextDecoration.none,
+                              decorationThickness: 0,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Message',
+                              hintStyle: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 16.sp,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8.w,
+                                vertical: 12.h,
+                              ),
+                            ),
+                            maxLines: 6,
+                            minLines: 1,
+                            textCapitalization: TextCapitalization.sentences,
+                          ),
                         ),
-                      ),
-                      maxLines: null,
+                        // Attachment button
+                        GestureDetector(
+                          onTap: isBusy
+                              ? null
+                              : () => _showAttachmentOptions(chatProvider),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.w),
+                            child: Transform.rotate(
+                              angle: 0.8,
+                              child: Icon(
+                                Icons.attach_file,
+                                color: AppTheme.neutral700,
+                                size: 24.sp,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Camera button (only show when no text)
+                        if (!hasText)
+                          GestureDetector(
+                            onTap: isBusy
+                                ? null
+                                : () =>
+                                      chatProvider.pickAndSendImageFromCamera(),
+                            child: Padding(
+                              padding: EdgeInsets.only(right: 12.w),
+                              child: Icon(
+                                Icons.camera_alt,
+                                color: AppTheme.neutral700,
+                                size: 24.sp,
+                              ),
+                            ),
+                          ),
+                        if (hasText) Gap(8.w),
+                      ],
                     ),
                   ),
                 ),
-                Gap(AppTheme.spacing2),
-                // Send or Mic button (show mic when text is empty)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: AppTheme.cardShadow,
+                Gap(8.w),
+                // Circular action button (mic or send)
+                GestureDetector(
+                  onLongPressStart: hasText
+                      ? null
+                      : (_) => _startVoiceRecording(chatProvider),
+                  onLongPressEnd: hasText
+                      ? null
+                      : (_) => chatProvider.stopAndSendVoiceRecording(),
+                  child: Container(
+                    width: 48.w,
+                    height: 48.w,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        hasText ? Icons.send : Icons.mic,
+                        color: Colors.white,
+                        size: 22.sp,
+                      ),
+                      onPressed: isBusy
+                          ? null
+                          : (hasText
+                                ? () => _sendMessage(chatProvider)
+                                : () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Hold to record a voice message',
+                                        ),
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+                                  }),
+                      padding: EdgeInsets.zero,
+                    ),
                   ),
-                  child: _messageController.text.trim().isEmpty
-                      ? GestureDetector(
-                          onLongPressStart: (_) =>
-                              _startVoiceRecording(chatProvider),
-                          child: IconButton(
-                            icon: Icon(Icons.mic, color: AppTheme.primary),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Hold to record a voice message',
-                                  ),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                          ),
-                        )
-                      : IconButton(
-                          icon: Icon(Icons.send, color: AppTheme.primary),
-                          onPressed: isBusy
-                              ? null
-                              : () => _sendMessage(chatProvider),
-                        ),
                 ),
               ],
             ),
           ),
+        // Emoji picker
+        Offstage(
+          offstage: !_emojiPickerVisible,
+          child: EmojiPicker(
+            textEditingController: _messageController,
+            onBackspacePressed: () {
+              // Handle backspace - remove last character
+              final text = _messageController.text;
+              if (text.isNotEmpty) {
+                _messageController.text = text.characters.skipLast(1).string;
+                _messageController.selection = TextSelection.fromPosition(
+                  TextPosition(offset: _messageController.text.length),
+                );
+              }
+            },
+            config: Config(
+              height: 256,
+              checkPlatformCompatibility: true,
+              emojiViewConfig: EmojiViewConfig(
+                emojiSizeMax:
+                    28 *
+                    (foundation.defaultTargetPlatform == TargetPlatform.iOS
+                        ? 1.2
+                        : 1.0),
+                columns: 8,
+                backgroundColor: Colors.white,
+                verticalSpacing: 0,
+                horizontalSpacing: 0,
+                recentsLimit: 28,
+                buttonMode: ButtonMode.MATERIAL,
+              ),
+              categoryViewConfig: CategoryViewConfig(
+                initCategory: Category.RECENT,
+                recentTabBehavior: RecentTabBehavior.RECENT,
+                backgroundColor: Colors.white,
+                indicatorColor: AppTheme.primary,
+                iconColor: AppTheme.neutral500,
+                iconColorSelected: AppTheme.primary,
+                backspaceColor: AppTheme.primary,
+              ),
+              bottomActionBarConfig: const BottomActionBarConfig(
+                enabled: false,
+              ),
+              searchViewConfig: SearchViewConfig(
+                backgroundColor: Colors.white,
+                buttonIconColor: AppTheme.neutral500,
+                hintText: 'Search emoji...',
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1728,20 +2297,50 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final diff = now.difference(timestamp);
+    // Always show just the time (hours and minutes) - WhatsApp style
+    return DateFormat('h:mm a').format(timestamp);
+  }
 
-    if (diff.inMinutes < 1) {
-      return 'Just now';
-    } else if (diff.inHours < 1) {
-      return '${diff.inMinutes}m ago';
-    } else if (diff.inDays < 1) {
-      return DateFormat('h:mm a').format(timestamp);
-    } else if (diff.inDays < 7) {
-      return DateFormat('E h:mm a').format(timestamp);
+  /// Format the date for day separators - WhatsApp style
+  String _formatDateSeparator(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final messageDate = DateTime(date.year, date.month, date.day);
+
+    if (messageDate == today) {
+      return 'Today';
+    } else if (messageDate == yesterday) {
+      return 'Yesterday';
     } else {
-      return DateFormat('MMM d, h:mm a').format(timestamp);
+      return DateFormat('d MMMM').format(date);
     }
+  }
+
+  /// Check if a date separator should be shown above this message
+  bool _shouldShowDateSeparator(List<ChatMessage> messages, int messageIndex) {
+    if (messageIndex < 0 || messageIndex >= messages.length) return false;
+
+    final message = messages[messageIndex];
+    final messageDate = DateTime(
+      message.timestamp.year,
+      message.timestamp.month,
+      message.timestamp.day,
+    );
+
+    // First message always shows date
+    if (messageIndex == 0) return true;
+
+    // Compare with previous message's date
+    final prevMessage = messages[messageIndex - 1];
+    final prevDate = DateTime(
+      prevMessage.timestamp.year,
+      prevMessage.timestamp.month,
+      prevMessage.timestamp.day,
+    );
+
+    // Show separator if dates are different
+    return messageDate != prevDate;
   }
 }
 
@@ -2579,6 +3178,84 @@ class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
               )
             : Chewie(controller: _chewieController!),
       ),
+    );
+  }
+}
+
+/// A compact button showing the pet's initial letter for the app bar
+/// Used by vets to quickly access pet information
+class _PetInitialButton extends StatelessWidget {
+  final String petOwnerId;
+  final String petId;
+  final VoidCallback onTap;
+
+  const _PetInitialButton({
+    required this.petOwnerId,
+    required this.petId,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(petOwnerId)
+          .collection('pets')
+          .doc(petId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        String initial = '?';
+        String petName = 'Pet';
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final petData = snapshot.data!.data()!;
+          final name = petData['name'] as String? ?? '';
+          if (name.isNotEmpty) {
+            initial = name[0].toUpperCase();
+            petName = name;
+          }
+        }
+
+        return Tooltip(
+          message: 'View $petName info',
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 32.w,
+              height: 32.w,
+              margin: EdgeInsets.only(right: 4.w),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: Center(
+                child: snapshot.connectionState == ConnectionState.waiting
+                    ? SizedBox(
+                        width: 14.w,
+                        height: 14.w,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      )
+                    : Text(
+                        initial,
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

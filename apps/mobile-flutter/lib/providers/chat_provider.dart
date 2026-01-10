@@ -866,6 +866,23 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  /// Delete multiple messages from the current chat room
+  /// Returns the number of messages successfully deleted
+  Future<int> deleteMessages(List<String> messageIds) async {
+    if (_currentChatRoom == null) return 0;
+
+    try {
+      final deletedCount = await _chatService.deleteMessages(
+        chatRoomId: _currentChatRoom!.id,
+        messageIds: messageIds,
+      );
+      return deletedCount;
+    } catch (e) {
+      _setError('Failed to delete messages: $e');
+      return 0;
+    }
+  }
+
   /// TYPING STATUS METHODS ///
 
   /// Update typing status for current user

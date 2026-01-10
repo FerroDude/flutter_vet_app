@@ -936,11 +936,11 @@ class _MessageHighlightState extends State<MessageHighlight>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2500),
     );
 
     _colorAnimation = ColorTween(
-      begin: AppTheme.primary.withOpacity(0.3),
+      begin: Colors.lightBlue.withOpacity(0.3),
       end: Colors.transparent,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 

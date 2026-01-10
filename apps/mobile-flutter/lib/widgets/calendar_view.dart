@@ -34,7 +34,9 @@ class _CalendarViewState extends State<CalendarView> {
       children: [
         // Custom format selector above calendar
         _buildFormatSelector(),
-        TableCalendar<CalendarEvent>(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: TableCalendar<CalendarEvent>(
           firstDay: DateTime.utc(2020, 1, 1),
           lastDay: DateTime.utc(2030, 12, 31),
           focusedDay: widget.selectedDay ?? DateTime.now(),
@@ -150,6 +152,7 @@ class _CalendarViewState extends State<CalendarView> {
               );
             },
           ),
+        ),
         ),
       ],
     );

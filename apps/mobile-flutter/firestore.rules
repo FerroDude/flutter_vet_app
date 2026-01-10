@@ -140,7 +140,21 @@ service cloud.firestore {
       );
 
       match /events/{eventId} {
-        allow read, write: if isSignedIn() && (
+        // Read: owner, temp user with matching email, or clinic members (for vets viewing pet owner events)
+        allow read: if isSignedIn() && (
+          request.auth.uid == userId ||
+          (isTempUser(userId) &&
+            get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email) ||
+          // Clinic members can read events for pet owners in their clinic
+          (
+            get(/databases/$(database)/documents/users/$(userId)).data.userType == 0 &&
+            get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId != null &&
+            isClinicMember(get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId)
+          )
+        );
+        
+        // Write: only owner or temp user with matching email
+        allow write: if isSignedIn() && (
           request.auth.uid == userId ||
           (isTempUser(userId) &&
             get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email)
