@@ -14,12 +14,16 @@ import '../../models/event_model.dart';
 import '../../models/symptom_models.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/medication_provider.dart';
+import '../../models/medication_model.dart';
 import '../../widgets/simple_event_forms.dart';
 import '../../widgets/calendar_view.dart';
+import '../../widgets/medication_widgets.dart';
 import '../../services/pet_service.dart';
 import 'add_symptom_sheet.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
+import '../../utils/cleanup_old_medications.dart';
 
 /// Clean, professional calendar page
 class CalendarPage extends StatefulWidget {
@@ -38,7 +42,6 @@ class CalendarPageState extends State<CalendarPage>
     length: 4,
     vsync: this,
   );
-  final Set<String> _expandedSeries = {};
   final _petService = PetService();
 
   DateTime _selectedDay = DateTime.now();
@@ -838,55 +841,183 @@ class CalendarPageState extends State<CalendarPage>
     BuildContext context,
     EventProvider eventProvider,
   ) {
-    final medications =
-        eventProvider.events.whereType<MedicationEvent>().toList()
-          ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    return Consumer<MedicationProvider>(
+      builder: (context, medicationProvider, _) {
+        // Ensure we're subscribed to all pets' medications
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          for (final petId in _petNamesCache.keys) {
+            medicationProvider.subscribeToPet(petId);
+          }
+        });
 
-    if (medications.isEmpty) {
-      return _buildSimpleEmptyState(context, 'No medications');
-    }
+        // Collect all medications from all subscribed pets
+        final allMedications = <Medication>[];
+        for (final petId in _petNamesCache.keys) {
+          allMedications.addAll(medicationProvider.getMedicationsForPet(petId));
+        }
 
-    // Group medications by series
-    final globalGroups = <String, List<MedicationEvent>>{};
-    for (final med in medications) {
-      final seriesKey = (med.seriesId ?? '').trim();
-      final groupKey = seriesKey.isNotEmpty
-          ? seriesKey
-          : 'name_${med.medicationName}';
-      globalGroups.putIfAbsent(groupKey, () => []).add(med);
-    }
+        final activeMeds = allMedications.where((m) => m.isActive).toList();
+        final pastMeds = allMedications.where((m) => !m.isActive).toList();
 
-    final seriesGroups = <String, List<MedicationEvent>>{};
-    final singles = <MedicationEvent>[];
+        return RefreshIndicator(
+          onRefresh: _refreshData,
+          child: ListView(
+            padding: EdgeInsets.all(AppTheme.spacing4),
+            children: [
+              // DEV: Delete all medications button
+              _buildDeleteAllMedsButton(context),
+              SizedBox(height: AppTheme.spacing4),
 
-    for (final entry in globalGroups.entries) {
-      if (entry.value.length > 1) {
-        seriesGroups[entry.key] = entry.value;
-      } else {
-        singles.addAll(entry.value);
+              if (allMedications.isEmpty) ...[
+                _buildSimpleEmptyState(context, 'No medications'),
+              ] else ...[
+                // Active medications
+                if (activeMeds.isNotEmpty) ...[
+                  _buildSectionHeader(context, 'Active Medications', Icons.medication_rounded),
+                  ...activeMeds.map((med) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: MedicationCard(
+                      medication: med,
+                      petName: _getPetName(med.petId),
+                      showPetName: true,
+                      onMarkDose: () => _markDoseTaken(context, med, medicationProvider),
+                    ),
+                  )),
+                ],
+
+                // Past medications
+                if (pastMeds.isNotEmpty) ...[
+                  if (activeMeds.isNotEmpty) SizedBox(height: AppTheme.spacing4),
+                  _buildSectionHeader(context, 'Past Medications', Icons.history),
+                  ...pastMeds.map((med) => Padding(
+                    padding: EdgeInsets.only(bottom: 12.h),
+                    child: MedicationCard(
+                      medication: med,
+                      petName: _getPetName(med.petId),
+                      showPetName: true,
+                    ),
+                  )),
+                ],
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _markDoseTaken(
+    BuildContext context,
+    Medication med,
+    MedicationProvider provider,
+  ) async {
+    try {
+      await provider.logDoseTaken(
+        med.petId,
+        med.id,
+        DateTime.now(),
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dose marked as taken for ${med.name}'),
+            backgroundColor: AppTheme.brandTeal,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
       }
     }
+  }
 
-    return RefreshIndicator(
-      onRefresh: _refreshData,
-      child: ListView(
-        padding: EdgeInsets.all(AppTheme.spacing4),
+  Widget _buildDeleteAllMedsButton(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(AppTheme.spacing3),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radius3),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
         children: [
-          if (seriesGroups.isNotEmpty) ...[
-            _buildSectionHeader(context, 'Recurring Medications', Icons.repeat),
-            ...seriesGroups.entries.map(
-              (entry) => _buildSeriesCard(context, entry.key, entry.value),
+          Icon(Icons.developer_mode, color: Colors.red, size: 20.sp),
+          SizedBox(width: AppTheme.spacing2),
+          Expanded(
+            child: Text(
+              'Developer Tool',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ],
-          if (singles.isNotEmpty) ...[
-            if (seriesGroups.isNotEmpty) SizedBox(height: AppTheme.spacing4),
-            _buildSectionHeader(
-              context,
-              'Individual Medications',
-              Icons.schedule,
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Delete All Medications?'),
+                  content: const Text(
+                    'This will delete ALL medication events (old system) and medications (new system). This cannot be undone.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Delete All'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirmed == true && context.mounted) {
+                try {
+                  final results = await MedicationCleanup.cleanupAll();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Deleted ${results['oldMedicationEvents']} old events, ${results['newMedications']} new meds',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    _refreshData();
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
             ),
-            ...singles.map((med) => _buildMedicationCard(context, med)),
-          ],
+            child: Text(
+              'Delete All Meds (Dev)',
+              style: TextStyle(fontSize: 12.sp),
+            ),
+          ),
         ],
       ),
     );
@@ -916,284 +1047,6 @@ class CalendarPageState extends State<CalendarPage>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSeriesCard(
-    BuildContext context,
-    String key,
-    List<MedicationEvent> items,
-  ) {
-    items.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-    final first = items.first;
-    final isExpanded = _expandedSeries.contains(key);
-    final petName = _getPetName(first.petId);
-
-    return Container(
-      margin: EdgeInsets.only(bottom: AppTheme.spacing3),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Column(
-        children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-              onTap: () {
-                setState(() {
-                  if (isExpanded) {
-                    _expandedSeries.remove(key);
-                  } else {
-                    _expandedSeries.add(key);
-                  }
-                });
-              },
-              child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacing4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusMedium,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.medication,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: AppTheme.spacing4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            first.medicationName,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.primary,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: AppTheme.spacing1),
-                          Row(
-                            children: [
-                              Text(
-                                '${first.dosage} • ${first.frequency}',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: AppTheme.neutral700),
-                              ),
-                              if (petName.isNotEmpty) ...[
-                                SizedBox(width: AppTheme.spacing2),
-                                Icon(
-                                  Icons.pets,
-                                  size: 12,
-                                  color: AppTheme.neutral700,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  petName,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: AppTheme.neutral700),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing2,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.radiusSmall,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.layers, size: 14, color: AppTheme.primary),
-                          SizedBox(width: 4),
-                          Text(
-                            '${items.length}',
-                            style: TextStyle(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: AppTheme.spacing2),
-                    Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: AppTheme.primary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (isExpanded)
-            Container(
-              padding: EdgeInsets.fromLTRB(
-                AppTheme.spacing4,
-                0,
-                AppTheme.spacing4,
-                AppTheme.spacing4,
-              ),
-              child: Column(
-                children: [
-                  Divider(color: AppTheme.neutral300),
-                  SizedBox(height: AppTheme.spacing2),
-                  ...items.asMap().entries.map((entry) {
-                    final med = entry.value;
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          SizedBox(width: AppTheme.spacing3),
-                          Expanded(
-                            child: Text(
-                              DateFormat(
-                                'EEE, MMM d • h:mm a',
-                              ).format(med.dateTime),
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppTheme.neutral700),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMedicationCard(BuildContext context, MedicationEvent med) {
-    final petName = _getPetName(med.petId);
-    return Padding(
-      padding: EdgeInsets.only(bottom: AppTheme.spacing2),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppTheme.radius3),
-          boxShadow: AppTheme.cardShadow,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(AppTheme.radius3),
-            onTap: () => _handleEventTap(med),
-            child: Padding(
-              padding: EdgeInsets.all(AppTheme.spacing3),
-              child: Row(
-                children: [
-                  Container(
-                    width: 4.w,
-                    height: 48.h,
-                    decoration: BoxDecoration(
-                      color: AppTheme.brandTeal,
-                      borderRadius: BorderRadius.circular(2.r),
-                    ),
-                  ),
-                  Gap(AppTheme.spacing3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          med.medicationName,
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.primary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Gap(AppTheme.spacing1),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 12.sp,
-                              color: AppTheme.neutral700,
-                            ),
-                            Gap(AppTheme.spacing1),
-                            Text(
-                              DateFormat('h:mm a').format(med.dateTime),
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                color: AppTheme.neutral700,
-                              ),
-                            ),
-                            if (petName.isNotEmpty) ...[
-                              Gap(AppTheme.spacing2),
-                              Icon(
-                                Icons.pets,
-                                size: 12.sp,
-                                color: AppTheme.neutral700,
-                              ),
-                              Gap(AppTheme.spacing1),
-                              Text(
-                                petName,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  color: AppTheme.neutral700,
-                                ),
-                              ),
-                            ],
-                            Gap(AppTheme.spacing2),
-                            Expanded(
-                              child: Text(
-                                med.dosage,
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  color: AppTheme.neutral700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1261,14 +1114,6 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   // Helper methods
-  void _handleEventTap(CalendarEvent event) {
-    if (event is AppointmentEvent) {
-      _editAppointment(event);
-    } else {
-      _showEventDialog(event);
-    }
-  }
-
   void _editAppointment(AppointmentEvent appointment) {
     showModalBottomSheet(
       context: context,
@@ -1284,11 +1129,6 @@ class CalendarPageState extends State<CalendarPage>
     ).then((result) {
       if (result == true) _refreshData();
     });
-  }
-
-  void _showEventDialog(CalendarEvent event) {
-    // Implementation for showing event details dialog
-    // (simplified for brevity - uses existing dialog from original page)
   }
 
   String _symptomSummaryTitle(List<PetSymptom> symptoms) {
@@ -1553,18 +1393,14 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _showMedicationFormWithPetSelection() async {
-    // Capture the provider before async operation
-    final eventProvider = context.read<EventProvider>();
+    final medicationProvider = context.read<MedicationProvider>();
     final selectedPet = await _showPetSelectionDialog();
     if (selectedPet != null && mounted) {
-      showModalBottomSheet(
+      showDialog(
         context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
         builder: (dialogContext) => ChangeNotifierProvider.value(
-          value: eventProvider,
-          child: SimpleMedicationForm(
-            selectedDate: _selectedDay,
+          value: medicationProvider,
+          child: MedicationFormDialog(
             petId: selectedPet.id,
           ),
         ),

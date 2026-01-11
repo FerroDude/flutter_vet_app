@@ -3182,7 +3182,7 @@ class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
   }
 }
 
-/// A compact button showing the pet's initial letter for the app bar
+/// A compact button showing the pet's name for the app bar
 /// Used by vets to quickly access pet information
 class _PetInitialButton extends StatelessWidget {
   final String petOwnerId;
@@ -3205,14 +3205,12 @@ class _PetInitialButton extends StatelessWidget {
           .doc(petId)
           .snapshots(),
       builder: (context, snapshot) {
-        String initial = '?';
         String petName = 'Pet';
 
         if (snapshot.hasData && snapshot.data!.exists) {
           final petData = snapshot.data!.data()!;
           final name = petData['name'] as String? ?? '';
           if (name.isNotEmpty) {
-            initial = name[0].toUpperCase();
             petName = name;
           }
         }
@@ -3222,8 +3220,8 @@ class _PetInitialButton extends StatelessWidget {
           child: GestureDetector(
             onTap: onTap,
             child: Container(
-              width: 32.w,
               height: 32.w,
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
               margin: EdgeInsets.only(right: 4.w),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.2),
@@ -3244,10 +3242,10 @@ class _PetInitialButton extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        initial,
+                        petName,
                         style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),

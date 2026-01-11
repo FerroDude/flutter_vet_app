@@ -6,24 +6,32 @@ class ModernModal extends StatelessWidget {
   final Widget child;
   final double? width;
   final EdgeInsets? padding;
+  final bool useGradient;
 
-  const ModernModal({super.key, required this.child, this.width, this.padding});
+  const ModernModal({
+    super.key,
+    required this.child,
+    this.width,
+    this.padding,
+    this.useGradient = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: context.surfacePrimary,
+      backgroundColor: Colors.transparent,
       elevation: 0,
       child: Container(
         width: width ?? MediaQuery.of(context).size.width * 0.9,
         constraints: const BoxConstraints(maxWidth: 500),
         decoration: BoxDecoration(
-          color: context.surfacePrimary,
+          gradient: useGradient ? AppTheme.backgroundGradient : null,
+          color: useGradient ? null : context.surfacePrimary,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.1),
+              color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.2),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -102,6 +110,7 @@ class ModernModalHeader extends StatelessWidget {
   final Color? iconColor;
   final bool showCloseButton;
   final VoidCallback? onClose;
+  final bool useGradientStyle;
 
   const ModernModalHeader({
     super.key,
@@ -110,23 +119,36 @@ class ModernModalHeader extends StatelessWidget {
     this.iconColor,
     this.showCloseButton = true,
     this.onClose,
+    this.useGradientStyle = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = useGradientStyle ? Colors.white : context.textColor;
+    final secondaryColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.7)
+        : context.secondaryTextColor;
+
     return Row(
       children: [
         if (icon != null) ...[
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (iconColor ?? context.primaryColor).withValues(alpha: 0.1),
+              color: useGradientStyle
+                  ? (iconColor ?? AppTheme.brandTeal).withValues(alpha: 0.2)
+                  : (iconColor ?? context.primaryColor).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
+              border: useGradientStyle
+                  ? Border.all(
+                      color: (iconColor ?? AppTheme.brandTeal).withValues(alpha: 0.3),
+                    )
+                  : null,
             ),
             child: Icon(
               icon,
               size: 22,
-              color: iconColor ?? context.primaryColor,
+              color: iconColor ?? (useGradientStyle ? AppTheme.brandTeal : context.primaryColor),
             ),
           ),
           const SizedBox(width: 12),
@@ -136,7 +158,7 @@ class ModernModalHeader extends StatelessWidget {
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              color: context.textColor,
+              color: textColor,
               fontSize: 20,
             ),
           ),
@@ -147,13 +169,15 @@ class ModernModalHeader extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: context.secondaryTextColor.withValues(alpha: 0.1),
+                color: useGradientStyle
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : secondaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.close,
                 size: 20,
-                color: context.secondaryTextColor,
+                color: secondaryColor,
               ),
             ),
           ),
@@ -170,6 +194,7 @@ class ModernModalButton extends StatelessWidget {
   final bool isLoading;
   final IconData? icon;
   final Color? color;
+  final bool useGradientStyle;
 
   const ModernModalButton({
     super.key,
@@ -179,11 +204,53 @@ class ModernModalButton extends StatelessWidget {
     this.isLoading = false,
     this.icon,
     this.color,
+    this.useGradientStyle = false,
   });
 
   @override
   Widget build(BuildContext context) {
     if (!isPrimary) {
+      // Secondary/cancel button - glassy style on gradient
+      if (useGradientStyle) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.8)),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      text,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
       return TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
@@ -209,7 +276,7 @@ class ModernModalButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: color ?? context.primaryColor,
-          foregroundColor: context.isDark ? AppTheme.neutral900 : Colors.white,
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -262,6 +329,7 @@ class ModernModalTextField extends StatelessWidget {
   final bool readOnly;
   final VoidCallback? onTap;
   final Widget? suffix;
+  final bool useGradientStyle;
 
   const ModernModalTextField({
     super.key,
@@ -276,10 +344,29 @@ class ModernModalTextField extends StatelessWidget {
     this.readOnly = false,
     this.onTap,
     this.suffix,
+    this.useGradientStyle = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final labelColor = useGradientStyle ? Colors.white : context.textColor;
+    final textColor = useGradientStyle ? Colors.white : context.textColor;
+    final hintColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.5)
+        : context.secondaryTextColor.withValues(alpha: 0.5);
+    final iconColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.7)
+        : context.secondaryTextColor;
+    final fillColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.1)
+        : context.surfaceSecondary;
+    final borderColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.15)
+        : context.secondaryTextColor.withValues(alpha: 0.1);
+    final focusBorderColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.4)
+        : context.primaryColor;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -288,7 +375,7 @@ class ModernModalTextField extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: context.textColor,
+            color: labelColor,
           ),
         ),
         const SizedBox(height: 8),
@@ -300,41 +387,37 @@ class ModernModalTextField extends StatelessWidget {
           validator: validator,
           readOnly: readOnly,
           onTap: onTap,
-          style: TextStyle(fontSize: 16, color: context.textColor),
+          style: TextStyle(fontSize: 16, color: textColor),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(
-              color: context.secondaryTextColor.withValues(alpha: 0.5),
-            ),
-            prefixIcon: icon != null
-                ? Icon(icon, size: 20, color: context.secondaryTextColor)
-                : null,
+            hintStyle: TextStyle(color: hintColor),
+            prefixIcon: icon != null ? Icon(icon, size: 20, color: iconColor) : null,
             suffixIcon: suffix,
             filled: true,
-            fillColor: context.surfaceSecondary,
+            fillColor: fillColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: context.secondaryTextColor.withValues(alpha: 0.1),
-                width: 1,
-              ),
+              borderSide: BorderSide(color: borderColor, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: context.primaryColor, width: 2),
+              borderSide: BorderSide(color: focusBorderColor, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 1),
+              borderSide: BorderSide(color: AppTheme.error, width: 1),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
+              borderSide: BorderSide(color: AppTheme.error, width: 2),
             ),
+            errorStyle: useGradientStyle
+                ? TextStyle(color: AppTheme.error.withValues(alpha: 0.9))
+                : null,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
@@ -557,6 +640,7 @@ class ModernModalDropdown<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?> onChanged;
   final IconData? icon;
+  final bool useGradientStyle;
 
   const ModernModalDropdown({
     super.key,
@@ -565,10 +649,26 @@ class ModernModalDropdown<T> extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.icon,
+    this.useGradientStyle = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final labelColor = useGradientStyle ? Colors.white : context.textColor;
+    final textColor = useGradientStyle ? Colors.white : context.textColor;
+    final iconColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.7)
+        : context.secondaryTextColor;
+    final fillColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.1)
+        : context.surfaceSecondary;
+    final borderColor = useGradientStyle
+        ? Colors.white.withValues(alpha: 0.15)
+        : context.secondaryTextColor.withValues(alpha: 0.1);
+    final dropdownBgColor = useGradientStyle
+        ? AppTheme.gradientMid1
+        : context.surfaceSecondary;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -577,39 +677,31 @@ class ModernModalDropdown<T> extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: context.textColor,
+            color: labelColor,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: context.surfaceSecondary,
+            color: fillColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: context.secondaryTextColor.withValues(alpha: 0.1),
-              width: 1,
-            ),
+            border: Border.all(color: borderColor, width: 1),
           ),
           child: DropdownButtonFormField<T>(
             initialValue: value,
             items: items,
             onChanged: onChanged,
             decoration: InputDecoration(
-              prefixIcon: icon != null
-                  ? Icon(icon, size: 20, color: context.secondaryTextColor)
-                  : null,
+              prefixIcon: icon != null ? Icon(icon, size: 20, color: iconColor) : null,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 14,
               ),
             ),
-            dropdownColor: context.surfaceSecondary,
-            icon: Icon(
-              Icons.keyboard_arrow_down,
-              color: context.secondaryTextColor,
-            ),
-            style: TextStyle(fontSize: 16, color: context.textColor),
+            dropdownColor: dropdownBgColor,
+            icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
+            style: TextStyle(fontSize: 16, color: textColor),
           ),
         ),
       ],

@@ -10,7 +10,9 @@ import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/vet_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../repositories/event_repository.dart';
+import '../../repositories/medication_repository.dart';
 import '../../pages/onboarding_pages.dart';
 import '../../pages/petOwners/home_page.dart';
 import '../../pages/appOwner/admin_dashboard.dart'; // For App Owner Dashboard
@@ -70,6 +72,12 @@ class AuthWrapper extends StatelessWidget {
                         create: (context) => EventProvider(
                           EventRepository(cacheService, snapshot.data!.uid),
                           notificationService,
+                        ),
+                      ),
+                      // MedicationProvider for medication management
+                      ChangeNotifierProvider(
+                        create: (context) => MedicationProvider(
+                          MedicationRepository(snapshot.data!.uid),
                         ),
                       ),
                       // ChatProvider with chat service

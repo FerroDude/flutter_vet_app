@@ -6,8 +6,10 @@ import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../models/event_model.dart';
 import '../../widgets/simple_event_forms.dart';
+import '../../widgets/medication_widgets.dart';
 import 'pet_form_page.dart';
 import 'add_symptom_sheet.dart';
 
@@ -391,20 +393,12 @@ class PetDetailsPage extends StatelessWidget {
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () {
-                                      final eventProvider = context
-                                          .read<EventProvider>();
                                       showModalBottomSheet(
                                         context: context,
                                         isScrollControlled: true,
                                         backgroundColor: Colors.transparent,
-                                        builder: (dialogContext) =>
-                                            ChangeNotifierProvider.value(
-                                              value: eventProvider,
-                                              child: SimpleMedicationForm(
-                                                selectedDate: DateTime.now(),
-                                                petId: petRef.id,
-                                              ),
-                                            ),
+                                        builder: (context) =>
+                                            AddSymptomSheet(petId: petRef.id),
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
@@ -417,36 +411,10 @@ class PetDetailsPage extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
-                                    child: const Text('Add Medication'),
+                                    child: const Text('Add Symptom'),
                                   ),
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: Colors.transparent,
-                                    builder: (context) =>
-                                        AddSymptomSheet(petId: petRef.id),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text('Add Symptom'),
-                              ),
                             ),
                           ],
                         ),
@@ -457,7 +425,31 @@ class PetDetailsPage extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Pet's Events Section
+                // Medications Section (New First-Class Entity)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Builder(
+                      builder: (context) {
+                        // Subscribe to medications for this pet
+                        final medicationProvider = context.watch<MedicationProvider>();
+                        // Ensure we're subscribed to this pet's medications
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          medicationProvider.subscribeToPet(petRef.id);
+                        });
+                        
+                        return MedicationsSection(
+                          petId: petRef.id,
+                          showAddButton: true,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Pet's Appointments Section (only appointments now, medications are separate)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -465,7 +457,7 @@ class PetDetailsPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Recent Activity',
+                          'Appointments',
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -475,9 +467,12 @@ class PetDetailsPage extends StatelessWidget {
                         const SizedBox(height: 12),
                         Consumer<EventProvider>(
                           builder: (context, eventProvider, _) {
+                            // Only show appointments and notes, medications are separate
                             final petEvents =
                                 eventProvider.events
-                                    .where((event) => event.petId == petRef.id)
+                                    .where((event) => 
+                                        event.petId == petRef.id &&
+                                        event is! MedicationEvent)
                                     .toList()
                                   ..sort(
                                     (a, b) => b.dateTime.compareTo(a.dateTime),
@@ -498,7 +493,7 @@ class PetDetailsPage extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'No appointments or medications yet',
+                                      'No appointments yet',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium
@@ -514,17 +509,12 @@ class PetDetailsPage extends StatelessWidget {
                             return Column(
                               children: petEvents.take(5).map((event) {
                                 final isAppointment = event is AppointmentEvent;
-                                final isMedication = event is MedicationEvent;
                                 final icon = isAppointment
                                     ? Icons.event
-                                    : (isMedication
-                                          ? Icons.medication
-                                          : Icons.note);
+                                    : Icons.note;
                                 final color = isAppointment
                                     ? AppTheme.neutral700
-                                    : (isMedication
-                                          ? AppTheme.neutral600
-                                          : AppTheme.neutral500);
+                                    : AppTheme.neutral500;
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 8),
@@ -586,12 +576,6 @@ class PetDetailsPage extends StatelessWidget {
                                           ],
                                         ),
                                       ),
-                                      if (isMedication && (event).isCompleted)
-                                        Icon(
-                                          Icons.check_circle,
-                                          color: AppTheme.neutral600,
-                                          size: 20,
-                                        ),
                                       const SizedBox(width: 8),
                                       IconButton(
                                         icon: const Icon(

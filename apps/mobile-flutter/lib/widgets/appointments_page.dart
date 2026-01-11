@@ -9,9 +9,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../models/symptom_models.dart';
 import '../providers/event_provider.dart';
+import '../providers/medication_provider.dart';
 import '../theme/app_theme.dart';
 import 'simple_event_forms.dart';
 import 'simple_note_form.dart';
+import 'medication_widgets.dart';
 import 'calendar_view.dart';
 import '../services/pet_service.dart';
 
@@ -98,14 +100,13 @@ class AppointmentsPageState extends State<AppointmentsPage>
   }
 
   void showMedicationForm() {
-    // Ensure we have a valid selected date, fallback to today
-    final dateToUse = _selectedDay;
-
+    // Use the new medication system
+    final medicationProvider = context.read<MedicationProvider>();
     showDialog(
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(
-        value: context.read<EventProvider>(),
-        child: SimpleMedicationForm(selectedDate: dateToUse),
+        value: medicationProvider,
+        child: const MedicationFormDialog(),
       ),
     ).then((result) {
       if (result == true) {
@@ -206,7 +207,11 @@ class AppointmentsPageState extends State<AppointmentsPage>
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(
         value: context.read<EventProvider>(),
-        child: SimpleAddEventDialog(selectedDate: dateToUse),
+        child: SimpleAddEventDialog(
+          selectedDate: dateToUse,
+          onShowAppointment: () => showAppointmentForm(),
+          onShowMedication: () => showMedicationForm(),
+        ),
       ),
     ).then((result) {
       if (result == true) {
@@ -535,14 +540,6 @@ class AppointmentsPageState extends State<AppointmentsPage>
               existingEvent: event,
             ),
           );
-        } else if (event is MedicationEvent) {
-          return ChangeNotifierProvider.value(
-            value: context.read<EventProvider>(),
-            child: SimpleMedicationForm(
-              selectedDate: event.dateTime,
-              existingEvent: event,
-            ),
-          );
         } else if (event is NoteEvent) {
           return ChangeNotifierProvider.value(
             value: context.read<EventProvider>(),
@@ -552,6 +549,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
             ),
           );
         }
+        // MedicationEvent editing removed - use new medication system instead
         return const SizedBox.shrink();
       },
     ).then((result) {

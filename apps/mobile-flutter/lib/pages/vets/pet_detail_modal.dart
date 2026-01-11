@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../models/pet_model.dart';
 import '../../models/symptom_models.dart';
 import '../../models/event_model.dart';
+import '../../models/medication_model.dart';
 
 /// A detailed pet information modal for vets to view pet data in chat context.
 /// Shows pet info, symptoms, appointments, and medications.
@@ -778,7 +779,7 @@ class _AppointmentsTab extends StatelessWidget {
   }
 }
 
-/// Tab showing pet medications
+/// Tab showing pet medications (using new Medication model)
 class _MedicationsTab extends StatelessWidget {
   final String petOwnerId;
   final String petId;
@@ -787,14 +788,14 @@ class _MedicationsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Query only by petId to avoid composite index requirement
-    // Filter by type client-side
+    // Query the new medications subcollection under pets
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(petOwnerId)
-          .collection('events')
-          .where('petId', isEqualTo: petId)
+          .collection('pets')
+          .doc(petId)
+          .collection('medications')
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -809,17 +810,20 @@ class _MedicationsTab extends StatelessWidget {
           );
         }
 
-        // Filter medications client-side and sort
         final allDocs = snapshot.data?.docs ?? [];
-        final medications =
-            allDocs.where((doc) {
-              final data = doc.data();
-              return data['type'] == EventType.medication.index;
-            }).toList()..sort((a, b) {
-              final aTime = a.data()['dateTime'] as int? ?? 0;
-              final bTime = b.data()['dateTime'] as int? ?? 0;
-              return bTime.compareTo(aTime); // Descending
-            });
+        
+        // Parse medications
+        final medications = allDocs.map((doc) {
+          return Medication.fromJson(doc.data(), doc.id);
+        }).toList();
+
+        // Separate active and past medications
+        final activeMedications = medications
+            .where((m) => m.status == MedicationStatus.active)
+            .toList();
+        final pastMedications = medications
+            .where((m) => m.status != MedicationStatus.active)
+            .toList();
 
         if (medications.isEmpty) {
           return _buildEmptyState(
@@ -829,25 +833,70 @@ class _MedicationsTab extends StatelessWidget {
           );
         }
 
-        return ListView.separated(
+        return ListView(
           padding: EdgeInsets.all(AppTheme.spacing4),
-          itemCount: medications.length,
-          separatorBuilder: (_, __) => Gap(AppTheme.spacing2),
-          itemBuilder: (context, index) {
-            final doc = medications[index];
-            final data = doc.data();
-            data['id'] = doc.id;
-            final medication = MedicationEvent.fromJson(data);
-            return _buildMedicationCard(medication);
-          },
+          children: [
+            // Active medications section
+            if (activeMedications.isNotEmpty) ...[
+              _buildSectionHeader('Current Medications', activeMedications.length),
+              Gap(AppTheme.spacing2),
+              ...activeMedications.map((med) => Padding(
+                padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                child: _buildMedicationCard(med),
+              )),
+            ],
+            
+            // Past medications section
+            if (pastMedications.isNotEmpty) ...[
+              Gap(AppTheme.spacing4),
+              _buildSectionHeader('Medication History', pastMedications.length),
+              Gap(AppTheme.spacing2),
+              ...pastMedications.map((med) => Padding(
+                padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                child: _buildMedicationCard(med),
+              )),
+            ],
+          ],
         );
       },
     );
   }
 
-  Widget _buildMedicationCard(MedicationEvent medication) {
-    final isActive = !medication.isCompleted;
+  Widget _buildSectionHeader(String title, int count) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.9),
+          ),
+        ),
+        Gap(8.w),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMedicationCard(Medication medication) {
+    final isActive = medication.isActive;
     final dateFormat = DateFormat('MMM d, yyyy');
+    final progress = medication.progress;
 
     return Container(
       padding: EdgeInsets.all(AppTheme.spacing3),
@@ -855,7 +904,7 @@ class _MedicationsTab extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius3),
         border: Border.all(
-          color: isActive ? AppTheme.brandBlueLight : AppTheme.neutral200,
+          color: isActive ? AppTheme.brandTeal : AppTheme.neutral200,
         ),
         boxShadow: [
           BoxShadow(
@@ -874,14 +923,14 @@ class _MedicationsTab extends StatelessWidget {
                 padding: EdgeInsets.all(10.w),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? AppTheme.brandBlueLight.withValues(alpha: 0.1)
+                      ? AppTheme.brandTeal.withValues(alpha: 0.1)
                       : AppTheme.neutral200,
                   borderRadius: BorderRadius.circular(AppTheme.radius2),
                 ),
                 child: Icon(
-                  Icons.medication,
+                  Icons.medication_rounded,
                   color: isActive
-                      ? AppTheme.brandBlueLight
+                      ? AppTheme.brandTeal
                       : AppTheme.neutral500,
                   size: 20.sp,
                 ),
@@ -892,7 +941,7 @@ class _MedicationsTab extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      medication.medicationName,
+                      medication.name,
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w600,
@@ -912,23 +961,7 @@ class _MedicationsTab extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : AppTheme.neutral200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  isActive ? 'Active' : 'Completed',
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.green : AppTheme.neutral600,
-                  ),
-                ),
-              ),
+              _buildStatusBadge(medication.status),
             ],
           ),
           Gap(AppTheme.spacing3),
@@ -940,22 +973,40 @@ class _MedicationsTab extends StatelessWidget {
               _buildDetailItem(
                 Icons.repeat,
                 'Frequency',
-                _formatFrequency(medication.frequency),
+                medication.frequencyDisplay,
               ),
-              if (medication.nextDose != null)
+              _buildDetailItem(
+                Icons.calendar_today_outlined,
+                'Started',
+                dateFormat.format(medication.startDate),
+              ),
+              if (medication.calculatedEndDate != null)
                 _buildDetailItem(
-                  Icons.access_time,
-                  'Next dose',
-                  dateFormat.format(medication.nextDose!),
+                  Icons.event_outlined,
+                  'Ends',
+                  dateFormat.format(medication.calculatedEndDate!),
                 ),
-              if (medication.remainingDoses != null)
+              if (medication.totalDays != null)
                 _buildDetailItem(
-                  Icons.inventory_2_outlined,
-                  'Remaining',
-                  '${medication.remainingDoses} doses',
+                  Icons.timelapse_outlined,
+                  'Progress',
+                  'Day ${medication.currentDay} of ${medication.totalDays}',
                 ),
             ],
           ),
+          // Progress bar for time-limited medications
+          if (isActive && progress != null) ...[
+            Gap(AppTheme.spacing3),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: AppTheme.neutral200,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.brandTeal),
+                minHeight: 6.h,
+              ),
+            ),
+          ],
           if (medication.instructions != null &&
               medication.instructions!.isNotEmpty) ...[
             Gap(AppTheme.spacing3),
@@ -992,6 +1043,46 @@ class _MedicationsTab extends StatelessWidget {
     );
   }
 
+  Widget _buildStatusBadge(MedicationStatus status) {
+    Color color;
+    String label;
+
+    switch (status) {
+      case MedicationStatus.active:
+        color = AppTheme.success;
+        label = 'Active';
+        break;
+      case MedicationStatus.paused:
+        color = AppTheme.warning;
+        label = 'Paused';
+        break;
+      case MedicationStatus.completed:
+        color = AppTheme.neutral600;
+        label = 'Completed';
+        break;
+      case MedicationStatus.discontinued:
+        color = AppTheme.error;
+        label = 'Stopped';
+        break;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetailItem(IconData icon, String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1018,21 +1109,6 @@ class _MedicationsTab extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _formatFrequency(String frequency) {
-    switch (frequency.toLowerCase()) {
-      case 'once':
-        return 'Once';
-      case 'daily':
-        return 'Daily';
-      case 'weekly':
-        return 'Weekly';
-      case 'monthly':
-        return 'Monthly';
-      default:
-        return frequency;
-    }
   }
 
   Widget _buildEmptyState({

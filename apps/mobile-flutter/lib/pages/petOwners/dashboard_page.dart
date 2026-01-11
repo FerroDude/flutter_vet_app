@@ -9,8 +9,11 @@ import 'package:getwidget/getwidget.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../models/event_model.dart';
+import '../../models/medication_model.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/medication_widgets.dart';
 import 'profile_page.dart';
 import 'settings_page.dart';
 import 'pet_details_page.dart';
@@ -47,6 +50,7 @@ class _DashboardPageState extends State<DashboardPage> {
               SliverToBoxAdapter(child: _buildHeader(context)),
               SliverToBoxAdapter(child: _buildUnreadMessagesCard(context)),
               SliverToBoxAdapter(child: _buildMyPetsSection(context)),
+              SliverToBoxAdapter(child: _buildActiveMedicationsSection(context)),
               SliverToBoxAdapter(child: _buildTodaySection(context)),
               SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
             ],
@@ -269,6 +273,15 @@ class _DashboardPageState extends State<DashboardPage> {
 
               final pets = snapshot.data?.docs ?? [];
 
+              // Subscribe to medications for all pets
+              if (pets.isNotEmpty) {
+                final medicationProvider = context.read<MedicationProvider>();
+                final petIds = pets.map((doc) => doc.id).toList();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  medicationProvider.subscribeToPets(petIds);
+                });
+              }
+
               if (pets.isEmpty) {
                 return Padding(
                   padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
@@ -306,6 +319,203 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  Widget _buildActiveMedicationsSection(BuildContext context) {
+    final medicationProvider = context.watch<MedicationProvider>();
+    final activeMeds = medicationProvider.allActiveMedications;
+
+    // Don't show section if no active medications
+    if (activeMeds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.medication_rounded,
+                    size: 18.sp,
+                    color: AppTheme.brandTeal,
+                  ),
+                  Gap(8.w),
+                  Text(
+                    'Active Medications',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: AppTheme.brandTeal.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${activeMeds.length}',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.brandTeal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Gap(AppTheme.spacing3),
+          // Show up to 3 active medications
+          ...activeMeds.take(3).map((med) {
+            // Get pet name for display
+            return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                  .collection('pets')
+                  .doc(med.petId)
+                  .get(),
+              builder: (context, snapshot) {
+                final petName = snapshot.data?.data()?['name'] ?? 'Pet';
+                return MedicationCard(
+                  medication: med,
+                  petName: petName,
+                  showPetName: true,
+                  onMarkDose: () => _markDoseTaken(context, med),
+                );
+              },
+            );
+          }),
+          if (activeMeds.length > 3)
+            GestureDetector(
+              onTap: () {
+                // Navigate to full medications list or show modal
+                _showAllMedications(context, activeMeds);
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    'View all ${activeMeds.length} medications',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Gap(AppTheme.spacing4),
+        ],
+      ),
+    );
+  }
+
+  void _markDoseTaken(BuildContext context, Medication med) async {
+    final provider = context.read<MedicationProvider>();
+    await provider.logDoseTaken(med.petId, med.id, DateTime.now());
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dose marked as taken'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+    }
+  }
+
+  void _showAllMedications(BuildContext context, List<Medication> meds) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, controller) => Container(
+          decoration: BoxDecoration(
+            color: context.surfacePrimary,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
+                width: 40.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: AppTheme.neutral300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16.w),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.medication_rounded,
+                      color: AppTheme.brandTeal,
+                      size: 24.sp,
+                    ),
+                    Gap(12.w),
+                    Text(
+                      'Active Medications',
+                      style: TextStyle(
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w700,
+                        color: context.textColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  controller: controller,
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  itemCount: meds.length,
+                  itemBuilder: (context, index) {
+                    final med = meds[index];
+                    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(FirebaseAuth.instance.currentUser?.uid)
+                          .collection('pets')
+                          .doc(med.petId)
+                          .get(),
+                      builder: (context, snapshot) {
+                        final petName = snapshot.data?.data()?['name'] ?? 'Pet';
+                        return MedicationCard(
+                          medication: med,
+                          petName: petName,
+                          showPetName: true,
+                          onMarkDose: () => _markDoseTaken(context, med),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTodaySection(BuildContext context) {
     final eventProvider = context.watch<EventProvider>();
     final now = DateTime.now();
@@ -313,13 +523,13 @@ class _DashboardPageState extends State<DashboardPage> {
     final todayEnd = todayStart.add(const Duration(days: 1));
 
     final events = eventProvider.events;
+    // Only show appointments in Today section, medications are in their own section
     final todayEvents = events.where((event) {
       final isToday =
           event.dateTime.isAfter(todayStart) &&
           event.dateTime.isBefore(todayEnd);
-      final isRelevantType =
-          event is AppointmentEvent || event is MedicationEvent;
-      return isToday && isRelevantType;
+      final isAppointment = event is AppointmentEvent;
+      return isToday && isAppointment;
     }).toList();
 
     todayEvents.sort((a, b) => a.dateTime.compareTo(b.dateTime));
@@ -355,7 +565,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   Gap(AppTheme.spacing2),
                   Text(
-                    'No appointments or medications today',
+                    'No appointments today',
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: AppTheme.neutral700,

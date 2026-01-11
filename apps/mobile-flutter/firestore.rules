@@ -207,6 +207,25 @@ service cloud.firestore {
             request.auth.uid == userId || isAppOwner()
           );
         }
+
+        // Pet medications subcollection (new medication system)
+        match /medications/{medicationId} {
+          allow read: if isSignedIn() && (
+            request.auth.uid == userId ||
+            isAppOwner() ||
+            // Clinic members of the owner's clinic (for vets viewing medications)
+            (
+              get(/databases/$(database)/documents/users/$(userId)).data.userType == 0 &&
+              get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId != null &&
+              isClinicMember(get(/databases/$(database)/documents/users/$(userId)).data.connectedClinicId)
+            )
+          );
+
+          // Only the owner or app owner can write medications
+          allow create, update, delete: if isSignedIn() && (
+            request.auth.uid == userId || isAppOwner()
+          );
+        }
       }
     }
 
