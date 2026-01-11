@@ -18,7 +18,6 @@ class MedicationCard extends StatelessWidget {
   final String? petName;
   final bool showPetName;
   final VoidCallback? onTap;
-  final VoidCallback? onMarkDose;
 
   const MedicationCard({
     super.key,
@@ -26,14 +25,12 @@ class MedicationCard extends StatelessWidget {
     this.petName,
     this.showPetName = false,
     this.onTap,
-    this.onMarkDose,
   });
 
   @override
   Widget build(BuildContext context) {
     final isActive = medication.isActive;
     final progress = medication.progress;
-    final nextDose = medication.nextDose;
 
     return GestureDetector(
       onTap: onTap ?? () => _showMedicationDetail(context),
@@ -80,7 +77,7 @@ class MedicationCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Name and pet
+                        // Row 1: Name + Pet badge (if shown) + Status badge (if inactive)
                         Row(
                           children: [
                             Expanded(
@@ -93,7 +90,12 @@ class MedicationCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (!isActive) ...[
+                              Gap(8.w),
+                              _buildStatusBadge(medication.status),
+                            ],
                             if (showPetName && petName != null) ...[
+                              Gap(8.w),
                               Container(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: 8.w,
@@ -115,8 +117,8 @@ class MedicationCard extends StatelessWidget {
                             ],
                           ],
                         ),
-                        Gap(4.h),
-                        // Dosage and frequency
+                        Gap(6.h),
+                        // Row 2: Dosage • Frequency
                         Text(
                           '${medication.dosage} • ${medication.frequencyDisplay}',
                           style: TextStyle(
@@ -124,78 +126,21 @@ class MedicationCard extends StatelessWidget {
                             color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
-                        Gap(8.h),
-                        // Status row
-                        Row(
-                          children: [
-                            if (isActive && nextDose != null) ...[
-                              Icon(
-                                Icons.access_time_rounded,
-                                size: 14.sp,
-                                color: AppTheme.brandTeal,
-                              ),
-                              Gap(4.w),
-                              Text(
-                                _formatNextDose(nextDose),
-                                style: TextStyle(
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.brandTeal,
-                                ),
-                              ),
-                            ],
-                            if (medication.totalDays != null) ...[
-                              if (isActive && nextDose != null) Gap(12.w),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8.w,
-                                  vertical: 2.h,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Day ${medication.currentDay} of ${medication.totalDays}',
-                                  style: TextStyle(
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ),
-                            ],
-                            if (!isActive) ...[
-                              _buildStatusBadge(medication.status),
-                            ],
-                          ],
-                        ),
+                        // Row 3: Today's dose status (for active medications)
+                        if (isActive) ...[
+                          Gap(8.h),
+                          _buildTodayStatus(),
+                        ],
                       ],
                     ),
                   ),
-                  // Quick action button
-                  if (isActive && onMarkDose != null) ...[
-                    Gap(8.w),
-                    GestureDetector(
-                      onTap: onMarkDose,
-                      child: Container(
-                        width: 40.w,
-                        height: 40.w,
-                        decoration: BoxDecoration(
-                          color: AppTheme.success.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppTheme.success.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.check_rounded,
-                          color: AppTheme.success,
-                          size: 22.sp,
-                        ),
-                      ),
-                    ),
-                  ],
+                  // Chevron to indicate tappable
+                  Gap(8.w),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white.withValues(alpha: 0.4),
+                    size: 20.sp,
+                  ),
                 ],
               ),
             ),
@@ -278,30 +223,117 @@ class MedicationCard extends StatelessWidget {
     );
   }
 
-  String _formatNextDose(DateTime nextDose) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final doseDate = DateTime(nextDose.year, nextDose.month, nextDose.day);
-
-    final timeFormat = DateFormat('h:mm a');
-    final time = timeFormat.format(nextDose);
-
-    if (doseDate == today) {
-      return 'Next: Today at $time';
-    } else if (doseDate == tomorrow) {
-      return 'Next: Tomorrow at $time';
-    } else {
-      return 'Next: ${DateFormat('MMM d').format(nextDose)} at $time';
+  Widget _buildTodayStatus() {
+    final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
+    final isOnce = medication.frequency == MedicationFrequency.once;
+    
+    if (isOnce) {
+      // One-time medication
+      final isTaken = medication.totalDosesTaken >= 1;
+      return Row(
+        children: [
+          Icon(
+            isTaken ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            size: 14.sp,
+            color: isTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.5),
+          ),
+          Gap(4.w),
+          Text(
+            isTaken ? 'Completed' : 'Not yet taken',
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: isTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      );
     }
+    
+    if (isAsNeeded) {
+      // As-needed medication
+      final takenToday = medication.dosesTakenToday;
+      return Row(
+        children: [
+          Icon(
+            Icons.today_rounded,
+            size: 14.sp,
+            color: Colors.white.withValues(alpha: 0.6),
+          ),
+          Gap(4.w),
+          Text(
+            takenToday > 0 
+                ? '$takenToday dose${takenToday == 1 ? '' : 's'} today' 
+                : 'Take as needed',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // Scheduled medication - show dose bubbles
+    final expected = medication.dosesExpectedToday;
+    final taken = medication.dosesTakenToday;
+    final allTaken = taken >= expected;
+    
+    return Wrap(
+      spacing: 4.w,
+      runSpacing: 4.h,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        // Dose bubbles in a row
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(expected, (index) {
+            final isTaken = index < taken;
+            return Padding(
+              padding: EdgeInsets.only(right: 3.w),
+              child: Icon(
+                isTaken ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                size: 14.sp,
+                color: isTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.35),
+              ),
+            );
+          }),
+        ),
+        Text(
+          allTaken 
+              ? 'Done!' 
+              : '${expected - taken} left',
+          style: TextStyle(
+            fontSize: 12.sp,
+            fontWeight: allTaken ? FontWeight.w600 : FontWeight.w400,
+            color: allTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.6),
+          ),
+        ),
+        // Show day progress if applicable
+        if (medication.totalDays != null)
+          Text(
+            '• Day ${medication.currentDay}/${medication.totalDays}',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+      ],
+    );
   }
 
   void _showMedicationDetail(BuildContext context) {
+    // Get the provider before showing the bottom sheet
+    final medicationProvider = context.read<MedicationProvider>();
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => MedicationDetailSheet(medication: medication),
+      builder: (sheetContext) => ChangeNotifierProvider.value(
+        value: medicationProvider,
+        child: MedicationDetailSheet(medication: medication),
+      ),
     );
   }
 }
@@ -405,27 +437,16 @@ class MedicationDetailSheet extends StatelessWidget {
                         ),
                       ],
                     ),
-                    Gap(24.h),
-                    // Info tiles
-                    _buildInfoTile(
-                      context,
-                      icon: Icons.repeat_rounded,
-                      label: 'Frequency',
-                      value: medication.frequencyDisplay,
-                    ),
-                    _buildInfoTile(
-                      context,
-                      icon: Icons.calendar_today_rounded,
-                      label: 'Started',
-                      value: DateFormat('MMMM d, yyyy').format(medication.startDate),
-                    ),
-                    if (medication.calculatedEndDate != null)
-                      _buildInfoTile(
-                        context,
-                        icon: Icons.event_rounded,
-                        label: 'Ends',
-                        value: DateFormat('MMMM d, yyyy').format(medication.calculatedEndDate!),
-                      ),
+                    Gap(16.h),
+                    // Schedule info - compact text
+                    _buildScheduleInfo(),
+                    
+                    Gap(16.h),
+                    
+                    // 1. Today's status tile (first banner)
+                    _buildTodayStatusTile(),
+                    
+                    // 2. Instructions tile (second banner)
                     if (medication.instructions != null && medication.instructions!.isNotEmpty)
                       _buildInfoTile(
                         context,
@@ -433,10 +454,13 @@ class MedicationDetailSheet extends StatelessWidget {
                         label: 'Instructions',
                         value: medication.instructions!,
                       ),
+                    
+                    // 3. Progress section (third - if time-limited)
                     if (medication.totalDays != null) ...[
-                      Gap(16.h),
+                      Gap(4.h),
                       _buildProgressSection(context),
                     ],
+                    
                     Gap(24.h),
                     // Actions
                     if (medication.isActive) ...[
@@ -451,6 +475,163 @@ class MedicationDetailSheet extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildScheduleInfo() {
+    final startDateStr = DateFormat('MMM d, yyyy').format(medication.startDate);
+    final endDate = medication.calculatedEndDate;
+    final endDateStr = endDate != null ? DateFormat('MMM d, yyyy').format(endDate) : null;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Dates line
+        Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 14.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+            Gap(6.w),
+            Text(
+              endDateStr != null 
+                  ? '$startDateStr  →  $endDateStr'
+                  : 'Started $startDateStr',
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+        Gap(6.h),
+        // Frequency line
+        Row(
+          children: [
+            Icon(
+              Icons.repeat_rounded,
+              size: 14.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+            Gap(6.w),
+            Text(
+              medication.frequencyDisplay,
+              style: TextStyle(
+                fontSize: 13.sp,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTodayStatusTile() {
+    final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
+    final isOnce = medication.frequency == MedicationFrequency.once;
+    
+    String statusText;
+    IconData statusIcon;
+    Color statusColor;
+    Widget? trailingWidget;
+    
+    if (isOnce) {
+      final isTaken = medication.totalDosesTaken >= 1;
+      statusText = isTaken ? 'Medication taken' : 'Not yet taken';
+      statusIcon = isTaken ? Icons.check_circle_rounded : Icons.radio_button_unchecked;
+      statusColor = isTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.6);
+    } else if (isAsNeeded) {
+      final takenToday = medication.dosesTakenToday;
+      statusText = takenToday > 0 
+          ? '$takenToday dose${takenToday == 1 ? '' : 's'} taken today' 
+          : 'No doses taken today';
+      statusIcon = Icons.today_rounded;
+      statusColor = takenToday > 0 ? AppTheme.brandTeal : Colors.white.withValues(alpha: 0.6);
+    } else {
+      final expected = medication.dosesExpectedToday;
+      final taken = medication.dosesTakenToday;
+      final allTaken = taken >= expected;
+      
+      statusText = allTaken 
+          ? 'All doses taken today' 
+          : '$taken of $expected taken today';
+      statusIcon = allTaken ? Icons.check_circle_rounded : Icons.pending_rounded;
+      statusColor = allTaken ? AppTheme.success : AppTheme.brandTeal;
+      
+      // Show dose bubbles
+      if (expected > 0) {
+        trailingWidget = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(expected, (index) {
+            final isTaken = index < taken;
+            return Padding(
+              padding: EdgeInsets.only(left: 4.w),
+              child: Icon(
+                isTaken ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                size: 18.sp,
+                color: isTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.3),
+              ),
+            );
+          }),
+        );
+      }
+    }
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36.w,
+            height: 36.w,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              statusIcon,
+              size: 18.sp,
+              color: statusColor,
+            ),
+          ),
+          Gap(12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Today',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+                Gap(2.h),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w500,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailingWidget != null) trailingWidget,
+        ],
+      ),
     );
   }
 
@@ -518,6 +699,9 @@ class MedicationDetailSheet extends StatelessWidget {
   Widget _buildProgressSection(BuildContext context) {
     final progress = medication.progress ?? 0.0;
     final daysRemaining = medication.daysRemaining ?? 0;
+    final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
+    final dosesTaken = medication.totalDosesTaken;
+    final totalExpected = medication.totalExpectedDoses;
 
     return Container(
       padding: EdgeInsets.all(16.w),
@@ -570,39 +754,123 @@ class MedicationDetailSheet extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
+          if (!isAsNeeded && totalExpected != null) ...[
+            Gap(4.h),
+            Text(
+              '$dosesTaken of $totalExpected doses taken overall',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+          if (isAsNeeded && dosesTaken > 0) ...[
+            Gap(4.h),
+            Text(
+              '$dosesTaken doses logged total',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildActionButtons(BuildContext context) {
+    final canMarkDose = !medication.allDosesTakenToday;
+    final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
+    final hasDosesToUndo = medication.totalDosesTaken > 0;
+    
     return Column(
       children: [
-        // Mark dose taken - primary action
+        // Mark dose taken - primary action (or status if complete)
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _markDoseTaken(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.success,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(vertical: 16.h),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            icon: const Icon(Icons.check_rounded),
-            label: Text(
-              'Mark Dose Taken',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
+          child: canMarkDose
+              ? ElevatedButton.icon(
+                  onPressed: () => _markDoseTaken(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.success,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.check_rounded),
+                  label: Text(
+                    isAsNeeded ? 'Log Dose Taken' : 'Mark Dose Taken',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              : Container(
+                  padding: EdgeInsets.symmetric(vertical: 16.h),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.success.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: AppTheme.success,
+                        size: 22.sp,
+                      ),
+                      Gap(8.w),
+                      Text(
+                        medication.frequency == MedicationFrequency.once
+                            ? 'Medication Completed'
+                            : 'All doses taken today',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+        // Undo last dose - immediately below mark button
+        if (hasDosesToUndo) ...[
+          Gap(4.h),
+          GestureDetector(
+            onTap: () => _undoLastDose(context),
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 6.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.undo_rounded,
+                    size: 14.sp,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                  Gap(4.w),
+                  Text(
+                    'Undo last dose',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-        Gap(12.h),
+        ],
+        Gap(16.h),
         // Secondary actions - glassy style
         Row(
           children: [
@@ -722,69 +990,244 @@ class MedicationDetailSheet extends StatelessWidget {
       );
     }
 
-    return _buildGlassyButton(
-      onPressed: () => _deleteMedication(context),
-      icon: Icons.delete_outline,
-      label: 'Delete Medication',
-      color: AppTheme.error,
-      isFullWidth: true,
+    // For completed or discontinued medications - offer restart option
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () => _restartMedication(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.brandTeal,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: 16.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(
+              'Restart Medication',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+        Gap(12.h),
+        _buildGlassyButton(
+          onPressed: () => _deleteMedication(context),
+          icon: Icons.delete_outline,
+          label: 'Delete Medication',
+          color: AppTheme.error,
+          isFullWidth: true,
+        ),
+      ],
     );
   }
 
   void _markDoseTaken(BuildContext context) async {
-    final provider = context.read<MedicationProvider>();
-    await provider.logDoseTaken(
-      medication.petId,
-      medication.id,
-      DateTime.now(),
-    );
-    if (context.mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dose marked as taken'),
-          backgroundColor: AppTheme.success,
-        ),
+    try {
+      final provider = context.read<MedicationProvider>();
+      final success = await provider.logDoseTaken(
+        medication.petId,
+        medication.id,
+        DateTime.now(),
       );
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Dose marked as taken' : 'Failed to mark dose'),
+            backgroundColor: success ? AppTheme.success : AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _undoLastDose(BuildContext context) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.neutral600,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Undo Last Dose?',
+          style: TextStyle(color: Colors.white, fontSize: 18.sp),
+        ),
+        content: Text(
+          'This will remove the most recently recorded dose. Are you sure?',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14.sp),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Undo',
+              style: TextStyle(color: AppTheme.warning),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      final provider = context.read<MedicationProvider>();
+      final success = await provider.undoLastDose(medication.petId, medication.id);
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Last dose removed' : 'No doses to undo'),
+            backgroundColor: success ? AppTheme.brandTeal : AppTheme.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _restartMedication(BuildContext context) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.neutral600,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Restart Medication?',
+          style: TextStyle(color: Colors.white, fontSize: 18.sp),
+        ),
+        content: Text(
+          'This will set the medication back to active status. Continue?',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14.sp),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Restart',
+              style: TextStyle(color: AppTheme.brandTeal),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      final provider = context.read<MedicationProvider>();
+      // Reuse resumeMedication as it sets status back to active
+      final success = await provider.resumeMedication(medication.petId, medication.id);
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? 'Medication restarted' : 'Failed to restart'),
+            backgroundColor: success ? AppTheme.success : AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
     }
   }
 
   void _showEditForm(BuildContext context) {
     Navigator.pop(context);
-    showDialog(
-      context: context,
-      builder: (context) => MedicationFormDialog(
-        petId: medication.petId,
-        existingMedication: medication,
-      ),
+    showMedicationForm(
+      context,
+      petId: medication.petId,
+      existingMedication: medication,
     );
   }
 
   void _pauseMedication(BuildContext context) async {
-    final provider = context.read<MedicationProvider>();
-    await provider.pauseMedication(medication.petId, medication.id);
-    if (context.mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Medication paused'),
-          backgroundColor: AppTheme.warning,
-        ),
-      );
+    try {
+      final provider = context.read<MedicationProvider>();
+      await provider.pauseMedication(medication.petId, medication.id);
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Medication paused'),
+            backgroundColor: AppTheme.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
+        );
+      }
     }
   }
 
   void _resumeMedication(BuildContext context) async {
-    final provider = context.read<MedicationProvider>();
-    await provider.resumeMedication(medication.petId, medication.id);
-    if (context.mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Medication resumed'),
-          backgroundColor: AppTheme.brandTeal,
-        ),
-      );
+    try {
+      final provider = context.read<MedicationProvider>();
+      await provider.resumeMedication(medication.petId, medication.id);
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Medication resumed'),
+            backgroundColor: AppTheme.brandTeal,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
+        );
+      }
     }
   }
 
@@ -800,16 +1243,24 @@ class MedicationDetailSheet extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      final provider = context.read<MedicationProvider>();
-      await provider.discontinueMedication(medication.petId, medication.id);
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Medication stopped'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
+      try {
+        final provider = context.read<MedicationProvider>();
+        await provider.discontinueMedication(medication.petId, medication.id);
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Medication stopped'),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
+          );
+        }
       }
     }
   }
@@ -826,25 +1277,70 @@ class MedicationDetailSheet extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      final provider = context.read<MedicationProvider>();
-      await provider.deleteMedication(medication.petId, medication.id);
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Medication deleted'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
+      try {
+        final provider = context.read<MedicationProvider>();
+        await provider.deleteMedication(medication.petId, medication.id);
+        if (context.mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Medication deleted'),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
+          );
+        }
       }
     }
   }
 }
 
-// ============ Medication Form Dialog ============
+// ============ Medication Form Sheet ============
 
-/// Dialog for adding or editing a medication
-class MedicationFormDialog extends StatefulWidget {
+/// Shows the medication form as a bottom sheet
+void showMedicationForm(
+  BuildContext context, {
+  String? petId,
+  Medication? existingMedication,
+}) {
+  final medicationProvider = context.read<MedicationProvider>();
+  
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => ChangeNotifierProvider.value(
+      value: medicationProvider,
+      child: MedicationFormSheet(
+        petId: petId,
+        existingMedication: existingMedication,
+      ),
+    ),
+  );
+}
+
+/// Bottom sheet for adding or editing a medication
+class MedicationFormSheet extends StatefulWidget {
+  final String? petId;
+  final Medication? existingMedication;
+
+  const MedicationFormSheet({
+    super.key,
+    this.petId,
+    this.existingMedication,
+  });
+
+  @override
+  State<MedicationFormSheet> createState() => _MedicationFormSheetState();
+}
+
+/// Dialog version for backwards compatibility (wraps the sheet)
+class MedicationFormDialog extends StatelessWidget {
   final String? petId;
   final Medication? existingMedication;
 
@@ -855,10 +1351,17 @@ class MedicationFormDialog extends StatefulWidget {
   });
 
   @override
-  State<MedicationFormDialog> createState() => _MedicationFormDialogState();
+  Widget build(BuildContext context) {
+    // Close the dialog and show as bottom sheet instead
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).pop();
+      showMedicationForm(context, petId: petId, existingMedication: existingMedication);
+    });
+    return const SizedBox.shrink();
+  }
 }
 
-class _MedicationFormDialogState extends State<MedicationFormDialog> {
+class _MedicationFormSheetState extends State<MedicationFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _dosageController;
@@ -869,7 +1372,7 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
   DateTime _startDate = DateTime.now();
   TimeOfDay _doseTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay? _secondDoseTime;
-  bool _hasEndDate = false;
+  bool _hasEndDate = true;
   int _durationDays = 7;
   bool _remindersEnabled = true;
   bool _isLoading = false;
@@ -911,115 +1414,242 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
   Widget build(BuildContext context) {
     final isEditing = widget.existingMedication != null;
 
-    return ModernModal(
-      width: MediaQuery.of(context).size.width * 0.95,
-      useGradient: true,
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ModernModalHeader(
-                title: isEditing ? 'Edit Medication' : 'Add Medication',
-                icon: Icons.medication_rounded,
-                iconColor: AppTheme.brandTeal,
-                useGradientStyle: true,
+              // Handle bar
+              Container(
+                margin: EdgeInsets.only(top: 12.h, bottom: 8.h),
+                width: 40.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              const SizedBox(height: 24),
-
-              // Medication name
-              _buildTextField(
-                controller: _nameController,
-                label: 'Medication Name',
-                hint: 'e.g., Amoxicillin, Vitamins',
-                icon: Icons.medication,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter medication name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Pet selector (if not pre-selected)
-              if (_selectedPetId == null) ...[
-                _buildPetSelector(),
-                const SizedBox(height: 16),
-              ],
-
-              // Dosage
-              _buildTextField(
-                controller: _dosageController,
-                label: 'Dosage',
-                hint: 'e.g., 250mg, 1 tablet, 5ml',
-                icon: Icons.scale,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter dosage';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Frequency
-              _buildFrequencySelector(),
-              const SizedBox(height: 16),
-
-              // Dose time(s)
-              _buildTimeSelector(),
-              const SizedBox(height: 16),
-
-              // Duration
-              _buildDurationSelector(),
-              const SizedBox(height: 16),
-
-              // Instructions
-              _buildTextField(
-                controller: _instructionsController,
-                label: 'Instructions (Optional)',
-                hint: 'e.g., Take with food, avoid dairy',
-                icon: Icons.notes_rounded,
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
-              // Reminders toggle
-              _buildRemindersToggle(),
-              const SizedBox(height: 24),
-
-              // Actions
-              Row(
-                children: [
-                  if (isEditing) ...[
-                    Expanded(
-                      child: ModernModalButton(
-                        text: 'Delete',
-                        isPrimary: false,
-                        useGradientStyle: true,
-                        onPressed: _deleteMedication,
-                        icon: Icons.delete_outline,
+              // Header
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.w),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48.w,
+                      height: 48.w,
+                      decoration: BoxDecoration(
+                        color: AppTheme.brandTeal.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppTheme.brandTeal.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.medication_rounded,
+                        color: AppTheme.brandTeal,
+                        size: 24.sp,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    flex: isEditing ? 2 : 1,
-                    child: ModernModalButton(
-                      text: isEditing ? 'Update' : 'Add Medication',
-                      isLoading: _isLoading,
-                      onPressed: _saveMedication,
-                      color: AppTheme.brandTeal,
-                      icon: isEditing ? Icons.check : Icons.add,
+                    Gap(16.w),
+                    Expanded(
+                      child: Text(
+                        isEditing ? 'Edit Medication' : 'Add Medication',
+                        style: TextStyle(
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Gap(16.h),
+              // Form content
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    controller: scrollController,
+                    padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    children: [
+                      // Medication name
+                      _buildTextField(
+                        controller: _nameController,
+                        label: 'Medication Name',
+                        hint: 'e.g., Amoxicillin, Vitamins',
+                        icon: Icons.medication,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter medication name';
+                          }
+                          return null;
+                        },
+                      ),
+                      Gap(16.h),
+
+                      // Pet selector (if not pre-selected)
+                      if (_selectedPetId == null) ...[
+                        _buildPetSelector(),
+                        Gap(16.h),
+                      ],
+
+                      // Dosage
+                      _buildTextField(
+                        controller: _dosageController,
+                        label: 'Dosage',
+                        hint: 'e.g., 250mg, 1 tablet, 5ml',
+                        icon: Icons.scale,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter dosage';
+                          }
+                          return null;
+                        },
+                      ),
+                      Gap(16.h),
+
+                      // Frequency
+                      _buildFrequencySelector(),
+                      Gap(16.h),
+
+                      // Dose time(s)
+                      _buildTimeSelector(),
+                      Gap(16.h),
+
+                      // Start date
+                      _buildStartDateSelector(),
+                      Gap(16.h),
+
+                      // Duration
+                      _buildDurationSelector(),
+                      Gap(16.h),
+
+                      // Instructions
+                      _buildTextField(
+                        controller: _instructionsController,
+                        label: 'Instructions (Optional)',
+                        hint: 'e.g., Take with food, avoid dairy',
+                        icon: Icons.notes_rounded,
+                        maxLines: 2,
+                      ),
+                      Gap(16.h),
+
+                      // Reminders toggle
+                      _buildRemindersToggle(),
+                      Gap(24.h),
+
+                      // Actions
+                      Row(
+                        children: [
+                          if (isEditing) ...[
+                            Expanded(
+                              child: _buildActionButton(
+                                onPressed: _deleteMedication,
+                                label: 'Delete',
+                                icon: Icons.delete_outline,
+                                color: AppTheme.error,
+                                isPrimary: false,
+                              ),
+                            ),
+                            Gap(12.w),
+                          ],
+                          Expanded(
+                            flex: isEditing ? 2 : 1,
+                            child: _buildActionButton(
+                              onPressed: _saveMedication,
+                              label: isEditing ? 'Update' : 'Add Medication',
+                              icon: isEditing ? Icons.check : Icons.add,
+                              color: AppTheme.brandTeal,
+                              isPrimary: true,
+                              isLoading: _isLoading,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Bottom padding for safe area
+                      Gap(MediaQuery.of(context).padding.bottom + 16.h),
+                    ],
                   ),
-                ],
+                ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onPressed,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isPrimary,
+    bool isLoading = false,
+  }) {
+    if (isPrimary) {
+      return ElevatedButton.icon(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: EdgeInsets.symmetric(vertical: 16.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        icon: isLoading
+            ? SizedBox(
+                width: 18.sp,
+                height: 18.sp,
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Icon(icon, size: 20.sp),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+    
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.5)),
+        padding: EdgeInsets.symmetric(vertical: 16.h),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      icon: Icon(icon, size: 20.sp),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -1274,6 +1904,100 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
     );
   }
 
+  Widget _buildStartDateSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Start Date',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _startDate,
+              firstDate: DateTime.now().subtract(const Duration(days: 30)),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: ColorScheme.dark(
+                      primary: AppTheme.brandTeal,
+                      onPrimary: Colors.white,
+                      surface: AppTheme.neutral600,
+                      onSurface: Colors.white,
+                    ),
+                    dialogBackgroundColor: AppTheme.neutral600,
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              setState(() => _startDate = picked);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 20,
+                  color: AppTheme.brandTeal,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _formatDate(_startDate),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    
+    if (dateOnly == today) {
+      return 'Today';
+    } else if (dateOnly == today.add(const Duration(days: 1))) {
+      return 'Tomorrow';
+    } else if (dateOnly == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday';
+    }
+    return DateFormat('EEEE, MMM d, yyyy').format(date);
+  }
+
   Widget _buildDurationSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1289,38 +2013,7 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _hasEndDate = false),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: !_hasEndDate
-                        ? AppTheme.brandTeal
-                        : Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: !_hasEndDate
-                          ? AppTheme.brandTeal
-                          : Colors.white.withValues(alpha: 0.15),
-                      width: !_hasEndDate ? 2 : 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Ongoing',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
+            // Limited time (now on the left)
             Expanded(
               child: GestureDetector(
                 onTap: () => setState(() => _hasEndDate = true),
@@ -1342,6 +2035,39 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
                   child: Center(
                     child: Text(
                       'Limited time',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Ongoing (now on the right)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _hasEndDate = false),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: !_hasEndDate
+                        ? AppTheme.brandTeal
+                        : Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: !_hasEndDate
+                          ? AppTheme.brandTeal
+                          : Colors.white.withValues(alpha: 0.15),
+                      width: !_hasEndDate ? 2 : 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Ongoing',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -1380,31 +2106,44 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 50,
-                  child: TextFormField(
-                    initialValue: _durationDays.toString(),
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                const SizedBox(width: 4),
+                // Inline editable number with glassy style
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
                     ),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.15),
+                  ),
+                  child: IntrinsicWidth(
+                    child: TextFormField(
+                      initialValue: _durationDays.toString(),
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                      cursorColor: Colors.white,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                        constraints: const BoxConstraints(minWidth: 20),
+                      ),
+                      onChanged: (value) {
+                        final days = int.tryParse(value);
+                        if (days != null && days > 0) {
+                          setState(() => _durationDays = days);
+                        }
+                      },
                     ),
-                    onChanged: (value) {
-                      final days = int.tryParse(value);
-                      if (days != null && days > 0) {
-                        setState(() => _durationDays = days);
-                      }
-                    },
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -1542,7 +2281,7 @@ class _MedicationFormDialogState extends State<MedicationFormDialog> {
             : _instructionsController.text.trim(),
         frequency: _frequency,
         doseTimes: doseTimes,
-        startDate: widget.existingMedication?.startDate ?? _startDate,
+        startDate: _startDate,
         endDate: null,
         totalDays: _hasEndDate ? _durationDays : null,
         status: MedicationStatus.active,
@@ -1705,7 +2444,6 @@ class MedicationsSection extends StatelessWidget {
               Gap(8.h),
               ...activeMeds.map((med) => MedicationCard(
                 medication: med,
-                onMarkDose: () => _markDoseTaken(context, med),
               )),
             ],
 
@@ -1793,23 +2531,7 @@ class MedicationsSection extends StatelessWidget {
   }
 
   void _showAddMedicationForm(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => MedicationFormDialog(petId: petId),
-    );
-  }
-
-  void _markDoseTaken(BuildContext context, Medication med) async {
-    final provider = context.read<MedicationProvider>();
-    await provider.logDoseTaken(med.petId, med.id, DateTime.now());
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dose marked as taken'),
-          backgroundColor: AppTheme.success,
-        ),
-      );
-    }
+    showMedicationForm(context, petId: petId);
   }
 
   void _showPastMedications(BuildContext context, List<Medication> meds) {

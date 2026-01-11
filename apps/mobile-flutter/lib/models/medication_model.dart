@@ -299,11 +299,60 @@ class Medication {
   }
 
   /// Progress percentage (0.0 to 1.0, null if ongoing)
+  /// Progress is based on doses taken vs total doses expected
   double? get progress {
     if (totalDays == null) return null;
-    final progress = currentDay / totalDays!;
+    
+    // For "as needed" medications, use time-based progress
+    if (frequency == MedicationFrequency.asNeeded) {
+      final daysPassed = DateTime.now().difference(startDate).inDays;
+      if (daysPassed < 0) return 0.0;
+      final progress = daysPassed / totalDays!;
+      return progress > 1.0 ? 1.0 : progress;
+    }
+    
+    // Calculate total expected doses based on frequency and duration
+    final dosesPerDay = _getDosesPerDay();
+    if (dosesPerDay == 0) return 0.0;
+    
+    final expectedDoses = totalDays! * dosesPerDay;
+    final dosesTaken = doseHistory.where((d) => d.takenAt != null).length;
+    
+    if (expectedDoses == 0) return 0.0;
+    
+    final progress = dosesTaken / expectedDoses;
     return progress > 1.0 ? 1.0 : progress;
   }
+  
+  /// Helper to get doses per day based on frequency
+  int _getDosesPerDay() {
+    switch (frequency) {
+      case MedicationFrequency.once:
+        return 1;
+      case MedicationFrequency.daily:
+        return 1;
+      case MedicationFrequency.twiceDaily:
+        return 2;
+      case MedicationFrequency.threeTimesDaily:
+        return 3;
+      case MedicationFrequency.weekly:
+        return 1; // 1 dose on dose days
+      case MedicationFrequency.asNeeded:
+        return 0; // No expected doses - use time-based progress
+    }
+  }
+  
+  /// Total expected doses for the medication course
+  int? get totalExpectedDoses {
+    if (totalDays == null) return null;
+    if (frequency == MedicationFrequency.asNeeded) return null;
+    final dosesPerDay = _getDosesPerDay();
+    if (dosesPerDay == 0) return null;
+    return totalDays! * dosesPerDay;
+  }
+  
+  /// Total doses taken
+  int get totalDosesTaken => doseHistory.where((d) => d.takenAt != null).length;
 
   /// Get a human-readable frequency string
   String get frequencyDisplay {
@@ -426,6 +475,39 @@ class Medication {
       case MedicationFrequency.asNeeded:
         return 0;
     }
+  }
+
+  /// Whether all doses for today have been taken
+  bool get allDosesTakenToday {
+    // "As needed" medications have no daily limit
+    if (frequency == MedicationFrequency.asNeeded) return false;
+    // "Once" medications can only be taken once ever
+    if (frequency == MedicationFrequency.once) return totalDosesTaken >= 1;
+    return dosesTakenToday >= dosesExpectedToday;
+  }
+
+  /// Remaining doses that can be taken today
+  int get dosesRemainingToday {
+    if (frequency == MedicationFrequency.asNeeded) return 999; // No limit
+    if (frequency == MedicationFrequency.once) return totalDosesTaken >= 1 ? 0 : 1;
+    final remaining = dosesExpectedToday - dosesTakenToday;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  /// Human-readable string for today's dose status
+  String get todayDoseStatus {
+    if (frequency == MedicationFrequency.asNeeded) {
+      return dosesTakenToday > 0 
+          ? '$dosesTakenToday dose${dosesTakenToday == 1 ? '' : 's'} taken today'
+          : 'Take as needed';
+    }
+    if (frequency == MedicationFrequency.once) {
+      return totalDosesTaken >= 1 ? 'Completed' : 'Not yet taken';
+    }
+    if (allDosesTakenToday) {
+      return 'All doses taken today';
+    }
+    return '$dosesTakenToday of $dosesExpectedToday taken today';
   }
 
   static DateTime _parseDateTime(dynamic value) {

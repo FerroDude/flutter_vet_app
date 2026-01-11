@@ -272,14 +272,31 @@ class MedicationProvider extends ChangeNotifier {
     String? notes,
   }) async {
     try {
+      developer.log(
+        'Logging dose for medication $medicationId, pet $petId',
+        name: 'MedicationProvider',
+      );
+      
       await _repository.logDoseTaken(
         petId,
         medicationId,
         scheduledTime,
         notes: notes,
       );
+      
+      developer.log(
+        'Dose logged successfully, notifying listeners',
+        name: 'MedicationProvider',
+      );
+      
+      // Force refresh the medication data
+      notifyListeners();
       return true;
     } catch (e) {
+      developer.log(
+        'Error logging dose: $e',
+        name: 'MedicationProvider',
+      );
       _error = e.toString();
       notifyListeners();
       return false;
@@ -300,8 +317,32 @@ class MedicationProvider extends ChangeNotifier {
         scheduledTime,
         reason: reason,
       );
+      notifyListeners();
       return true;
     } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Undo the last dose taken
+  Future<bool> undoLastDose(String petId, String medicationId) async {
+    try {
+      final success = await _repository.undoLastDose(petId, medicationId);
+      if (success) {
+        developer.log(
+          'Undid last dose for medication $medicationId',
+          name: 'MedicationProvider',
+        );
+      }
+      notifyListeners();
+      return success;
+    } catch (e) {
+      developer.log(
+        'Error undoing last dose: $e',
+        name: 'MedicationProvider',
+      );
       _error = e.toString();
       notifyListeners();
       return false;

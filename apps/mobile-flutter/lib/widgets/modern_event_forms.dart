@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../providers/event_provider.dart';
-import '../providers/medication_provider.dart';
 import 'modern_modals.dart';
 import 'medication_widgets.dart';
 
@@ -70,15 +69,8 @@ class ModernEventTypeDialog extends StatelessWidget {
   }
 
   void _showMedicationForm(BuildContext context) {
-    final medicationProvider = context.read<MedicationProvider>();
     Navigator.pop(context);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => ChangeNotifierProvider.value(
-        value: medicationProvider,
-        child: MedicationFormDialog(petId: petId),
-      ),
-    );
+    showMedicationForm(context, petId: petId);
   }
 
   void _showNoteForm(BuildContext context) {

@@ -267,14 +267,25 @@ class MedicationRepository {
       throw Exception('User not authenticated');
     }
 
+    developer.log(
+      'logDoseTaken: petId=$petId, medicationId=$medicationId',
+      name: 'MedicationRepository',
+    );
+
     final docRef = _getMedicationsCollection(petId).doc(medicationId);
     final doc = await docRef.get();
 
     if (!doc.exists) {
+      developer.log('Medication not found!', name: 'MedicationRepository');
       throw Exception('Medication not found');
     }
 
     final medication = Medication.fromJson(doc.data()!, doc.id);
+    developer.log(
+      'Current dose history count: ${medication.doseHistory.length}',
+      name: 'MedicationRepository',
+    );
+    
     final newLog = DoseLog(
       id: Medication.generateId(),
       scheduledTime: scheduledTime,
@@ -285,10 +296,17 @@ class MedicationRepository {
 
     final updatedHistory = [...medication.doseHistory, newLog];
 
+    developer.log(
+      'Updating dose history, new count: ${updatedHistory.length}',
+      name: 'MedicationRepository',
+    );
+
     await docRef.update({
       'doseHistory': updatedHistory.map((d) => d.toJson()).toList(),
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
+    
+    developer.log('Dose logged successfully to Firestore', name: 'MedicationRepository');
   }
 
   /// Log a dose as skipped
@@ -324,6 +342,53 @@ class MedicationRepository {
       'doseHistory': updatedHistory.map((d) => d.toJson()).toList(),
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
+  }
+
+  /// Undo the last dose taken (remove the most recent dose log)
+  Future<bool> undoLastDose(String petId, String medicationId) async {
+    if (_currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final docRef = _getMedicationsCollection(petId).doc(medicationId);
+    final doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw Exception('Medication not found');
+    }
+
+    final medication = Medication.fromJson(doc.data()!, doc.id);
+    
+    // Find and remove the last dose that was taken (has takenAt)
+    final doseHistory = List<DoseLog>.from(medication.doseHistory);
+    
+    // Find the last taken dose
+    int lastTakenIndex = -1;
+    for (int i = doseHistory.length - 1; i >= 0; i--) {
+      if (doseHistory[i].takenAt != null) {
+        lastTakenIndex = i;
+        break;
+      }
+    }
+    
+    if (lastTakenIndex == -1) {
+      // No doses to undo
+      return false;
+    }
+    
+    doseHistory.removeAt(lastTakenIndex);
+    
+    await docRef.update({
+      'doseHistory': doseHistory.map((d) => d.toJson()).toList(),
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    });
+    
+    developer.log(
+      'Removed last dose for medication $medicationId',
+      name: 'MedicationRepository',
+    );
+    
+    return true;
   }
 
   // ============ Vet Access (Read-only) ============

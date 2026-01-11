@@ -388,7 +388,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   medication: med,
                   petName: petName,
                   showPetName: true,
-                  onMarkDose: () => _markDoseTaken(context, med),
                 );
               },
             );
@@ -421,19 +420,6 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
     );
-  }
-
-  void _markDoseTaken(BuildContext context, Medication med) async {
-    final provider = context.read<MedicationProvider>();
-    await provider.logDoseTaken(med.petId, med.id, DateTime.now());
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dose marked as taken'),
-          backgroundColor: AppTheme.success,
-        ),
-      );
-    }
   }
 
   void _showAllMedications(BuildContext context, List<Medication> meds) {
@@ -502,7 +488,6 @@ class _DashboardPageState extends State<DashboardPage> {
                           medication: med,
                           petName: petName,
                           showPetName: true,
-                          onMarkDose: () => _markDoseTaken(context, med),
                         );
                       },
                     );

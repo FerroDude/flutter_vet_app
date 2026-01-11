@@ -9,7 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
 import '../models/symptom_models.dart';
 import '../providers/event_provider.dart';
-import '../providers/medication_provider.dart';
 import '../theme/app_theme.dart';
 import 'simple_event_forms.dart';
 import 'simple_note_form.dart';
@@ -77,7 +76,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
         showAppointmentForm();
         break;
       case 2: // Medications tab - directly create medication
-        showMedicationForm();
+        openMedicationForm();
         break;
     }
   }
@@ -99,20 +98,9 @@ class AppointmentsPageState extends State<AppointmentsPage>
     });
   }
 
-  void showMedicationForm() {
-    // Use the new medication system
-    final medicationProvider = context.read<MedicationProvider>();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => ChangeNotifierProvider.value(
-        value: medicationProvider,
-        child: const MedicationFormDialog(),
-      ),
-    ).then((result) {
-      if (result == true) {
-        _refreshData();
-      }
-    });
+  void openMedicationForm() {
+    // Use the new medication system with bottom sheet
+    showMedicationForm(context);
   }
 
   void _onDaySelected(DateTime selectedDay, List<CalendarEvent> events) {
@@ -210,7 +198,7 @@ class AppointmentsPageState extends State<AppointmentsPage>
         child: SimpleAddEventDialog(
           selectedDate: dateToUse,
           onShowAppointment: () => showAppointmentForm(),
-          onShowMedication: () => showMedicationForm(),
+          onShowMedication: () => openMedicationForm(),
         ),
       ),
     ).then((result) {

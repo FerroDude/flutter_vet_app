@@ -148,7 +148,7 @@ class CalendarPageState extends State<CalendarPage>
     showAppointmentFormWithPetSelection();
   }
 
-  void showMedicationForm() {
+  void openMedicationForm() {
     _showMedicationFormWithPetSelection();
   }
 
@@ -880,7 +880,6 @@ class CalendarPageState extends State<CalendarPage>
                       medication: med,
                       petName: _getPetName(med.petId),
                       showPetName: true,
-                      onMarkDose: () => _markDoseTaken(context, med, medicationProvider),
                     ),
                   )),
                 ],
@@ -904,37 +903,6 @@ class CalendarPageState extends State<CalendarPage>
         );
       },
     );
-  }
-
-  Future<void> _markDoseTaken(
-    BuildContext context,
-    Medication med,
-    MedicationProvider provider,
-  ) async {
-    try {
-      await provider.logDoseTaken(
-        med.petId,
-        med.id,
-        DateTime.now(),
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Dose marked as taken for ${med.name}'),
-            backgroundColor: AppTheme.brandTeal,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    }
   }
 
   Widget _buildDeleteAllMedsButton(BuildContext context) {
@@ -1393,20 +1361,9 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _showMedicationFormWithPetSelection() async {
-    final medicationProvider = context.read<MedicationProvider>();
     final selectedPet = await _showPetSelectionDialog();
     if (selectedPet != null && mounted) {
-      showDialog(
-        context: context,
-        builder: (dialogContext) => ChangeNotifierProvider.value(
-          value: medicationProvider,
-          child: MedicationFormDialog(
-            petId: selectedPet.id,
-          ),
-        ),
-      ).then((result) {
-        if (result == true && mounted) _refreshData();
-      });
+      showMedicationForm(context, petId: selectedPet.id);
     }
   }
 
