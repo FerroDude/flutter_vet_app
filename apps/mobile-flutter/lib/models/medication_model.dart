@@ -288,13 +288,21 @@ class Medication {
   int? get daysRemaining {
     final end = calculatedEndDate;
     if (end == null) return null;
-    final remaining = end.difference(DateTime.now()).inDays + 1;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final endDay = DateTime(end.year, end.month, end.day);
+    final remaining = endDay.difference(today).inDays + 1;
     return remaining < 0 ? 0 : remaining;
   }
 
   /// Current day in the course (e.g., "Day 3 of 7")
+  /// Returns 0 if not started yet, 1 on start day, etc.
   int get currentDay {
-    final daysSinceStart = DateTime.now().difference(startDate).inDays + 1;
+    if (!hasStarted) return 0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final daysSinceStart = today.difference(start).inDays + 1;
     return daysSinceStart < 1 ? 1 : daysSinceStart;
   }
 
@@ -303,22 +311,25 @@ class Medication {
   double? get progress {
     if (totalDays == null) return null;
     
+    // Return 0.0 if medication hasn't started
+    if (!hasStarted) return 0.0;
+    
     // For "as needed" medications, use time-based progress
     if (frequency == MedicationFrequency.asNeeded) {
-      final daysPassed = DateTime.now().difference(startDate).inDays;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      final daysPassed = today.difference(start).inDays;
       if (daysPassed < 0) return 0.0;
       final progress = daysPassed / totalDays!;
       return progress > 1.0 ? 1.0 : progress;
     }
     
     // Calculate total expected doses based on frequency and duration
-    final dosesPerDay = _getDosesPerDay();
-    if (dosesPerDay == 0) return 0.0;
+    final expectedDoses = totalExpectedDoses;
+    if (expectedDoses == null || expectedDoses == 0) return 0.0;
     
-    final expectedDoses = totalDays! * dosesPerDay;
     final dosesTaken = doseHistory.where((d) => d.takenAt != null).length;
-    
-    if (expectedDoses == 0) return 0.0;
     
     final progress = dosesTaken / expectedDoses;
     return progress > 1.0 ? 1.0 : progress;
@@ -346,6 +357,14 @@ class Medication {
   int? get totalExpectedDoses {
     if (totalDays == null) return null;
     if (frequency == MedicationFrequency.asNeeded) return null;
+    if (frequency == MedicationFrequency.once) return 1;
+    
+    // For weekly, it's one dose per week (every 7 days)
+    if (frequency == MedicationFrequency.weekly) {
+      // Number of weeks + 1 for the starting day
+      return (totalDays! / 7).ceil();
+    }
+    
     final dosesPerDay = _getDosesPerDay();
     if (dosesPerDay == 0) return null;
     return totalDays! * dosesPerDay;
@@ -398,13 +417,12 @@ class Medication {
     if (frequency == MedicationFrequency.asNeeded) return null;
 
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final startDay = DateTime(startDate.year, startDate.month, startDate.day);
 
     // Check if ended
     final end = calculatedEndDate;
     if (end != null && now.isAfter(end)) return null;
-
-    // Find next dose time
-    final today = DateTime(now.year, now.month, now.day);
 
     // Sort dose times
     final sortedTimes = List<TimeOfDay>.from(doseTimes)
@@ -414,34 +432,142 @@ class Medication {
         return aMinutes.compareTo(bMinutes);
       });
 
-    // Check today's remaining doses
-    for (final time in sortedTimes) {
-      final doseDateTime = DateTime(
-        today.year,
-        today.month,
-        today.day,
-        time.hour,
-        time.minute,
-      );
-      if (doseDateTime.isAfter(now)) {
-        return doseDateTime;
-      }
-    }
+    if (sortedTimes.isEmpty) return null;
+    final firstTime = sortedTimes.first;
+    final endDay = end != null ? DateTime(end.year, end.month, end.day) : null;
 
-    // Next dose is tomorrow (first dose time)
-    if (sortedTimes.isNotEmpty) {
-      final tomorrow = today.add(const Duration(days: 1));
-      final firstTime = sortedTimes.first;
+    // If medication hasn't started yet, return first dose on start day
+    if (!hasStarted) {
       return DateTime(
-        tomorrow.year,
-        tomorrow.month,
-        tomorrow.day,
+        startDay.year,
+        startDay.month,
+        startDay.day,
         firstTime.hour,
         firstTime.minute,
       );
     }
 
-    return null;
+    // One-time medication - if already taken, no next dose
+    if (frequency == MedicationFrequency.once) {
+      if (totalDosesTaken >= 1) return null;
+      // Not taken yet - return today or next possible time
+      for (final time in sortedTimes) {
+        final doseDateTime = DateTime(today.year, today.month, today.day, time.hour, time.minute);
+        if (doseDateTime.isAfter(now)) {
+          return doseDateTime;
+        }
+      }
+      // If all times today have passed, return tomorrow
+      final tomorrow = today.add(const Duration(days: 1));
+      if (endDay != null && tomorrow.isAfter(endDay)) return null;
+      return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, firstTime.hour, firstTime.minute);
+    }
+
+    // Weekly medication - find next dose day based on weekly schedule
+    if (frequency == MedicationFrequency.weekly) {
+      // Weekly meds are taken every 7 days starting from startDate
+      final daysSinceStart = today.difference(startDay).inDays;
+      final daysUntilNextDose = (7 - (daysSinceStart % 7)) % 7;
+      
+      // Check if today is a dose day
+      if (daysUntilNextDose == 0 || daysSinceStart % 7 == 0) {
+        // Today is a dose day - check if dose is already taken today
+        if (!allDosesTakenToday) {
+          // Still have doses to take today - find next time
+          for (final time in sortedTimes) {
+            final doseDateTime = DateTime(today.year, today.month, today.day, time.hour, time.minute);
+            if (doseDateTime.isAfter(now)) {
+              return doseDateTime;
+            }
+          }
+        }
+        // All doses taken today or times passed - next dose is in 7 days
+        final nextDoseDay = today.add(const Duration(days: 7));
+        if (endDay != null && nextDoseDay.isAfter(endDay)) return null;
+        return DateTime(nextDoseDay.year, nextDoseDay.month, nextDoseDay.day, firstTime.hour, firstTime.minute);
+      } else {
+        // Not a dose day - calculate next dose day
+        final nextDoseDay = today.add(Duration(days: daysUntilNextDose));
+        if (endDay != null && nextDoseDay.isAfter(endDay)) return null;
+        return DateTime(nextDoseDay.year, nextDoseDay.month, nextDoseDay.day, firstTime.hour, firstTime.minute);
+      }
+    }
+
+    // Daily, twice daily, three times daily - check today's remaining doses
+    if (isTodayInActivePeriod && !allDosesTakenToday) {
+      for (final time in sortedTimes) {
+        final doseDateTime = DateTime(today.year, today.month, today.day, time.hour, time.minute);
+        if (doseDateTime.isAfter(now)) {
+          return doseDateTime;
+        }
+      }
+    }
+
+    // Next dose is tomorrow (first dose time)
+    final tomorrow = today.add(const Duration(days: 1));
+    if (endDay != null && tomorrow.isAfter(endDay)) return null;
+    
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, firstTime.hour, firstTime.minute);
+  }
+
+  /// Human-readable description of when the next dose is
+  String? get nextDoseDescription {
+    final next = nextDose;
+    if (next == null) return null;
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final nextDay = DateTime(next.year, next.month, next.day);
+    
+    final daysUntil = nextDay.difference(today).inDays;
+    
+    if (daysUntil == 0) {
+      // Today - show time
+      final hour = next.hour;
+      final minute = next.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      final displayMinute = minute.toString().padLeft(2, '0');
+      return 'Next: Today at $displayHour:$displayMinute $period';
+    } else if (daysUntil == 1) {
+      return 'Next: Tomorrow';
+    } else {
+      return 'Next: In $daysUntil days';
+    }
+  }
+
+  /// Whether the medication has started (startDate is today or in the past)
+  bool get hasStarted {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    return !start.isAfter(today);
+  }
+
+  /// Whether the medication has ended (endDate is in the past)
+  bool get hasEnded {
+    final end = calculatedEndDate;
+    if (end == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final endDay = DateTime(end.year, end.month, end.day);
+    return today.isAfter(endDay);
+  }
+
+  /// Whether today is within the active period (between start and end dates)
+  bool get isTodayInActivePeriod {
+    if (!hasStarted) return false;
+    if (hasEnded) return false;
+    return true;
+  }
+
+  /// Days until medication starts (0 if already started)
+  int get daysUntilStart {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    if (!start.isAfter(today)) return 0;
+    return start.difference(today).inDays;
   }
 
   /// Get doses taken today count
@@ -457,8 +583,11 @@ class Medication {
     }).length;
   }
 
-  /// Get doses expected today
+  /// Get doses expected today (0 if today is outside active period)
   int get dosesExpectedToday {
+    // No doses expected if medication hasn't started or has ended
+    if (!isTodayInActivePeriod) return 0;
+    
     switch (frequency) {
       case MedicationFrequency.once:
         return 1;
@@ -469,8 +598,11 @@ class Medication {
       case MedicationFrequency.threeTimesDaily:
         return 3;
       case MedicationFrequency.weekly:
-        // Check if today is a dose day
-        final daysSinceStart = DateTime.now().difference(startDate).inDays;
+        // Check if today is a dose day (every 7 days from start)
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final start = DateTime(startDate.year, startDate.month, startDate.day);
+        final daysSinceStart = today.difference(start).inDays;
         return daysSinceStart % 7 == 0 ? 1 : 0;
       case MedicationFrequency.asNeeded:
         return 0;
@@ -479,15 +611,21 @@ class Medication {
 
   /// Whether all doses for today have been taken
   bool get allDosesTakenToday {
+    // If not in active period, there are no doses to take
+    if (!isTodayInActivePeriod) return true;
     // "As needed" medications have no daily limit
     if (frequency == MedicationFrequency.asNeeded) return false;
     // "Once" medications can only be taken once ever
     if (frequency == MedicationFrequency.once) return totalDosesTaken >= 1;
+    // Weekly - check if today is even a dose day
+    if (dosesExpectedToday == 0) return true;
     return dosesTakenToday >= dosesExpectedToday;
   }
 
   /// Remaining doses that can be taken today
   int get dosesRemainingToday {
+    // No doses remaining if not in active period
+    if (!isTodayInActivePeriod) return 0;
     if (frequency == MedicationFrequency.asNeeded) return 999; // No limit
     if (frequency == MedicationFrequency.once) return totalDosesTaken >= 1 ? 0 : 1;
     final remaining = dosesExpectedToday - dosesTakenToday;
@@ -496,6 +634,18 @@ class Medication {
 
   /// Human-readable string for today's dose status
   String get todayDoseStatus {
+    // Handle medications that haven't started yet
+    if (!hasStarted) {
+      final days = daysUntilStart;
+      if (days == 1) return 'Starts tomorrow';
+      return 'Starts in $days days';
+    }
+    
+    // Handle medications that have ended
+    if (hasEnded) {
+      return 'Course completed';
+    }
+    
     if (frequency == MedicationFrequency.asNeeded) {
       return dosesTakenToday > 0 
           ? '$dosesTakenToday dose${dosesTakenToday == 1 ? '' : 's'} taken today'
@@ -503,6 +653,10 @@ class Medication {
     }
     if (frequency == MedicationFrequency.once) {
       return totalDosesTaken >= 1 ? 'Completed' : 'Not yet taken';
+    }
+    // Weekly - check if today is a dose day
+    if (frequency == MedicationFrequency.weekly && dosesExpectedToday == 0) {
+      return 'No dose today';
     }
     if (allDosesTakenToday) {
       return 'All doses taken today';

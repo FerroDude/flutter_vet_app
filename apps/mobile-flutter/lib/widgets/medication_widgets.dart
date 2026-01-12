@@ -131,6 +131,11 @@ class MedicationCard extends StatelessWidget {
                           Gap(8.h),
                           _buildTodayStatus(),
                         ],
+                        // Row 4: Progress bar with percentage (for time-limited medications)
+                        if (isActive && progress != null) ...[
+                          Gap(8.h),
+                          _buildSimpleProgressBar(progress),
+                        ],
                       ],
                     ),
                   ),
@@ -144,27 +149,6 @@ class MedicationCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Progress bar for time-limited medications
-            if (isActive && progress != null)
-              Container(
-                height: 4.h,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(AppTheme.radius3),
-                  ),
-                ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: progress,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.brandTeal,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -227,6 +211,51 @@ class MedicationCard extends StatelessWidget {
     final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
     final isOnce = medication.frequency == MedicationFrequency.once;
     
+    // Handle medications that haven't started yet
+    if (!medication.hasStarted) {
+      final daysUntil = medication.daysUntilStart;
+      return Row(
+        children: [
+          Icon(
+            Icons.schedule_rounded,
+            size: 14.sp,
+            color: AppTheme.warning,
+          ),
+          Gap(4.w),
+          Text(
+            daysUntil == 1 ? 'Starts tomorrow' : 'Starts in $daysUntil days',
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.warning,
+            ),
+          ),
+        ],
+      );
+    }
+    
+    // Handle medications that have ended
+    if (medication.hasEnded) {
+      return Row(
+        children: [
+          Icon(
+            Icons.check_circle_rounded,
+            size: 14.sp,
+            color: AppTheme.success,
+          ),
+          Gap(4.w),
+          Text(
+            'Course completed',
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.success,
+            ),
+          ),
+        ],
+      );
+    }
+    
     if (isOnce) {
       // One-time medication
       final isTaken = medication.totalDosesTaken >= 1;
@@ -277,7 +306,37 @@ class MedicationCard extends StatelessWidget {
     // Scheduled medication - show dose bubbles
     final expected = medication.dosesExpectedToday;
     final taken = medication.dosesTakenToday;
-    final allTaken = taken >= expected;
+    final allTaken = taken >= expected && expected > 0;
+    
+    // Handle weekly medications with no dose today
+    if (expected == 0) {
+      return Row(
+        children: [
+          Icon(
+            Icons.event_busy_rounded,
+            size: 14.sp,
+            color: Colors.white.withValues(alpha: 0.5),
+          ),
+          Gap(4.w),
+          Text(
+            'No dose today',
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
+          ),
+          if (medication.nextDoseDescription != null) ...[
+            Text(
+              ' • ${medication.nextDoseDescription}',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
     
     return Wrap(
       spacing: 4.w,
@@ -309,15 +368,51 @@ class MedicationCard extends StatelessWidget {
             color: allTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.6),
           ),
         ),
-        // Show day progress if applicable
-        if (medication.totalDays != null)
+        // Show next dose info if applicable
+        if (medication.nextDoseDescription != null && !allTaken)
           Text(
-            '• Day ${medication.currentDay}/${medication.totalDays}',
+            '• ${medication.nextDoseDescription}',
             style: TextStyle(
               fontSize: 12.sp,
               color: Colors.white.withValues(alpha: 0.5),
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildSimpleProgressBar(double progress) {
+    final percentage = (progress * 100).round();
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 6.h,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: progress.clamp(0.0, 1.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.brandTeal,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Gap(8.w),
+        Text(
+          '$percentage%',
+          style: TextStyle(
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+        ),
       ],
     );
   }
@@ -698,7 +793,6 @@ class MedicationDetailSheet extends StatelessWidget {
 
   Widget _buildProgressSection(BuildContext context) {
     final progress = medication.progress ?? 0.0;
-    final daysRemaining = medication.daysRemaining ?? 0;
     final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
     final dosesTaken = medication.totalDosesTaken;
     final totalExpected = medication.totalExpectedDoses;
@@ -747,30 +841,46 @@ class MedicationDetailSheet extends StatelessWidget {
             ),
           ),
           Gap(12.h),
-          Text(
-            'Day ${medication.currentDay} of ${medication.totalDays} • $daysRemaining days remaining',
-            style: TextStyle(
-              fontSize: 13.sp,
-              color: Colors.white.withValues(alpha: 0.7),
-            ),
-          ),
+          // Main progress text - dose-based
           if (!isAsNeeded && totalExpected != null) ...[
+            Text(
+              '$dosesTaken of $totalExpected doses taken',
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+          if (isAsNeeded) ...[
+            Text(
+              dosesTaken > 0 
+                  ? '$dosesTaken dose${dosesTaken == 1 ? '' : 's'} logged'
+                  : 'No doses logged yet',
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+          // Next dose info - secondary
+          if (medication.nextDoseDescription != null) ...[
             Gap(4.h),
             Text(
-              '$dosesTaken of $totalExpected doses taken overall',
+              medication.nextDoseDescription!,
               style: TextStyle(
                 fontSize: 12.sp,
                 color: Colors.white.withValues(alpha: 0.6),
               ),
             ),
-          ],
-          if (isAsNeeded && dosesTaken > 0) ...[
+          ] else if (medication.hasEnded) ...[
             Gap(4.h),
             Text(
-              '$dosesTaken doses logged total',
+              'Course complete',
               style: TextStyle(
                 fontSize: 12.sp,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: AppTheme.success,
               ),
             ),
           ],
@@ -780,13 +890,18 @@ class MedicationDetailSheet extends StatelessWidget {
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    final canMarkDose = !medication.allDosesTakenToday;
     final isAsNeeded = medication.frequency == MedicationFrequency.asNeeded;
     final hasDosesToUndo = medication.totalDosesTaken > 0;
     
+    // Determine if marking a dose is possible
+    final hasNotStarted = !medication.hasStarted;
+    final hasEnded = medication.hasEnded;
+    final allDosesToday = medication.allDosesTakenToday;
+    final canMarkDose = !hasNotStarted && !hasEnded && !allDosesToday;
+    
     return Column(
       children: [
-        // Mark dose taken - primary action (or status if complete)
+        // Mark dose taken - primary action (or status if not available)
         SizedBox(
           width: double.infinity,
           child: canMarkDose
@@ -810,40 +925,10 @@ class MedicationDetailSheet extends StatelessWidget {
                     ),
                   ),
                 )
-              : Container(
-                  padding: EdgeInsets.symmetric(vertical: 16.h),
-                  decoration: BoxDecoration(
-                    color: AppTheme.success.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppTheme.success.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.check_circle_rounded,
-                        color: AppTheme.success,
-                        size: 22.sp,
-                      ),
-                      Gap(8.w),
-                      Text(
-                        medication.frequency == MedicationFrequency.once
-                            ? 'Medication Completed'
-                            : 'All doses taken today',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.success,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              : _buildStatusContainer(hasNotStarted, hasEnded),
         ),
-        // Undo last dose - immediately below mark button
-        if (hasDosesToUndo) ...[
+        // Undo last dose - immediately below mark button (only if there are doses to undo)
+        if (hasDosesToUndo && !hasEnded) ...[
           Gap(4.h),
           GestureDetector(
             onTap: () => _undoLastDose(context),
@@ -903,6 +988,66 @@ class MedicationDetailSheet extends StatelessWidget {
           isFullWidth: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildStatusContainer(bool hasNotStarted, bool hasEnded) {
+    IconData icon;
+    String message;
+    Color color;
+    
+    if (hasNotStarted) {
+      icon = Icons.schedule_rounded;
+      final days = medication.daysUntilStart;
+      message = days == 1 ? 'Starts tomorrow' : 'Starts in $days days';
+      color = AppTheme.warning;
+    } else if (hasEnded) {
+      icon = Icons.check_circle_rounded;
+      message = 'Course completed';
+      color = AppTheme.success;
+    } else if (medication.frequency == MedicationFrequency.once && medication.totalDosesTaken >= 1) {
+      icon = Icons.check_circle_rounded;
+      message = 'Medication Completed';
+      color = AppTheme.success;
+    } else if (medication.dosesExpectedToday == 0) {
+      // Weekly medication with no dose today
+      icon = Icons.event_busy_rounded;
+      message = 'No dose scheduled today';
+      color = Colors.white.withValues(alpha: 0.6);
+    } else {
+      icon = Icons.check_circle_rounded;
+      message = 'All doses taken today';
+      color = AppTheme.success;
+    }
+    
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 16.h),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 22.sp,
+          ),
+          Gap(8.w),
+          Text(
+            message,
+            style: TextStyle(
+              fontSize: 16.sp,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1535,9 +1680,11 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                       _buildStartDateSelector(),
                       Gap(16.h),
 
-                      // Duration
-                      _buildDurationSelector(),
-                      Gap(16.h),
+                      // Duration (hide for one-time medications)
+                      if (_frequency != MedicationFrequency.once) ...[
+                        _buildDurationSelector(),
+                        Gap(16.h),
+                      ],
 
                       // Instructions
                       _buildTextField(
@@ -1932,8 +2079,15 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                       onPrimary: Colors.white,
                       surface: AppTheme.neutral600,
                       onSurface: Colors.white,
+                      secondary: AppTheme.brandTeal,
+                      onSecondary: Colors.white,
                     ),
                     dialogBackgroundColor: AppTheme.neutral600,
+                    textButtonTheme: TextButtonThemeData(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.brandTeal,
+                      ),
+                    ),
                   ),
                   child: child!,
                 );
@@ -2119,7 +2273,9 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                   ),
                   child: IntrinsicWidth(
                     child: TextFormField(
-                      initialValue: _durationDays.toString(),
+                      initialValue: _frequency == MedicationFrequency.weekly
+                          ? (_durationDays ~/ 7).toString()
+                          : _durationDays.toString(),
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -2138,9 +2294,15 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                         constraints: const BoxConstraints(minWidth: 20),
                       ),
                       onChanged: (value) {
-                        final days = int.tryParse(value);
-                        if (days != null && days > 0) {
-                          setState(() => _durationDays = days);
+                        final num = int.tryParse(value);
+                        if (num != null && num > 0) {
+                          setState(() {
+                            if (_frequency == MedicationFrequency.weekly) {
+                              _durationDays = num * 7; // Convert weeks to days
+                            } else {
+                              _durationDays = num;
+                            }
+                          });
                         }
                       },
                     ),
@@ -2148,7 +2310,7 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'days',
+                  _frequency == MedicationFrequency.weekly ? 'weeks' : 'days',
                   style: TextStyle(
                     fontSize: 15,
                     color: Colors.white.withValues(alpha: 0.7),

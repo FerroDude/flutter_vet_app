@@ -986,11 +986,11 @@ class _MedicationsTab extends StatelessWidget {
                   'Ends',
                   dateFormat.format(medication.calculatedEndDate!),
                 ),
-              if (medication.totalDays != null)
+              if (medication.nextDoseDescription != null)
                 _buildDetailItem(
-                  Icons.timelapse_outlined,
-                  'Progress',
-                  'Day ${medication.currentDay} of ${medication.totalDays}',
+                  Icons.schedule_outlined,
+                  'Next Dose',
+                  medication.nextDoseDescription!.replaceFirst('Next: ', ''),
                 ),
             ],
           ),
@@ -1004,6 +1004,50 @@ class _MedicationsTab extends StatelessWidget {
                 backgroundColor: AppTheme.neutral200,
                 valueColor: AlwaysStoppedAnimation<Color>(AppTheme.brandTeal),
                 minHeight: 6.h,
+              ),
+            ),
+            if (medication.totalExpectedDoses != null) ...[
+              Gap(AppTheme.spacing2),
+              Text(
+                '${medication.totalDosesTaken} of ${medication.totalExpectedDoses} doses taken',
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: AppTheme.neutral500,
+                ),
+              ),
+            ],
+          ],
+          // For "as needed" medications - show doses logged
+          if (isActive && medication.frequency == MedicationFrequency.asNeeded) ...[
+            Gap(AppTheme.spacing3),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppTheme.spacing3,
+                vertical: AppTheme.spacing2,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.brandTeal.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radius2),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.medication_outlined,
+                    size: 16.sp,
+                    color: AppTheme.brandTeal,
+                  ),
+                  Gap(8.w),
+                  Text(
+                    medication.totalDosesTaken > 0
+                        ? '${medication.totalDosesTaken} dose${medication.totalDosesTaken == 1 ? '' : 's'} logged'
+                        : 'No doses logged yet',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.brandTeal,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
