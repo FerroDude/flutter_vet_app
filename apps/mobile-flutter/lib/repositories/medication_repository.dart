@@ -389,7 +389,7 @@ class MedicationRepository {
     });
   }
 
-  /// Undo the last dose taken (remove the most recent dose log)
+  /// Undo the last dose taken (remove the dose with the most recent takenAt time)
   Future<bool> undoLastDose(String petId, String medicationId) async {
     if (_currentUserId == null) {
       throw Exception('User not authenticated');
@@ -404,24 +404,34 @@ class MedicationRepository {
 
     final medication = Medication.fromJson(doc.data()!, doc.id);
 
-    // Find and remove the last dose that was taken (has takenAt)
+    // Find and remove the dose with the most recent takenAt time
     final doseHistory = List<DoseLog>.from(medication.doseHistory);
 
-    // Find the last taken dose
-    int lastTakenIndex = -1;
-    for (int i = doseHistory.length - 1; i >= 0; i--) {
-      if (doseHistory[i].takenAt != null) {
-        lastTakenIndex = i;
-        break;
+    // Find the dose with the latest takenAt time
+    int mostRecentIndex = -1;
+    DateTime? mostRecentTime;
+    
+    for (int i = 0; i < doseHistory.length; i++) {
+      final dose = doseHistory[i];
+      if (dose.takenAt != null) {
+        if (mostRecentTime == null || dose.takenAt!.isAfter(mostRecentTime)) {
+          mostRecentTime = dose.takenAt;
+          mostRecentIndex = i;
+        }
       }
     }
 
-    if (lastTakenIndex == -1) {
+    if (mostRecentIndex == -1) {
       // No doses to undo
       return false;
     }
 
-    doseHistory.removeAt(lastTakenIndex);
+    developer.log(
+      'Undoing dose taken at $mostRecentTime',
+      name: 'MedicationRepository',
+    );
+
+    doseHistory.removeAt(mostRecentIndex);
 
     await docRef.update({
       'doseHistory': doseHistory.map((d) => d.toJson()).toList(),
@@ -429,7 +439,7 @@ class MedicationRepository {
     });
 
     developer.log(
-      'Removed last dose for medication $medicationId',
+      'Removed most recent dose for medication $medicationId',
       name: 'MedicationRepository',
     );
 

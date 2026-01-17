@@ -502,10 +502,34 @@ class MedicationCard extends StatelessWidget {
 // ============ Medication Detail Sheet ============
 
 /// Bottom sheet showing full medication details
+/// Uses Consumer to watch for medication updates from the provider
 class MedicationDetailSheet extends StatelessWidget {
   final Medication medication;
 
   const MedicationDetailSheet({super.key, required this.medication});
+
+  @override
+  Widget build(BuildContext context) {
+    // Watch the MedicationProvider for real-time updates
+    return Consumer<MedicationProvider>(
+      builder: (context, provider, _) {
+        // Get the latest medication data from the provider
+        final liveMedication = provider.getMedicationById(
+          medication.petId,
+          medication.id,
+        ) ?? medication;
+        
+        return _MedicationDetailContent(medication: liveMedication);
+      },
+    );
+  }
+}
+
+/// Internal widget that displays the medication details
+class _MedicationDetailContent extends StatelessWidget {
+  final Medication medication;
+
+  const _MedicationDetailContent({required this.medication});
 
   @override
   Widget build(BuildContext context) {
@@ -1426,28 +1450,31 @@ class MedicationDetailSheet extends StatelessWidget {
 
   void _showLogPastDoseDialog(BuildContext context) {
     final now = DateTime.now();
-    DateTime selectedDate = now.subtract(
-      const Duration(days: 1),
-    ); // Default to yesterday
-    TimeOfDay selectedTime = medication.doseTimes.isNotEmpty
-        ? medication.doseTimes.first
-        : const TimeOfDay(hour: 8, minute: 0);
-
-    // Calculate valid date range (from start date to today or end date)
-    final startDay = DateTime(
-      medication.startDate.year,
-      medication.startDate.month,
-      medication.startDate.day,
-    );
     final today = DateTime(now.year, now.month, now.day);
-    final endDate = medication.calculatedEndDate;
+    
+    // Get provider for fresh medication data
+    final provider = context.read<MedicationProvider>();
+    
+    // Helper to get fresh medication data from provider
+    Medication getFreshMedication() {
+      return provider.getMedicationById(medication.petId, medication.id) ?? medication;
+    }
+    
+    // Calculate valid date range (from start date to today or end date)
+    final freshMed = getFreshMedication();
+    final startDay = DateTime(
+      freshMed.startDate.year,
+      freshMed.startDate.month,
+      freshMed.startDate.day,
+    );
+    final endDate = freshMed.calculatedEndDate;
     final lastValidDay =
         endDate != null &&
             DateTime(endDate.year, endDate.month, endDate.day).isBefore(today)
         ? DateTime(endDate.year, endDate.month, endDate.day)
         : today;
 
-    // If medication started today, can't log past doses
+    // If medication started today or later, can't log past doses
     if (!startDay.isBefore(today)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1459,6 +1486,19 @@ class MedicationDetailSheet extends StatelessWidget {
       );
       return;
     }
+    
+    DateTime selectedDate = now.subtract(const Duration(days: 1)); // Default to yesterday
+    TimeOfDay selectedTime = freshMed.doseTimes.isNotEmpty
+        ? freshMed.doseTimes.first
+        : const TimeOfDay(hour: 8, minute: 0);
+    
+    // Helper to check if a date already has all doses taken (uses fresh data)
+    bool isDateComplete(DateTime date) {
+      final currentMed = getFreshMedication();
+      final expected = currentMed.dosesExpectedOnDate(date);
+      final taken = currentMed.dosesTakenOnDate(date);
+      return expected > 0 && taken >= expected;
+    }
 
     // Ensure default date is within valid range
     if (selectedDate.isBefore(startDay)) {
@@ -1468,16 +1508,18 @@ class MedicationDetailSheet extends StatelessWidget {
       selectedDate = lastValidDay;
     }
     
-    // Helper to check if a date already has all doses taken
-    bool isDateComplete(DateTime date) {
-      final expected = medication.dosesExpectedOnDate(date);
-      final taken = medication.dosesTakenOnDate(date);
-      return expected > 0 && taken >= expected;
-    }
-    
     // Find a valid default date (one that doesn't have all doses taken)
+    // But never go before startDay
     while (isDateComplete(selectedDate) && selectedDate.isAfter(startDay)) {
       selectedDate = selectedDate.subtract(const Duration(days: 1));
+    }
+    
+    // Final safety check - ensure selectedDate is within valid range
+    if (selectedDate.isBefore(startDay)) {
+      selectedDate = startDay;
+    }
+    if (selectedDate.isAfter(lastValidDay)) {
+      selectedDate = lastValidDay;
     }
 
     showDialog(
@@ -1499,7 +1541,7 @@ class MedicationDetailSheet extends StatelessWidget {
             return DateFormat('EEE, MMM d').format(selectedDate);
           }
 
-          // Check if selected date already has all doses taken
+          // Check if selected date already has all doses taken (uses fresh data)
           final selectedDateComplete = isDateComplete(selectedDate);
           
           return AlertDialog(
@@ -1751,7 +1793,8 @@ class MedicationDetailSheet extends StatelessWidget {
         doseDateTime,
       );
       if (context.mounted) {
-        Navigator.pop(context); // Close detail sheet
+        // Don't close the sheet - it will update automatically via Consumer
+        // Just show a snackbar
 
         // Format the date for the message
         final now = DateTime.now();
@@ -2527,10 +2570,10 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
   String? _selectedPetId;
   MedicationFrequency _frequency = MedicationFrequency.daily;
   DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 7)); // Default 7 days
   TimeOfDay _doseTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay? _secondDoseTime;
   bool _hasEndDate = true;
-  int _durationDays = 7;
   bool _remindersEnabled = true;
   bool _isLoading = false;
 
@@ -2556,8 +2599,14 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
         }
       }
       _hasEndDate = existing.totalDays != null;
-      _durationDays = existing.totalDays ?? 7;
+      if (existing.totalDays != null) {
+        _endDate = _startDate.add(Duration(days: existing.totalDays! - 1));
+      } else {
+        _endDate = _startDate.add(const Duration(days: 7));
+      }
       _remindersEnabled = existing.remindersEnabled;
+    } else {
+      _endDate = _startDate.add(const Duration(days: 7));
     }
   }
 
@@ -3102,7 +3151,12 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
               },
             );
             if (picked != null) {
-              setState(() => _startDate = picked);
+              setState(() {
+                // Maintain the same duration when changing start date
+                final currentDuration = _endDate.difference(_startDate).inDays;
+                _startDate = picked;
+                _endDate = picked.add(Duration(days: currentDuration));
+              });
             }
           },
           child: Container(
@@ -3141,6 +3195,26 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
         ),
       ],
     );
+  }
+
+  /// Calculate duration in days between start and end date (inclusive)
+  int get _durationDays {
+    return _endDate.difference(_startDate).inDays + 1;
+  }
+
+  /// Format duration as human-readable string
+  String get _durationDescription {
+    final days = _durationDays;
+    if (days == 1) return '1 day';
+    if (days < 7) return '$days days';
+    if (days == 7) return '1 week';
+    if (days % 7 == 0) return '${days ~/ 7} weeks';
+    final weeks = days ~/ 7;
+    final remainingDays = days % 7;
+    if (weeks == 1) {
+      return '1 week, $remainingDays day${remainingDays == 1 ? '' : 's'}';
+    }
+    return '$weeks weeks, $remainingDays day${remainingDays == 1 ? '' : 's'}';
   }
 
   String _formatDate(DateTime date) {
@@ -3242,85 +3316,112 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
         ),
         if (_hasEndDate) ...[
           const SizedBox(height: 12),
+          // End date picker
+          GestureDetector(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _endDate,
+                firstDate: _startDate, // Can't end before start
+                lastDate: _startDate.add(const Duration(days: 365)),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: ColorScheme.dark(
+                        primary: AppTheme.brandTeal,
+                        onPrimary: Colors.white,
+                        surface: AppTheme.neutral600,
+                        onSurface: Colors.white,
+                        secondary: AppTheme.brandTeal,
+                        onSecondary: Colors.white,
+                      ),
+                      dialogBackgroundColor: AppTheme.neutral600,
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.brandTeal,
+                        ),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (picked != null) {
+                setState(() => _endDate = picked);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_rounded,
+                    size: 20,
+                    color: AppTheme.brandTeal,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'End Date',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDate(_endDate),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Duration info display
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              color: AppTheme.brandTeal.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.brandTeal.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               children: [
                 Icon(
-                  Icons.calendar_today_rounded,
-                  size: 20,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  Icons.schedule_rounded,
+                  size: 16,
+                  color: AppTheme.brandTeal,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Text(
-                  'For',
+                  'Duration: $_durationDescription',
                   style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                // Inline editable number with glassy style
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: IntrinsicWidth(
-                    child: TextFormField(
-                      initialValue: _frequency == MedicationFrequency.weekly
-                          ? (_durationDays ~/ 7).toString()
-                          : _durationDays.toString(),
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                      cursorColor: Colors.white,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
-                        contentPadding: EdgeInsets.zero,
-                        isDense: true,
-                        constraints: const BoxConstraints(minWidth: 20),
-                      ),
-                      onChanged: (value) {
-                        final num = int.tryParse(value);
-                        if (num != null && num > 0) {
-                          setState(() {
-                            if (_frequency == MedicationFrequency.weekly) {
-                              _durationDays = num * 7; // Convert weeks to days
-                            } else {
-                              _durationDays = num;
-                            }
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _frequency == MedicationFrequency.weekly ? 'weeks' : 'days',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.brandTeal,
                   ),
                 ),
               ],
