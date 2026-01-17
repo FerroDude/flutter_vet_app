@@ -398,7 +398,8 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildCalendarView(BuildContext context, EventProvider eventProvider) {
-    final allEvents = eventProvider.events;
+    // Filter out old MedicationEvent objects - medications are now handled through MedicationProvider
+    final allEvents = eventProvider.events.where((e) => e is! MedicationEvent).toList();
     final eventsByDate = <DateTime, List<CalendarEvent>>{};
 
     for (final event in allEvents) {
@@ -439,12 +440,75 @@ class CalendarPageState extends State<CalendarPage>
       );
     });
 
+    // Get medications for calendar markers
+    final medicationProvider = context.watch<MedicationProvider>();
+    final allMedications = <Medication>[];
+    for (final petId in _petNamesCache.keys) {
+      allMedications.addAll(medicationProvider.getMedicationsForPet(petId));
+    }
+    final activeMeds = allMedications.where((m) => m.isActive).toList();
+
+    // Add medication markers to calendar (compute scheduled days)
+    // Only compute for visible range (3 months before/after selected day)
+    final rangeStart = DateTime(_selectedDay.year, _selectedDay.month - 2, 1);
+    final rangeEnd = DateTime(_selectedDay.year, _selectedDay.month + 2, 0);
+    
+    for (var day = rangeStart; day.isBefore(rangeEnd); day = day.add(const Duration(days: 1))) {
+      final dayKey = DateTime(day.year, day.month, day.day);
+      final hasMedScheduled = activeMeds.any((med) => med.isDoseScheduledOnDate(day));
+      if (hasMedScheduled && !merged.containsKey(dayKey)) {
+        // Add a placeholder event just for the marker
+        merged[dayKey] = [
+          MedicationEvent(
+            id: 'med_marker_${dayKey.millisecondsSinceEpoch}',
+            title: 'Medications',
+            description: '',
+            dateTime: dayKey,
+            userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+            petId: null,
+            createdAt: dayKey,
+            updatedAt: dayKey,
+            medicationName: 'Scheduled',
+            dosage: '',
+            frequency: 'daily',
+          ),
+        ];
+      } else if (hasMedScheduled && merged.containsKey(dayKey)) {
+        // Check if there's already a medication marker
+        final hasExistingMedMarker = merged[dayKey]!.any((e) => e is MedicationEvent);
+        if (!hasExistingMedMarker) {
+          merged[dayKey]!.add(
+            MedicationEvent(
+              id: 'med_marker_${dayKey.millisecondsSinceEpoch}',
+              title: 'Medications',
+              description: '',
+              dateTime: dayKey,
+              userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+              petId: null,
+              createdAt: dayKey,
+              updatedAt: dayKey,
+              medicationName: 'Scheduled',
+              dosage: '',
+              frequency: 'daily',
+            ),
+          );
+        }
+      }
+    }
+
     final selectedDate = DateTime(
       _selectedDay.year,
       _selectedDay.month,
       _selectedDay.day,
     );
-    final selectedEvents = merged[selectedDate] ?? [];
+    final selectedEvents = merged[selectedDate]?.where((e) => 
+      !(e is MedicationEvent && e.id.startsWith('med_marker_'))
+    ).toList() ?? [];
+    
+    // Get medications scheduled for selected day
+    final medsForSelectedDay = activeMeds.where((med) => 
+      med.isDoseScheduledOnDate(_selectedDay)
+    ).toList();
 
     return SingleChildScrollView(
       child: Column(
@@ -483,7 +547,7 @@ class CalendarPageState extends State<CalendarPage>
                   ),
                 ),
                 const Spacer(),
-                if (selectedEvents.isNotEmpty)
+                if (selectedEvents.isNotEmpty || medsForSelectedDay.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -494,7 +558,7 @@ class CalendarPageState extends State<CalendarPage>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${selectedEvents.length}',
+                      '${selectedEvents.length + medsForSelectedDay.length}',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -508,10 +572,14 @@ class CalendarPageState extends State<CalendarPage>
 
           SizedBox(height: AppTheme.spacing3),
 
+          // Medications for Selected Day
+          if (medsForSelectedDay.isNotEmpty)
+            _buildMedicationsBanner(context, medsForSelectedDay),
+
           // Events for Selected Day
-          if (selectedEvents.isEmpty)
+          if (selectedEvents.isEmpty && medsForSelectedDay.isEmpty)
             _buildEmptyDayState(context)
-          else
+          else if (selectedEvents.isNotEmpty)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
               child: Column(
@@ -529,6 +597,188 @@ class CalendarPageState extends State<CalendarPage>
           // Bottom padding
           SizedBox(height: AppTheme.spacing6),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMedicationsBanner(BuildContext context, List<Medication> medications) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
+      child: Container(
+        margin: EdgeInsets.only(bottom: AppTheme.spacing3),
+        decoration: BoxDecoration(
+          color: AppTheme.brandTeal.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppTheme.radius3),
+          border: Border.all(
+            color: AppTheme.brandTeal.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 8.h),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.medication_rounded,
+                    size: 18.sp,
+                    color: AppTheme.brandTeal,
+                  ),
+                  Gap(8.w),
+                  Text(
+                    'Medications',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                    decoration: BoxDecoration(
+                      color: AppTheme.brandTeal.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${medications.length}',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.brandTeal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Medication items
+            ...medications.map((med) => _buildMedicationBannerItem(context, med)),
+            Gap(8.h),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedicationBannerItem(BuildContext context, Medication medication) {
+    final petName = _getPetName(medication.petId);
+    final expected = medication.dosesExpectedOnDate(_selectedDay);
+    final taken = medication.dosesTakenOnDate(_selectedDay);
+    final allTaken = taken >= expected && expected > 0;
+    
+    return InkWell(
+      onTap: () {
+        // Show medication detail sheet
+        final medicationProvider = context.read<MedicationProvider>();
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (sheetContext) => ChangeNotifierProvider.value(
+            value: medicationProvider,
+            child: MedicationDetailSheet(medication: medication),
+          ),
+        );
+      },
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+        child: Row(
+          children: [
+            // Status indicator
+            Container(
+              width: 32.w,
+              height: 32.w,
+              decoration: BoxDecoration(
+                color: allTaken 
+                    ? AppTheme.success.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                allTaken ? Icons.check_rounded : Icons.medication_outlined,
+                size: 18.sp,
+                color: allTaken ? AppTheme.success : Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+            Gap(12.w),
+            // Medication info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          medication.name,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (petName.isNotEmpty)
+                        Container(
+                          margin: EdgeInsets.only(left: 8.w),
+                          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            petName,
+                            style: TextStyle(
+                              fontSize: 10.sp,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Gap(4.h),
+                  Row(
+                    children: [
+                      Text(
+                        '${medication.dosage} • ${medication.frequencyDisplay}',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Dose progress for the day
+                      if (expected > 0) ...[
+                        ...List.generate(expected, (index) {
+                          final isDone = index < taken;
+                          return Padding(
+                            padding: EdgeInsets.only(left: 3.w),
+                            child: Icon(
+                              isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                              size: 14.sp,
+                              color: isDone ? AppTheme.success : Colors.white.withValues(alpha: 0.3),
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Gap(8.w),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20.sp,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+          ],
+        ),
       ),
     );
   }

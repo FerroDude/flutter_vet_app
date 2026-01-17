@@ -372,6 +372,92 @@ class Medication {
   
   /// Total doses taken
   int get totalDosesTaken => doseHistory.where((d) => d.takenAt != null).length;
+  
+  /// Total doses that SHOULD have been taken from startDate to today (or endDate if passed)
+  int? get totalExpectedDosesToDate {
+    if (!hasStarted) return 0;
+    if (frequency == MedicationFrequency.asNeeded) return null;
+    if (frequency == MedicationFrequency.once) return 1;
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = calculatedEndDate;
+    
+    // Cap at end date if medication has ended
+    final effectiveEndDate = (end != null && today.isAfter(DateTime(end.year, end.month, end.day))) 
+        ? DateTime(end.year, end.month, end.day) 
+        : today;
+    
+    final daysActive = effectiveEndDate.difference(start).inDays + 1;
+    if (daysActive <= 0) return 0;
+    
+    if (frequency == MedicationFrequency.weekly) {
+      return (daysActive / 7).ceil();
+    }
+    
+    return daysActive * _getDosesPerDay();
+  }
+
+  /// Number of doses missed (expected to date - actually taken)
+  int get missedDoses {
+    final expected = totalExpectedDosesToDate;
+    if (expected == null) return 0;
+    return (expected - totalDosesTaken).clamp(0, expected);
+  }
+
+  /// Whether the user is behind schedule (has missed doses)
+  bool get isBehindSchedule => missedDoses > 0;
+
+  /// Adherence rate (0.0 to 1.0) - percentage of expected doses actually taken
+  double? get adherenceRate {
+    final expected = totalExpectedDosesToDate;
+    if (expected == null || expected == 0) return null;
+    return (totalDosesTaken / expected).clamp(0.0, 1.0);
+  }
+
+  /// Whether the medication course ended but not all doses were taken
+  bool get endedIncomplete {
+    if (!hasEnded) return false;
+    final expected = totalExpectedDoses;
+    if (expected == null) return false;
+    return totalDosesTaken < expected;
+  }
+  
+  /// Check if this medication can be extended
+  bool get canBeExtended {
+    // Can extend if it's active with an end date, or if it's completed/ended
+    if (status == MedicationStatus.discontinued) return false;
+    if (frequency == MedicationFrequency.once) return false; // One-time meds can't be extended
+    return totalDays != null || hasEnded || status == MedicationStatus.completed;
+  }
+  
+  /// Create a copy of this medication with extended duration
+  /// Can extend from today (if ended) or from current end date (if still active)
+  Medication extendBy({required int additionalDays}) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    // Calculate new total days
+    int newTotalDays;
+    
+    if (hasEnded) {
+      // Medication already ended - extend from today
+      final newEndDate = today.add(Duration(days: additionalDays - 1));
+      // Calculate new total days from original start to new end
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      newTotalDays = newEndDate.difference(start).inDays + 1;
+    } else {
+      // Still active - extend from current end date
+      newTotalDays = (totalDays ?? 0) + additionalDays;
+    }
+    
+    return copyWith(
+      totalDays: newTotalDays,
+      status: MedicationStatus.active, // Reactivate if was completed
+      updatedAt: now,
+    );
+  }
 
   /// Get a human-readable frequency string
   String get frequencyDisplay {
@@ -561,6 +647,75 @@ class Medication {
     return true;
   }
 
+  /// Check if a specific date is within the medication's active period
+  bool isDateInActivePeriod(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = calculatedEndDate;
+    final endDay = end != null ? DateTime(end.year, end.month, end.day) : null;
+    
+    if (day.isBefore(start)) return false;
+    if (endDay != null && day.isAfter(endDay)) return false;
+    return true;
+  }
+
+  /// Check if a dose is scheduled for a specific date
+  /// Returns true if the medication is active on that date and has a scheduled dose
+  bool isDoseScheduledOnDate(DateTime date) {
+    if (status != MedicationStatus.active) return false;
+    if (!isDateInActivePeriod(date)) return false;
+    if (frequency == MedicationFrequency.asNeeded) return false;
+    if (frequency == MedicationFrequency.once) {
+      // One-time medication - only scheduled on start date if not taken
+      final day = DateTime(date.year, date.month, date.day);
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      return day == start && totalDosesTaken < 1;
+    }
+    
+    // Weekly medications - only on specific days
+    if (frequency == MedicationFrequency.weekly) {
+      final day = DateTime(date.year, date.month, date.day);
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      final daysSinceStart = day.difference(start).inDays;
+      return daysSinceStart >= 0 && daysSinceStart % 7 == 0;
+    }
+    
+    // Daily, twice daily, three times daily - every day in active period
+    return true;
+  }
+
+  /// Get doses expected on a specific date
+  int dosesExpectedOnDate(DateTime date) {
+    if (!isDoseScheduledOnDate(date)) return 0;
+    
+    switch (frequency) {
+      case MedicationFrequency.once:
+        return 1;
+      case MedicationFrequency.daily:
+        return 1;
+      case MedicationFrequency.twiceDaily:
+        return 2;
+      case MedicationFrequency.threeTimesDaily:
+        return 3;
+      case MedicationFrequency.weekly:
+        return 1;
+      case MedicationFrequency.asNeeded:
+        return 0;
+    }
+  }
+
+  /// Get doses taken on a specific date
+  int dosesTakenOnDate(DateTime date) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    return doseHistory.where((log) {
+      return log.takenAt != null &&
+          log.takenAt!.isAfter(dayStart.subtract(const Duration(seconds: 1))) &&
+          log.takenAt!.isBefore(dayEnd);
+    }).length;
+  }
+
   /// Days until medication starts (0 if already started)
   int get daysUntilStart {
     final now = DateTime.now();
@@ -643,6 +798,9 @@ class Medication {
     
     // Handle medications that have ended
     if (hasEnded) {
+      if (endedIncomplete) {
+        return 'Course ended • $missedDoses missed';
+      }
       return 'Course completed';
     }
     
@@ -659,7 +817,17 @@ class Medication {
       return 'No dose today';
     }
     if (allDosesTakenToday) {
+      // Check if behind schedule even though today is done
+      if (isBehindSchedule) {
+        return 'Done today • $missedDoses missed overall';
+      }
       return 'All doses taken today';
+    }
+    
+    // Active medication with doses remaining
+    final remaining = dosesExpectedToday - dosesTakenToday;
+    if (isBehindSchedule) {
+      return '$missedDoses missed • $remaining due today';
     }
     return '$dosesTakenToday of $dosesExpectedToday taken today';
   }

@@ -262,6 +262,31 @@ class MedicationProvider extends ChangeNotifier {
     }
   }
 
+  /// Extend a medication's duration
+  Future<bool> extendMedication(
+    String petId, 
+    String medicationId, 
+    int additionalDays,
+  ) async {
+    try {
+      await _repository.extendMedication(petId, medicationId, additionalDays);
+      developer.log(
+        'Extended medication $medicationId by $additionalDays days',
+        name: 'MedicationProvider',
+      );
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      developer.log(
+        'Error extending medication: $e',
+        name: 'MedicationProvider',
+      );
+      notifyListeners();
+      return false;
+    }
+  }
+
   // ============ Dose Logging ============
 
   /// Log a dose as taken

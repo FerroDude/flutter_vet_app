@@ -36,8 +36,9 @@ class MedicationRepository {
 
     try {
       // Store in pet's medications subcollection
-      final docRef = await _getMedicationsCollection(medication.petId)
-          .add(medication.toJson());
+      final docRef = await _getMedicationsCollection(
+        medication.petId,
+      ).add(medication.toJson());
 
       developer.log(
         'Created medication ${docRef.id} for pet ${medication.petId}',
@@ -46,7 +47,10 @@ class MedicationRepository {
 
       return docRef.id;
     } catch (e) {
-      developer.log('Error creating medication: $e', name: 'MedicationRepository');
+      developer.log(
+        'Error creating medication: $e',
+        name: 'MedicationRepository',
+      );
       rethrow;
     }
   }
@@ -58,16 +62,19 @@ class MedicationRepository {
     }
 
     try {
-      await _getMedicationsCollection(medication.petId)
-          .doc(medication.id)
-          .update(medication.toJson());
+      await _getMedicationsCollection(
+        medication.petId,
+      ).doc(medication.id).update(medication.toJson());
 
       developer.log(
         'Updated medication ${medication.id}',
         name: 'MedicationRepository',
       );
     } catch (e) {
-      developer.log('Error updating medication: $e', name: 'MedicationRepository');
+      developer.log(
+        'Error updating medication: $e',
+        name: 'MedicationRepository',
+      );
       rethrow;
     }
   }
@@ -86,7 +93,10 @@ class MedicationRepository {
         name: 'MedicationRepository',
       );
     } catch (e) {
-      developer.log('Error deleting medication: $e', name: 'MedicationRepository');
+      developer.log(
+        'Error deleting medication: $e',
+        name: 'MedicationRepository',
+      );
       rethrow;
     }
   }
@@ -104,7 +114,10 @@ class MedicationRepository {
         return Medication.fromJson(doc.data(), doc.id);
       }).toList();
     } catch (e) {
-      developer.log('Error getting medications: $e', name: 'MedicationRepository');
+      developer.log(
+        'Error getting medications: $e',
+        name: 'MedicationRepository',
+      );
       return [];
     }
   }
@@ -127,9 +140,9 @@ class MedicationRepository {
     if (_currentUserId == null) return [];
 
     try {
-      final snapshot = await _getMedicationsCollection(petId)
-          .where('status', isEqualTo: MedicationStatus.active.index)
-          .get();
+      final snapshot = await _getMedicationsCollection(
+        petId,
+      ).where('status', isEqualTo: MedicationStatus.active.index).get();
 
       return snapshot.docs.map((doc) {
         return Medication.fromJson(doc.data(), doc.id);
@@ -153,10 +166,10 @@ class MedicationRepository {
         .where('status', isEqualTo: MedicationStatus.active.index)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Medication.fromJson(doc.data(), doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Medication.fromJson(doc.data(), doc.id);
+          }).toList();
+        });
   }
 
   /// Get all active medications across all pets for the user
@@ -254,6 +267,34 @@ class MedicationRepository {
     });
   }
 
+  /// Extend a medication's duration
+  Future<void> extendMedication(
+    String petId,
+    String medicationId,
+    int additionalDays,
+  ) async {
+    if (_currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final docRef = _getMedicationsCollection(petId).doc(medicationId);
+    final doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw Exception('Medication not found');
+    }
+
+    final medication = Medication.fromJson(doc.data()!, doc.id);
+    final extended = medication.extendBy(additionalDays: additionalDays);
+
+    await docRef.update(extended.toJson());
+
+    developer.log(
+      'Extended medication $medicationId by $additionalDays days',
+      name: 'MedicationRepository',
+    );
+  }
+
   // ============ Dose Logging ============
 
   /// Log a dose as taken
@@ -285,11 +326,12 @@ class MedicationRepository {
       'Current dose history count: ${medication.doseHistory.length}',
       name: 'MedicationRepository',
     );
-    
+
     final newLog = DoseLog(
       id: Medication.generateId(),
       scheduledTime: scheduledTime,
-      takenAt: DateTime.now(),
+      takenAt:
+          scheduledTime, // Use the scheduled time as the taken time (for logging past doses)
       skipped: false,
       notes: notes,
     );
@@ -305,8 +347,11 @@ class MedicationRepository {
       'doseHistory': updatedHistory.map((d) => d.toJson()).toList(),
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
-    
-    developer.log('Dose logged successfully to Firestore', name: 'MedicationRepository');
+
+    developer.log(
+      'Dose logged successfully to Firestore',
+      name: 'MedicationRepository',
+    );
   }
 
   /// Log a dose as skipped
@@ -358,10 +403,10 @@ class MedicationRepository {
     }
 
     final medication = Medication.fromJson(doc.data()!, doc.id);
-    
+
     // Find and remove the last dose that was taken (has takenAt)
     final doseHistory = List<DoseLog>.from(medication.doseHistory);
-    
+
     // Find the last taken dose
     int lastTakenIndex = -1;
     for (int i = doseHistory.length - 1; i >= 0; i--) {
@@ -370,24 +415,24 @@ class MedicationRepository {
         break;
       }
     }
-    
+
     if (lastTakenIndex == -1) {
       // No doses to undo
       return false;
     }
-    
+
     doseHistory.removeAt(lastTakenIndex);
-    
+
     await docRef.update({
       'doseHistory': doseHistory.map((d) => d.toJson()).toList(),
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
-    
+
     developer.log(
       'Removed last dose for medication $medicationId',
       name: 'MedicationRepository',
     );
-    
+
     return true;
   }
 
@@ -432,10 +477,10 @@ class MedicationRepository {
         .collection('medications')
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Medication.fromJson(doc.data(), doc.id);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Medication.fromJson(doc.data(), doc.id);
+          }).toList();
+        });
   }
 }
 
@@ -465,10 +510,7 @@ class StreamZip<T> extends Stream<List<T>> {
         (value) {
           values[currentIndex] = value;
           if (values.length == streamCount) {
-            final result = List.generate(
-              streamCount,
-              (i) => values[i] as T,
-            );
+            final result = List.generate(streamCount, (i) => values[i] as T);
             controller.add(result);
           }
         },
