@@ -322,7 +322,8 @@ class ClinicService {
     }
   }
 
-  // Remove member from clinic
+  // Remove member from clinic (soft delete - keeps user profile intact)
+  // Vets can belong to multiple clinics, so we only deactivate the membership
   Future<void> removeMemberFromClinic(String clinicId, String userId) async {
     try {
       final currentUser = _auth.currentUser;
@@ -332,21 +333,24 @@ class ClinicService {
       final isAdmin = await _isClinicAdmin(currentUser.uid, clinicId);
       if (!isAdmin) throw Exception('Insufficient permissions');
 
-      final batch = _firestore.batch();
-
-      // Deactivate clinic member
-      batch.update(_getClinicMembersCollection(clinicId).doc(userId), {
+      // Deactivate clinic member (soft delete)
+      await _getClinicMembersCollection(clinicId).doc(userId).update({
         'isActive': false,
       });
 
-      // Disconnect user from clinic
-      batch.update(_usersCollection.doc(userId), {
-        'connectedClinicId': FieldValue.delete(),
-        'clinicRole': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      await batch.commit();
+      // Only clear the user's connectedClinicId if it points to THIS clinic
+      // This allows vets to remain connected to other clinics
+      final userDoc = await _usersCollection.doc(userId).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>?;
+        if (userData?['connectedClinicId'] == clinicId) {
+          await _usersCollection.doc(userId).update({
+            'connectedClinicId': FieldValue.delete(),
+            'clinicRole': FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
     } catch (e) {
       throw Exception('Failed to remove member from clinic: $e');
     }
@@ -821,6 +825,173 @@ class ClinicService {
   /// Delete a vet invite by email (alias for revokeVetInvite)
   Future<void> deleteVetInvite(String clinicId, String email) async {
     return revokeVetInvite(clinicId, email);
+  }
+
+  /// RECEPTIONIST MANAGEMENT ///
+
+  /// Create a receptionist invite and a temporary receptionist placeholder user profile
+  /// under the clinic's invites subcollection and `users/` respectively.
+  Future<void> createReceptionistInvite(
+    String clinicId,
+    String email,
+  ) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) throw Exception('User not authenticated');
+
+      final normalizedEmail = email.trim().toLowerCase();
+      final inviteId = normalizedEmail
+          .replaceAll('@', '_')
+          .replaceAll('.', '_')
+          .replaceAll('+', '_');
+
+      // Create both invite and placeholder user profile in a batch
+      final batch = _firestore.batch();
+
+      // 1) Create/merge invite
+      final inviteDocRef = _getClinicInvitesCollection(clinicId).doc(inviteId);
+      batch.set(inviteDocRef, {
+        'email': normalizedEmail,
+        'role': 'receptionist',
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'invitedBy': currentUser.uid,
+      }, SetOptions(merge: true));
+      // Make sure status reflects pending even if existed
+      batch.update(inviteDocRef, {'status': 'pending'});
+
+      // 2) Create placeholder user profile: users/temp_receptionist_{email_token}
+      final tempReceptionistId = 'temp_receptionist_$inviteId';
+      batch.set(_usersCollection.doc(tempReceptionistId), {
+        'email': normalizedEmail,
+        'displayName': normalizedEmail,
+        'userType': UserType.receptionist.index,
+        'connectedClinicId': clinicId,
+        'clinicRole': ClinicRole.receptionist.index,
+        'hasSkippedClinicSelection': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'isActive': false, // activated when the real account links
+      });
+
+      // 3) Create an inactive clinic member entry for visibility in management
+      final placeholderMember = ClinicMember(
+        userId: tempReceptionistId,
+        clinicId: clinicId,
+        role: ClinicRole.receptionist,
+        permissions: const [],
+        addedAt: DateTime.now(),
+        addedBy: currentUser.uid,
+        isActive: false,
+      );
+      batch.set(
+        _getClinicMembersCollection(clinicId).doc(tempReceptionistId),
+        placeholderMember.toJson(),
+      );
+
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to create receptionist invite: $e');
+    }
+  }
+
+  /// Revoke a receptionist invite by email (normalized to inviteId)
+  Future<void> revokeReceptionistInvite(String clinicId, String email) async {
+    try {
+      final normalizedEmail = email.trim().toLowerCase();
+      final inviteId = normalizedEmail
+          .replaceAll('@', '_')
+          .replaceAll('.', '_')
+          .replaceAll('+', '_');
+
+      // Delete invite document
+      await _getClinicInvitesCollection(clinicId).doc(inviteId).delete();
+
+      // Also delete the temp user profile and member
+      final tempReceptionistId = 'temp_receptionist_$inviteId';
+      try {
+        await _usersCollection.doc(tempReceptionistId).delete();
+      } catch (_) {}
+      try {
+        await _getClinicMembersCollection(clinicId)
+            .doc(tempReceptionistId)
+            .delete();
+      } catch (_) {}
+    } catch (e) {
+      throw Exception('Failed to revoke receptionist invite: $e');
+    }
+  }
+
+  /// Delete a receptionist invite by email (alias for revokeReceptionistInvite)
+  Future<void> deleteReceptionistInvite(String clinicId, String email) async {
+    return revokeReceptionistInvite(clinicId, email);
+  }
+
+  /// Ensure there is a receptionist membership entry for the given user in the clinic,
+  /// and optionally remove a temporary placeholder receptionist membership document.
+  Future<void> ensureReceptionistMembershipFor(
+    String clinicId,
+    String userId, {
+    String? tempReceptionistId,
+  }) async {
+    // Create or overwrite the real receptionist membership for this user
+    final receptionistMember = ClinicMember(
+      userId: userId,
+      clinicId: clinicId,
+      role: ClinicRole.receptionist,
+      permissions: const [],
+      addedAt: DateTime.now(),
+      addedBy: userId,
+    );
+
+    await _addClinicMember(clinicId, receptionistMember);
+
+    // If there is a temporary receptionist membership, delete it
+    if (tempReceptionistId != null && tempReceptionistId.isNotEmpty) {
+      try {
+        await _getClinicMembersCollection(clinicId)
+            .doc(tempReceptionistId)
+            .delete();
+      } catch (_) {
+        // Ignore if it does not exist or permission denies
+      }
+    }
+  }
+
+  /// Add an existing user as receptionist to clinic
+  Future<void> addReceptionistToClinic(
+    String clinicId,
+    String receptionistUserId,
+  ) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) throw Exception('User not authenticated');
+
+      // Verify current user is admin of this clinic
+      final isAdmin = await _isClinicAdmin(currentUser.uid, clinicId);
+      if (!isAdmin) throw Exception('Insufficient permissions');
+
+      final member = ClinicMember(
+        userId: receptionistUserId,
+        clinicId: clinicId,
+        role: ClinicRole.receptionist,
+        permissions: const [],
+        addedAt: DateTime.now(),
+        addedBy: currentUser.uid,
+      );
+
+      await _addClinicMember(clinicId, member);
+
+      // Update user's clinic connection and role
+      await _usersCollection.doc(receptionistUserId).update({
+        'connectedClinicId': clinicId,
+        'clinicRole': ClinicRole.receptionist.index,
+        'userType': UserType.receptionist.index,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to add receptionist to clinic: $e');
+    }
   }
 
   /// Stream of pet owner users connected to a clinic

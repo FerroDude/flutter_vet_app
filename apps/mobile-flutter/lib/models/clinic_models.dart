@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum UserType { petOwner, vet, clinicAdmin, appOwner }
+enum UserType { petOwner, vet, clinicAdmin, appOwner, receptionist }
 
-enum ClinicRole { admin, vet }
+enum ClinicRole { admin, vet, receptionist }
 
 class Clinic {
   final String id;
@@ -231,6 +231,8 @@ class UserProfile {
   final DateTime updatedAt;
   final bool isActive;
   final String? globalType; // 'appOwner' or null (regular user)
+  final String?
+  fcmToken; // Firebase Cloud Messaging token for push notifications
 
   const UserProfile({
     required this.id,
@@ -247,6 +249,7 @@ class UserProfile {
     required this.updatedAt,
     this.isActive = true,
     this.globalType,
+    this.fcmToken,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json, String id) {
@@ -267,6 +270,7 @@ class UserProfile {
       updatedAt: Clinic._parseDateTime(json['updatedAt']),
       isActive: json['isActive'] ?? true,
       globalType: json['globalType'],
+      fcmToken: json['fcmToken'],
     );
   }
 
@@ -285,6 +289,7 @@ class UserProfile {
       'updatedAt': updatedAt.millisecondsSinceEpoch,
       'isActive': isActive,
       'globalType': globalType,
+      'fcmToken': fcmToken,
     };
   }
 
@@ -301,6 +306,7 @@ class UserProfile {
     DateTime? updatedAt,
     bool? isActive,
     String? globalType,
+    String? fcmToken,
   }) {
     return UserProfile(
       id: id,
@@ -318,6 +324,7 @@ class UserProfile {
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
       globalType: globalType ?? this.globalType,
+      fcmToken: fcmToken ?? this.fcmToken,
     );
   }
 
@@ -326,6 +333,8 @@ class UserProfile {
       (globalType == 'appOwner') || userType == UserType.appOwner;
   bool get isClinicAdmin => clinicRole == ClinicRole.admin;
   bool get isVet => clinicRole == ClinicRole.vet;
-  bool get isPetOwner => !isAppOwner && !isVet && !isClinicAdmin;
+  bool get isReceptionist => clinicRole == ClinicRole.receptionist;
+  bool get isPetOwner =>
+      !isAppOwner && !isVet && !isClinicAdmin && !isReceptionist;
   bool get hasClinicConnection => connectedClinicId != null;
 }

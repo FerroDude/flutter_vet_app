@@ -11,6 +11,7 @@ import '../../providers/event_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/vet_provider.dart';
 import '../../providers/medication_provider.dart';
+import '../../providers/appointment_request_provider.dart';
 import '../../repositories/event_repository.dart';
 import '../../repositories/medication_repository.dart';
 import '../../pages/onboarding_pages.dart';
@@ -18,6 +19,7 @@ import '../../pages/petOwners/home_page.dart';
 import '../../pages/appOwner/admin_dashboard.dart'; // For App Owner Dashboard
 import '../../pages/clinicAdmins/clinic_admin_dashboard.dart'; // For Clinic Admin Dashboard
 import '../../pages/vets/vet_home_page.dart';
+import '../../pages/receptionists/receptionist_home_page.dart'; // For Receptionist Dashboard
 import 'email_verification_page.dart';
 import 'display_name_setup_page.dart';
 import 'auth_page.dart';
@@ -88,102 +90,116 @@ class AuthWrapper extends StatelessWidget {
                       ChangeNotifierProvider(
                         create: (context) => VetProvider(clinicService),
                       ),
+                      // AppointmentRequestProvider for appointment requests
+                      ChangeNotifierProvider(
+                        create: (context) => AppointmentRequestProvider(),
+                      ),
                     ],
                     // Wrap with AppLifecycleWrapper to handle delivery receipts on app resume
                     child: AppLifecycleWrapper(
                       child: Consumer<UserProvider>(
-                      builder: (context, userProvider, child) {
-                        if (userProvider.isLoading) {
-                          return const Scaffold(
-                            body: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-
-                        if (userProvider.error != null) {
-                          return Scaffold(
-                            body: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.error,
-                                    size: 64,
-                                    color: Colors.red,
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text('Error: ${userProvider.error}'),
-                                  SizedBox(height: 16),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      // Try to reload user profile
-                                      final user =
-                                          FirebaseAuth.instance.currentUser;
-                                      if (user != null) {
-                                        userProvider.refresh();
-                                      }
-                                    },
-                                    child: Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-
-                        // Check if user must change password (app-level gate)
-                        // Check if user needs onboarding
-                        if (userProvider.currentUser == null) {
-                          return const ClinicOnboardingPage();
-                        }
-
-                        // Display name is provided during admin creation; skip prompt
-
-                        // Ensure clinic admins are connected to their clinic
-                        // and trigger a refresh when linking just completed
-                        userProvider.ensureAdminConnectedToClinic();
-                        if (userProvider.isClinicAdmin &&
-                            userProvider.connectedClinic == null &&
-                            userProvider.currentUser?.connectedClinicId !=
-                                null) {
-                          // Connected clinicId is set but model not yet loaded
-                          // Force a light refresh to fetch clinic
-                          userProvider.refresh();
-                        }
-
-                        // Check if user needs clinic connection (for pet owners)
-                        if (userProvider.isPetOwner &&
-                            !userProvider.hasClinicConnection &&
-                            !userProvider
-                                .currentUser!
-                                .hasSkippedClinicSelection) {
-                          return const ClinicSelectionPage();
-                        }
-
-                        // Route users based on their type
-                        if (userProvider.isAppOwner) {
-                          // App owners get the special admin dashboard
-                          return const AdminDashboard();
-                        }
-
-                        if (userProvider.isClinicAdmin) {
-                          // Clinic admins manage their clinic and vets
-                          return const ClinicAdminDashboard();
-                        }
-
-                        if (userProvider.isVet) {
-                          // Check if vet needs to set display name
-                          if (userProvider.currentUser?.displayName.isEmpty ??
-                              true) {
-                            return const DisplayNameSetupPage();
+                        builder: (context, userProvider, child) {
+                          if (userProvider.isLoading) {
+                            return const Scaffold(
+                              body: Center(child: CircularProgressIndicator()),
+                            );
                           }
-                          // Simple vet home (placeholder) – show clinic info and work areas
-                          return const VetHomePage();
-                        }
 
-                        // Pet owners and vets use the main app experience
-                        return MyHomePage(title: 'VetPlus');
-                      },
-                    ),
+                          if (userProvider.error != null) {
+                            return Scaffold(
+                              body: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.error,
+                                      size: 64,
+                                      color: Colors.red,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text('Error: ${userProvider.error}'),
+                                    SizedBox(height: 16),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        // Try to reload user profile
+                                        final user =
+                                            FirebaseAuth.instance.currentUser;
+                                        if (user != null) {
+                                          userProvider.refresh();
+                                        }
+                                      },
+                                      child: Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          // Check if user must change password (app-level gate)
+                          // Check if user needs onboarding
+                          if (userProvider.currentUser == null) {
+                            return const ClinicOnboardingPage();
+                          }
+
+                          // Display name is provided during admin creation; skip prompt
+
+                          // Ensure clinic admins are connected to their clinic
+                          // and trigger a refresh when linking just completed
+                          userProvider.ensureAdminConnectedToClinic();
+                          if (userProvider.isClinicAdmin &&
+                              userProvider.connectedClinic == null &&
+                              userProvider.currentUser?.connectedClinicId !=
+                                  null) {
+                            // Connected clinicId is set but model not yet loaded
+                            // Force a light refresh to fetch clinic
+                            userProvider.refresh();
+                          }
+
+                          // Check if user needs clinic connection (for pet owners)
+                          if (userProvider.isPetOwner &&
+                              !userProvider.hasClinicConnection &&
+                              !userProvider
+                                  .currentUser!
+                                  .hasSkippedClinicSelection) {
+                            return const ClinicSelectionPage();
+                          }
+
+                          // Route users based on their type
+                          if (userProvider.isAppOwner) {
+                            // App owners get the special admin dashboard
+                            return const AdminDashboard();
+                          }
+
+                          if (userProvider.isClinicAdmin) {
+                            // Clinic admins manage their clinic and vets
+                            return const ClinicAdminDashboard();
+                          }
+
+                          if (userProvider.isVet) {
+                            // Check if vet needs to set display name
+                            if (userProvider.currentUser?.displayName.isEmpty ??
+                                true) {
+                              return const DisplayNameSetupPage();
+                            }
+                            // Simple vet home (placeholder) – show clinic info and work areas
+                            return const VetHomePage();
+                          }
+
+                          if (userProvider.isReceptionist) {
+                            // Check if receptionist needs to set display name
+                            if (userProvider.currentUser?.displayName.isEmpty ??
+                                true) {
+                              return const DisplayNameSetupPage();
+                            }
+                            // Receptionist home with dashboard, patients, and chats
+                            return const ReceptionistHomePage();
+                          }
+
+                          // Pet owners use the main app experience
+                          return MyHomePage(title: 'VetPlus');
+                        },
+                      ),
                     ),
                   );
                 },

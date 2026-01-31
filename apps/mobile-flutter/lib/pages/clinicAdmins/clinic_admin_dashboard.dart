@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
+import 'receptionist_management_page.dart';
 import '../petOwners/profile_page.dart';
 import '../petOwners/settings_page.dart';
 
@@ -340,13 +341,19 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         },
       ),
       _buildActionCard(
-        icon: Icons.analytics,
-        title: 'Clinic Reports',
-        subtitle: 'Track analytics',
+        icon: Icons.support_agent,
+        title: 'Manage Receptionists',
+        subtitle: 'Invite and manage staff',
         color: AppTheme.primary,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Clinic reports coming soon')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChangeNotifierProvider.value(
+                value: userProvider,
+                child: const ReceptionistManagementPage(),
+              ),
+            ),
           );
         },
       ),

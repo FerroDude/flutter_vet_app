@@ -72,15 +72,18 @@ class _ChatPageState extends State<ChatPage> {
           });
         }
       }
-    } else if (userProvider.isVet || userProvider.isClinicAdmin) {
+    } else if (userProvider.isVet ||
+        userProvider.isClinicAdmin ||
+        userProvider.isReceptionist) {
       final clinicId = userProvider.connectedClinic?.id;
-      if (clinicId != null && clinicId != _lastClinicId) {
+      final userId = userProvider.currentUser?.id;
+      if (clinicId != null && userId != null && clinicId != _lastClinicId) {
         _lastClinicId = clinicId;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           chatProvider.initializeChatRooms(
             clinicId: clinicId,
-            vetId: userProvider.isVet ? userProvider.currentUser?.id : null,
-            isAdmin: userProvider.isClinicAdmin,
+            // All staff see their own accepted chats + pending requests
+            vetId: userId,
           );
         });
       }
@@ -255,8 +258,11 @@ class _ChatPageState extends State<ChatPage> {
 
     var chatRooms = chatProvider.chatRooms;
 
-    // For vets/admins, also show pending requests
-    var pendingRequests = userProvider.isVet || userProvider.isClinicAdmin
+    // For vets/admins/receptionists, also show pending requests
+    var pendingRequests =
+        userProvider.isVet ||
+            userProvider.isClinicAdmin ||
+            userProvider.isReceptionist
         ? chatProvider.pendingRequests
         : const <ChatRoom>[];
 
@@ -327,7 +333,9 @@ class _ChatPageState extends State<ChatPage> {
       padding: EdgeInsets.all(AppTheme.spacing4),
       children: [
         if (pendingRequests.isNotEmpty &&
-            (userProvider.isVet || userProvider.isClinicAdmin)) ...[
+            (userProvider.isVet ||
+                userProvider.isClinicAdmin ||
+                userProvider.isReceptionist)) ...[
           Text(
             'Chat requests',
             style: TextStyle(
@@ -401,7 +409,10 @@ class _ChatPageState extends State<ChatPage> {
           ),
         );
       },
-      onLongPress: (userProvider.isVet || userProvider.isClinicAdmin)
+      onLongPress:
+          (userProvider.isVet ||
+              userProvider.isClinicAdmin ||
+              userProvider.isReceptionist)
           ? () => _showChatOptionsMenu(chatRoom, chatProvider, userProvider)
           : null,
       borderRadius: BorderRadius.circular(AppTheme.radius4),
@@ -563,7 +574,9 @@ class _ChatPageState extends State<ChatPage> {
                 onPressed: () => _confirmCancelRequest(chatRoom, chatProvider),
                 child: const Text('Cancel'),
               )
-            else if (userProvider.isVet || userProvider.isClinicAdmin)
+            else if (userProvider.isVet ||
+                userProvider.isClinicAdmin ||
+                userProvider.isReceptionist)
               IconButton(
                 icon: const Icon(Icons.more_vert, color: AppTheme.neutral700),
                 onPressed: () =>
@@ -659,12 +672,15 @@ class _ChatPageState extends State<ChatPage> {
       await chatProvider.initializeChatRooms(
         petOwnerId: userProvider.currentUser?.id,
       );
-    } else if (userProvider.isVet || userProvider.isClinicAdmin) {
-      if (userProvider.connectedClinic?.id != null) {
+    } else if (userProvider.isVet ||
+        userProvider.isClinicAdmin ||
+        userProvider.isReceptionist) {
+      final clinicId = userProvider.connectedClinic?.id;
+      final userId = userProvider.currentUser?.id;
+      if (clinicId != null && userId != null) {
         await chatProvider.initializeChatRooms(
-          clinicId: userProvider.connectedClinic?.id,
-          vetId: userProvider.isVet ? userProvider.currentUser?.id : null,
-          isAdmin: userProvider.isClinicAdmin,
+          clinicId: clinicId,
+          vetId: userId,
         );
       }
     }

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/appointment_request_provider.dart';
 import '../../shared/widgets/notification_badge.dart';
 import 'dashboard_page.dart';
 import 'calendar_page_wrapper.dart';
 import 'calendar_page.dart';
-import 'chat_page_wrapper.dart';
+import 'clinic_page.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -23,7 +24,7 @@ class MyHomePageState extends State<MyHomePage> {
   final List<Widget> _pages = [
     const DashboardPage(),
     const CalendarPageWrapper(),
-    const ChatPageWrapper(),
+    const ClinicPage(),
   ];
 
   @override
@@ -32,20 +33,25 @@ class MyHomePageState extends State<MyHomePage> {
     _initializeChatIfNeeded();
   }
 
-  /// Initialize chat provider early so we can show unread badge
+  /// Initialize providers early so we can show unread badge
   void _initializeChatIfNeeded() {
     if (_chatInitialized) return;
-    
+
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    
+    final appointmentProvider = Provider.of<AppointmentRequestProvider>(
+      context,
+      listen: false,
+    );
+
     if (userProvider.isLoading) return;
-    
+
     final petOwnerId = userProvider.currentUser?.id;
     if (petOwnerId != null && userProvider.hasClinicConnection) {
       _chatInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         chatProvider.initializeChatRooms(petOwnerId: petOwnerId);
+        appointmentProvider.initializeForPetOwner(petOwnerId);
       });
     }
   }
@@ -62,8 +68,8 @@ class MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  /// Switch to the Chat tab (index 2)
-  void switchToChat() {
+  /// Switch to the Clinic tab (index 2)
+  void switchToClinic() {
     setState(() {
       _selectedIndex = 2;
     });
@@ -74,7 +80,7 @@ class MyHomePageState extends State<MyHomePage> {
     return Consumer<ChatProvider>(
       builder: (context, chatProvider, child) {
         final unreadCount = chatProvider.totalUnreadCount;
-        
+
         return Scaffold(
           body: _pages[_selectedIndex],
           bottomNavigationBar: BottomNavigationBar(
@@ -101,15 +107,12 @@ class MyHomePageState extends State<MyHomePage> {
                 label: 'Calendar',
               ),
               BottomNavigationBarItem(
-                icon: BadgedIcon(
-                  icon: Icons.chat,
-                  badgeCount: unreadCount,
-                ),
+                icon: BadgedIcon(icon: Icons.business, badgeCount: unreadCount),
                 activeIcon: BadgedIcon(
-                  icon: Icons.chat,
+                  icon: Icons.business,
                   badgeCount: unreadCount,
                 ),
-                label: 'Chat',
+                label: 'Clinic',
               ),
             ],
           ),

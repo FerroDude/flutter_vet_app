@@ -7,21 +7,21 @@ import '../../models/clinic_models.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
 
-class VetManagementPage extends StatefulWidget {
-  const VetManagementPage({super.key});
+class ReceptionistManagementPage extends StatefulWidget {
+  const ReceptionistManagementPage({super.key});
 
   @override
-  State<VetManagementPage> createState() => _VetManagementPageState();
+  State<ReceptionistManagementPage> createState() => _ReceptionistManagementPageState();
 }
 
-class _VetManagementPageState extends State<VetManagementPage> {
+class _ReceptionistManagementPageState extends State<ReceptionistManagementPage> {
   bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        if (!userProvider.canManageVets) {
+        if (!userProvider.canManageReceptionists) {
           return Container(
             decoration: const BoxDecoration(
               gradient: AppTheme.backgroundGradient,
@@ -30,7 +30,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               backgroundColor: Colors.transparent,
               appBar: AppBar(
                 title: Text(
-                  'Vet Management',
+                  'Receptionist Management',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
                 backgroundColor: Colors.transparent,
@@ -55,7 +55,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
             backgroundColor: Colors.transparent,
             appBar: AppBar(
               title: Text(
-                'Vet Management',
+                'Receptionist Management',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
               backgroundColor: Colors.transparent,
@@ -63,7 +63,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               elevation: 0,
               actions: [
                 IconButton(
-                  onPressed: () => _showAddVetDialog(context, userProvider),
+                  onPressed: () => _showAddReceptionistDialog(context, userProvider),
                   icon: const Icon(Icons.add),
                 ),
               ],
@@ -78,7 +78,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : _buildVetsList(userProvider),
+                  : _buildReceptionistsList(userProvider),
             ),
           ),
         );
@@ -86,26 +86,26 @@ class _VetManagementPageState extends State<VetManagementPage> {
     );
   }
 
-  Widget _buildVetsList(UserProvider userProvider) {
-    final vets = userProvider.clinicMembers
-        .where((m) => m.role == ClinicRole.vet && m.isActive)
+  Widget _buildReceptionistsList(UserProvider userProvider) {
+    final receptionists = userProvider.clinicMembers
+        .where((m) => m.role == ClinicRole.receptionist && m.isActive)
         .toList();
 
     return ListView(
       padding: EdgeInsets.all(AppTheme.spacing4),
       children: [
-        // Pending invites section FIRST (more important when no active vets)
+        // Pending invites section FIRST (more important when no active receptionists)
         _buildInvitesSection(userProvider),
         
         Gap(AppTheme.spacing6),
         
-        // Section header for active vets
+        // Section header for active receptionists
         Row(
           children: [
-            Icon(Icons.medical_services_outlined, color: Colors.white, size: 18.sp),
+            Icon(Icons.people_outline, color: Colors.white, size: 18.sp),
             Gap(AppTheme.spacing2),
             Text(
-              'Active Veterinarians',
+              'Active Receptionists',
               style: TextStyle(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
@@ -120,7 +120,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                '${vets.length}',
+                '${receptionists.length}',
                 style: TextStyle(
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
@@ -132,8 +132,8 @@ class _VetManagementPageState extends State<VetManagementPage> {
         ),
         Gap(AppTheme.spacing3),
         
-        // Vets list or empty state
-        if (vets.isEmpty)
+        // Receptionists list or empty state
+        if (receptionists.isEmpty)
           _buildGlassyContainer(
             child: Padding(
               padding: EdgeInsets.all(AppTheme.spacing4),
@@ -147,7 +147,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                   Gap(AppTheme.spacing2),
                   Expanded(
                     child: Text(
-                      'No active veterinarians yet',
+                      'No active receptionists yet',
                       style: TextStyle(
                         fontSize: 13.sp,
                         color: Colors.white.withValues(alpha: 0.7),
@@ -159,9 +159,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
             ),
           )
         else
-          ...List.generate(vets.length, (index) {
-            final vet = vets[index];
-            return _buildGlassyVetCard(vet, userProvider);
+          ...List.generate(receptionists.length, (index) {
+            final receptionist = receptionists[index];
+            return _buildGlassyReceptionistCard(receptionist, userProvider);
           }),
       ],
     );
@@ -194,7 +194,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               .collection('clinics')
               .doc(clinicId)
               .collection('invites')
-              .where('role', isEqualTo: 'vet')
+              .where('role', isEqualTo: 'receptionist')
               .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
@@ -301,8 +301,8 @@ class _VetManagementPageState extends State<VetManagementPage> {
     );
   }
 
-  Widget _buildGlassyVetCard(ClinicMember vet, UserProvider userProvider) {
-    final isActive = vet.isActive;
+  Widget _buildGlassyReceptionistCard(ClinicMember receptionist, UserProvider userProvider) {
+    final isActive = receptionist.isActive;
 
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
@@ -331,7 +331,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                Icons.medical_services,
+                Icons.support_agent,
                 color: isActive
                     ? AppTheme.brandTeal
                     : Colors.white.withValues(alpha: 0.5),
@@ -351,10 +351,10 @@ class _VetManagementPageState extends State<VetManagementPage> {
                         child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                           future: FirebaseFirestore.instance
                               .collection('users')
-                              .doc(vet.userId)
+                              .doc(receptionist.userId)
                               .get(),
                           builder: (context, snapshot) {
-                            String name = 'Veterinarian';
+                            String name = 'Receptionist';
                             if (snapshot.hasData && snapshot.data!.exists) {
                               final data = snapshot.data!.data();
                               final displayName = data?['displayName'] as String?;
@@ -394,7 +394,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                       ),
                       Gap(4.w),
                       Text(
-                        'Added ${_formatDate(vet.addedAt)}',
+                        'Added ${_formatDate(receptionist.addedAt)}',
                         style: TextStyle(
                           fontSize: 12.sp,
                           color: Colors.white.withValues(alpha: 0.6),
@@ -409,7 +409,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
             // Actions
             _buildGlassyIconButton(
               icon: Icons.more_vert,
-              onTap: () => _showVetActions(vet, userProvider),
+              onTap: () => _showReceptionistActions(receptionist, userProvider),
             ),
           ],
         ),
@@ -643,7 +643,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
     );
   }
 
-  void _showVetActions(ClinicMember vet, UserProvider userProvider) {
+  void _showReceptionistActions(ClinicMember receptionist, UserProvider userProvider) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -658,6 +658,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Handle bar
                 Container(
                   width: 40,
                   height: 4,
@@ -667,7 +668,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                if (vet.isActive)
+                
+                // Actions
+                if (receptionist.isActive)
                   _buildActionTile(
                     icon: Icons.pause_circle_outline,
                     label: 'Deactivate',
@@ -675,7 +678,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     color: Colors.orange,
                     onTap: () {
                       Navigator.pop(sheetContext);
-                      _toggleVetStatus(vet, userProvider);
+                      _toggleReceptionistStatus(receptionist, userProvider);
                     },
                   )
                 else
@@ -686,7 +689,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     color: AppTheme.success,
                     onTap: () {
                       Navigator.pop(sheetContext);
-                      _toggleVetStatus(vet, userProvider);
+                      _toggleReceptionistStatus(receptionist, userProvider);
                     },
                   ),
                 Gap(AppTheme.spacing2),
@@ -697,7 +700,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                   color: AppTheme.error,
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _showRemoveVetDialog(vet, userProvider);
+                    _showRemoveReceptionistDialog(receptionist, userProvider);
                   },
                 ),
                 Gap(AppTheme.spacing2),
@@ -876,7 +879,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                         Navigator.pop(sheetContext);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
-                          final ok = await userProvider.revokeVetInvite(email);
+                          final ok = await userProvider.revokeReceptionistInvite(email);
                           if (!mounted) return;
                           messenger.showSnackBar(
                             SnackBar(
@@ -916,7 +919,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
     );
   }
 
-  void _showAddVetDialog(BuildContext context, UserProvider userProvider) {
+  void _showAddReceptionistDialog(BuildContext context, UserProvider userProvider) {
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -953,7 +956,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     ),
                   ),
                   Text(
-                    'Add New Veterinarian',
+                    'Add New Receptionist',
                     style: TextStyle(
                       fontSize: 20.sp,
                       fontWeight: FontWeight.bold,
@@ -962,7 +965,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                   ),
                   Gap(AppTheme.spacing2),
                   Text(
-                    'Enter the email address of the vet you want to add.',
+                    'Enter the email address of the receptionist you want to add.',
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: Colors.white.withValues(alpha: 0.7),
@@ -991,7 +994,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                       keyboardType: TextInputType.emailAddress,
                       style: TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'vet@example.com',
+                        hintText: 'receptionist@example.com',
                         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                         prefixIcon: Icon(
                           Icons.email_outlined,
@@ -1037,7 +1040,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
                               Navigator.pop(sheetContext);
-                              await _addVet(emailController.text.trim(), userProvider);
+                              await _addReceptionist(emailController.text.trim(), userProvider);
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -1063,11 +1066,11 @@ class _VetManagementPageState extends State<VetManagementPage> {
     );
   }
 
-  Future<void> _addVet(String email, UserProvider userProvider) async {
+  Future<void> _addReceptionist(String email, UserProvider userProvider) async {
     setState(() => _isLoading = true);
 
     try {
-      final success = await userProvider.inviteVetByEmail(email);
+      final success = await userProvider.inviteReceptionistByEmail(email);
 
       if (!mounted) return;
 
@@ -1079,7 +1082,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
           ),
         );
       } else {
-        final errorMessage = userProvider.error ?? 'Failed to invite vet.';
+        final errorMessage = userProvider.error ?? 'Failed to invite receptionist.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage), backgroundColor: AppTheme.error),
         );
@@ -1091,15 +1094,15 @@ class _VetManagementPageState extends State<VetManagementPage> {
     }
   }
 
-  Future<void> _toggleVetStatus(
-    ClinicMember vet,
+  Future<void> _toggleReceptionistStatus(
+    ClinicMember receptionist,
     UserProvider userProvider,
   ) async {
     try {
-      final action = vet.isActive ? 'deactivated' : 'activated';
+      final action = receptionist.isActive ? 'deactivated' : 'activated';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Vet $action successfully'),
+          content: Text('Receptionist $action successfully'),
           backgroundColor: AppTheme.success,
         ),
       );
@@ -1113,7 +1116,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
     }
   }
 
-  void _showRemoveVetDialog(ClinicMember vet, UserProvider userProvider) {
+  void _showRemoveReceptionistDialog(ClinicMember receptionist, UserProvider userProvider) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1150,7 +1153,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               ),
               Gap(AppTheme.spacing4),
               Text(
-                'Remove Veterinarian',
+                'Remove Receptionist',
                 style: TextStyle(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.bold,
@@ -1159,7 +1162,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
               ),
               Gap(AppTheme.spacing2),
               Text(
-                'Are you sure you want to remove this vet? They will lose access to all clinic features.',
+                'Are you sure you want to remove this receptionist? They will lose access to all clinic features.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14.sp,
@@ -1188,7 +1191,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(sheetContext);
-                        _removeVet(vet, userProvider);
+                        _removeReceptionist(receptionist, userProvider);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.error,
@@ -1211,16 +1214,16 @@ class _VetManagementPageState extends State<VetManagementPage> {
     );
   }
 
-  Future<void> _removeVet(ClinicMember vet, UserProvider userProvider) async {
+  Future<void> _removeReceptionist(ClinicMember receptionist, UserProvider userProvider) async {
     setState(() => _isLoading = true);
 
     try {
-      final success = await userProvider.removeMemberFromClinic(vet.userId);
+      final success = await userProvider.removeMemberFromClinic(receptionist.userId);
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Vet removed successfully'),
+            content: Text('Receptionist removed successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1229,7 +1232,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to remove vet: $e'),
+            content: Text('Failed to remove receptionist: $e'),
             backgroundColor: AppTheme.error,
           ),
         );

@@ -6,7 +6,7 @@ service cloud.firestore {
     }
 
     // UserType enum indices (see lib/models/clinic_models.dart)
-    // petOwner=0, vet=1, clinicAdmin=2, appOwner=3
+    // petOwner=0, vet=1, clinicAdmin=2, appOwner=3, receptionist=4
     function isAppOwner() {
       return isSignedIn() && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 3 ||
@@ -19,18 +19,18 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid));
     }
 
-    // ClinicRole enum indices (admin=0, vet=1)
+    // ClinicRole enum indices (admin=0, vet=1, receptionist=2)
     function isClinicAdmin(clinicId) {
       return isSignedIn() &&
         get(/databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid)).data.role == 0;
     }
 
     function isTempUser(userId) {
-      return userId.matches('^_?temp_(admin|account|vet)_.+');
+      return userId.matches('^_?temp_(admin|account|vet|receptionist)_.+');
     }
 
     function isClinicAdminPlaceholder(adminId) {
-      return adminId.matches('^_?temp_(admin|account|vet)_.+');
+      return adminId.matches('^_?temp_(admin|account|vet|receptionist)_.+');
     }
 
     function profileIsClinicAdmin(clinicId) {
@@ -88,6 +88,12 @@ service cloud.firestore {
           resource.data.userType == 0 &&
           resource.data.connectedClinicId != null &&
           isClinicMember(resource.data.connectedClinicId)
+        ) ||
+        // Clinic admins can read profiles of users who are members of their clinic
+        // (even if their connectedClinicId was cleared after removal)
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.connectedClinicId != null &&
+          exists(/databases/$(database)/documents/clinics/$(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.connectedClinicId)/members/$(userId))
         )
       );
 
@@ -95,7 +101,7 @@ service cloud.firestore {
         request.auth.uid == userId ||
         isAppOwner() ||
         (
-          request.resource.data.keys().hasOnly([
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'email',
             'userType',
             'clinicRole',
@@ -117,7 +123,7 @@ service cloud.firestore {
         )
         || (
           // Allow clinic admin to unlink a user from their clinic
-          request.resource.data.keys().hasOnly([
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'connectedClinicId', 'clinicRole', 'updatedAt'
           ]) &&
           resource.data.connectedClinicId != null &&
@@ -270,7 +276,7 @@ service cloud.firestore {
         
         // Allow admins to toggle isActive or permissions even if already inactive
         allow update: if isAppOwner() || ((isClinicAdmin(clinicId) || profileIsClinicAdmin(clinicId)) &&
-          request.resource.data.keys().hasOnly(['isActive', 'lastActive', 'permissions'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive', 'lastActive', 'permissions'])
         );
         
         // Allow deleting member docs:
@@ -302,18 +308,15 @@ service cloud.firestore {
       );
 
       // Read: participants can always read. Additionally, clinic members
-      // (vets/admins) can read pending chat requests for their clinic so they
-      // can see and accept them.
+      // (vets/admins/receptionists) can read all chat rooms for their clinic
+      // to handle pending requests, find existing chats, and manage communications.
       //
       // ChatRoomStatus enum indices (see lib/models/chat_models.dart):
       // pending=0, active=1, closed=2
       allow read: if isSignedIn() && (
         resource.data.petOwnerId == request.auth.uid ||
         resource.data.vetId == request.auth.uid ||
-        (
-          resource.data.status == 0 && // pending request
-          isClinicMember(resource.data.clinicId)
-        )
+        isClinicMember(resource.data.clinicId)
       );
 
       // Update/delete:
@@ -336,11 +339,45 @@ service cloud.firestore {
       );
 
       match /messages/{messageId} {
+        // Allow participants and clinic members to access messages
         allow create, read, update, delete: if isSignedIn() && (
           get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.petOwnerId == request.auth.uid ||
-          get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.vetId == request.auth.uid
+          get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.vetId == request.auth.uid ||
+          isClinicMember(get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.clinicId)
         );
       }
+    }
+
+    // Appointment requests from pet owners to clinics
+    // AppointmentRequestStatus enum indices:
+    // pending=0, confirmed=1, denied=2, cancelled=3
+    match /appointmentRequests/{requestId} {
+      // Create: only pet owners can create requests for themselves
+      allow create: if isSignedIn() &&
+        request.resource.data.petOwnerId == request.auth.uid;
+
+      // Read: pet owner can read their own, clinic members can read clinic requests
+      allow read: if isSignedIn() && (
+        resource.data.petOwnerId == request.auth.uid ||
+        isClinicMember(resource.data.clinicId)
+      );
+
+      // Update: 
+      // - Pet owners can only cancel their own pending requests
+      // - Clinic members can confirm/deny requests
+      allow update: if isSignedIn() && (
+        // Pet owner cancelling their own pending request
+        (
+          resource.data.petOwnerId == request.auth.uid &&
+          resource.data.status == 0 && // pending
+          request.resource.data.status == 3 // cancelled
+        ) ||
+        // Clinic members can confirm/deny/link chat
+        isClinicMember(resource.data.clinicId)
+      );
+
+      // Delete: only app owners can delete (for cleanup)
+      allow delete: if isAppOwner();
     }
 
     // Collection group query rules for invites

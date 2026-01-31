@@ -31,30 +31,30 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: AppTheme.backgroundGradient,
-      ),
+      decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await Future.delayed(const Duration(milliseconds: 500));
-            if (mounted) setState(() {});
-          },
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await Future.delayed(const Duration(milliseconds: 500));
+              if (mounted) setState(() {});
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(context)),
+                SliverToBoxAdapter(child: _buildUnreadMessagesCard(context)),
+                SliverToBoxAdapter(child: _buildMyPetsSection(context)),
+                SliverToBoxAdapter(
+                  child: _buildActiveMedicationsSection(context),
+                ),
+                SliverToBoxAdapter(child: _buildTodaySection(context)),
+                SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
+              ],
             ),
-            slivers: [
-              SliverToBoxAdapter(child: _buildHeader(context)),
-              SliverToBoxAdapter(child: _buildUnreadMessagesCard(context)),
-              SliverToBoxAdapter(child: _buildMyPetsSection(context)),
-              SliverToBoxAdapter(child: _buildActiveMedicationsSection(context)),
-              SliverToBoxAdapter(child: _buildTodaySection(context)),
-              SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
-            ],
-          ),
           ),
         ),
       ),
@@ -93,7 +93,11 @@ class _DashboardPageState extends State<DashboardPage> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.settings_outlined, size: 24.sp, color: Colors.white),
+            icon: Icon(
+              Icons.settings_outlined,
+              size: 24.sp,
+              color: Colors.white,
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -114,7 +118,7 @@ class _DashboardPageState extends State<DashboardPage> {
     return Consumer<ChatProvider>(
       builder: (context, chatProvider, child) {
         final unreadCount = chatProvider.totalUnreadCount;
-        
+
         // Don't show if no unread messages
         if (unreadCount <= 0) {
           return const SizedBox.shrink();
@@ -127,9 +131,10 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           child: InkWell(
             onTap: () {
-              // Navigate to chat tab
-              final homeState = context.findAncestorStateOfType<MyHomePageState>();
-              homeState?.switchToChat();
+              // Navigate to clinic tab
+              final homeState = context
+                  .findAncestorStateOfType<MyHomePageState>();
+              homeState?.switchToClinic();
             },
             borderRadius: BorderRadius.circular(AppTheme.radius4),
             child: Container(
@@ -144,9 +149,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(AppTheme.radius4),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -475,7 +478,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   itemCount: meds.length,
                   itemBuilder: (context, index) {
                     final med = meds[index];
-                    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    return FutureBuilder<
+                      DocumentSnapshot<Map<String, dynamic>>
+                    >(
                       future: FirebaseFirestore.instance
                           .collection('users')
                           .doc(FirebaseAuth.instance.currentUser?.uid)
@@ -637,9 +642,7 @@ class _PetCard extends StatelessWidget {
               ),
               child: Container(
                 width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppTheme.neutral100,
-                ),
+                decoration: BoxDecoration(color: AppTheme.neutral100),
                 child: Center(
                   child: Icon(
                     Icons.pets,
@@ -698,22 +701,26 @@ class _PetCard extends StatelessWidget {
                               .collection('pets')
                               .doc(petId);
 
-                        // Pass providers to the new route
-                        final eventProvider = context.read<EventProvider>();
-                        final userProvider = context.read<UserProvider>();
+                          // Pass providers to the new route
+                          final eventProvider = context.read<EventProvider>();
+                          final userProvider = context.read<UserProvider>();
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => MultiProvider(
-                              providers: [
-                                ChangeNotifierProvider.value(value: eventProvider),
-                                ChangeNotifierProvider.value(value: userProvider),
-                              ],
-                              child: PetDetailsPage(petRef: petRef),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MultiProvider(
+                                providers: [
+                                  ChangeNotifierProvider.value(
+                                    value: eventProvider,
+                                  ),
+                                  ChangeNotifierProvider.value(
+                                    value: userProvider,
+                                  ),
+                                ],
+                                child: PetDetailsPage(petRef: petRef),
+                              ),
                             ),
-                          ),
-                        );
+                          );
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -755,14 +762,14 @@ class _EventCard extends StatelessWidget {
     final petId = event.petId;
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (petId == null || userId == null) return '';
-    
+
     final doc = await FirebaseFirestore.instance
         .collection('users')
         .doc(userId)
         .collection('pets')
         .doc(petId)
         .get();
-    
+
     if (doc.exists && doc.data() != null) {
       return doc.data()!['name'] as String? ?? '';
     }
@@ -789,7 +796,7 @@ class _EventCard extends StatelessWidget {
       future: _loadPetName(),
       builder: (context, snapshot) {
         final petName = snapshot.data ?? '';
-        
+
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,

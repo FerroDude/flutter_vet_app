@@ -21,7 +21,7 @@ class ChatMessage {
   final String chatId;
   final String senderId;
   final String senderName;
-  final String senderRole; // 'pet_owner', 'vet', 'admin'
+  final String senderRole; // 'pet_owner', 'vet', 'admin', 'receptionist'
   final String content;
   final MessageType type;
   final MessageStatus status;
@@ -201,6 +201,8 @@ class ChatRoom {
   final String? topic; // Optional chat topic
   final ChatRoomStatus status;
   final String? requestDescription; // optional long description from pet owner
+  final String? initiatedBy; // 'pet_owner', 'vet', 'receptionist' - who started the chat
+  final String? staffRole; // Role of the staff member handling this chat
 
   const ChatRoom({
     required this.id,
@@ -218,6 +220,8 @@ class ChatRoom {
     this.topic,
     this.status = ChatRoomStatus.active,
     this.requestDescription,
+    this.initiatedBy,
+    this.staffRole,
   });
 
   factory ChatRoom.fromJson(Map<String, dynamic> json, String id) {
@@ -250,6 +254,8 @@ class ChatRoom {
       topic: json['topic'],
       status: safeStatus,
       requestDescription: json['requestDescription'],
+      initiatedBy: json['initiatedBy'],
+      staffRole: json['staffRole'],
     );
   }
 
@@ -269,6 +275,8 @@ class ChatRoom {
       'topic': topic,
       'status': status.index,
       'requestDescription': requestDescription,
+      'initiatedBy': initiatedBy,
+      'staffRole': staffRole,
     };
   }
 
@@ -287,6 +295,8 @@ class ChatRoom {
     String? topic,
     ChatRoomStatus? status,
     String? requestDescription,
+    String? initiatedBy,
+    String? staffRole,
   }) {
     return ChatRoom(
       id: id,
@@ -304,6 +314,8 @@ class ChatRoom {
       topic: topic ?? this.topic,
       status: status ?? this.status,
       requestDescription: requestDescription ?? this.requestDescription,
+      initiatedBy: initiatedBy ?? this.initiatedBy,
+      staffRole: staffRole ?? this.staffRole,
     );
   }
 

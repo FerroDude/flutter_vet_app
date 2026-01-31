@@ -6,6 +6,7 @@ import 'dart:async';
 import '../models/clinic_models.dart';
 import '../firebase_options.dart';
 import '../services/clinic_service.dart';
+import '../services/push_notification_service.dart';
 
 class UserProvider extends ChangeNotifier {
   final ClinicService _clinicService;
@@ -73,6 +74,55 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  /// Record a receptionist invitation by email for the connected clinic
+  Future<bool> inviteReceptionistByEmail(String email) async {
+    if (!canManageReceptionists || _connectedClinic == null) return false;
+
+    try {
+      _setLoading(true);
+
+      final normalizedEmail = email.trim().toLowerCase();
+      await _clinicService.createReceptionistInvite(
+        _connectedClinic!.id,
+        normalizedEmail,
+      );
+
+      // Provision an auth account (idempotent) and send a password reset email
+      try {
+        await provisionAuthAccountAndSendReset(normalizedEmail);
+      } catch (e) {
+        // Don't fail the invite if email sending fails; surface a soft error
+        developer.log(
+          'Failed to send reset for receptionist invite: $e',
+          name: 'UserProvider',
+        );
+      }
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('Failed to invite receptionist: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  /// Revoke a pending receptionist invite for the connected clinic
+  Future<bool> revokeReceptionistInvite(String email) async {
+    if (!canManageReceptionists || _connectedClinic == null) return false;
+    try {
+      final normalizedEmail = email.trim().toLowerCase();
+      await _clinicService.revokeReceptionistInvite(
+        _connectedClinic!.id,
+        normalizedEmail,
+      );
+      return true;
+    } catch (e) {
+      _setError('Failed to revoke receptionist invite: $e');
+      return false;
+    }
+  }
+
   // Getters
   UserProfile? get currentUser => _currentUser;
   Clinic? get connectedClinic => _connectedClinic;
@@ -85,12 +135,18 @@ class UserProvider extends ChangeNotifier {
   bool get isVet => _currentUser?.isVet ?? false;
   bool get isClinicAdmin => _currentUser?.isClinicAdmin ?? false;
   bool get isAppOwner => _currentUser?.isAppOwner ?? false;
+  bool get isReceptionist => _currentUser?.isReceptionist ?? false;
   bool get hasClinicConnection => _currentUser?.hasClinicConnection ?? false;
 
   // Permission helpers
   bool get canManageVets => isClinicAdmin || isAppOwner;
-  bool get canViewClinicData => isVet || isClinicAdmin || isAppOwner;
+  bool get canManageReceptionists => isClinicAdmin || isAppOwner;
+  bool get canManageStaff =>
+      isClinicAdmin || isAppOwner; // Manages both vets and receptionists
+  bool get canViewClinicData =>
+      isVet || isClinicAdmin || isAppOwner || isReceptionist;
   bool get canCreateClinicAdmins => isAppOwner;
+  bool get canInitiateChats => isVet || isReceptionist || isClinicAdmin;
 
   void _init() {
     _authSub = _auth.authStateChanges().listen(_onAuthStateChanged);
@@ -135,6 +191,11 @@ class UserProvider extends ChangeNotifier {
 
     await _loadUserProfile(firebaseUser.uid);
 
+    // Save FCM token for push notifications after successful profile load
+    if (_currentUser != null) {
+      PushNotificationService().saveTokenForUser(firebaseUser.uid);
+    }
+
     // Note: Vet invite handling is done via temp profiles during _loadUserProfile
     // and _createInitialUserProfile, so no additional invite checking needed here.
   }
@@ -174,6 +235,13 @@ class UserProvider extends ChangeNotifier {
 
   void _clearUserData() {
     if (_isDisposed) return;
+
+    // Clear FCM token before clearing user data
+    final userId = _currentUser?.id;
+    if (userId != null) {
+      PushNotificationService().clearTokenForUser(userId);
+    }
+
     _currentUser = null;
     _connectedClinic = null;
     _clinicMembers = [];
@@ -210,11 +278,12 @@ class UserProvider extends ChangeNotifier {
           _currentUser = updatedProfile;
         }
 
-        // If user is not yet a clinic admin or vet, check for temp profiles by email (case-insensitive)
+        // If user is not yet a clinic admin, vet, or receptionist, check for temp profiles by email (case-insensitive)
         final signedInEmail = (_auth.currentUser?.email ?? '').trim();
         if (signedInEmail.isNotEmpty &&
             _currentUser!.userType != UserType.clinicAdmin &&
-            _currentUser!.userType != UserType.vet) {
+            _currentUser!.userType != UserType.vet &&
+            _currentUser!.userType != UserType.receptionist) {
           final emailLower = signedInEmail.toLowerCase();
           final emailToken = emailLower
               .replaceAll('@', '_')
@@ -222,6 +291,7 @@ class UserProvider extends ChangeNotifier {
               .replaceAll('+', '_');
           final tempAdminId = 'temp_admin_$emailToken';
           final tempVetId = 'temp_vet_$emailToken';
+          final tempReceptionistId = 'temp_receptionist_$emailToken';
 
           developer.log(
             'Link-check: looking for temp admin profile $tempAdminId',
@@ -329,6 +399,73 @@ class UserProvider extends ChangeNotifier {
                   name: 'UserProvider',
                 );
               }
+            } else {
+              // Check for receptionist invite
+              developer.log(
+                'Link-check: looking for temp receptionist profile $tempReceptionistId',
+                name: 'UserProvider',
+              );
+
+              tempProfile = await _clinicService.getUserProfile(
+                tempReceptionistId,
+              );
+              if (tempProfile != null &&
+                  tempProfile.userType == UserType.receptionist &&
+                  tempProfile.connectedClinicId != null) {
+                final linkedClinicId = tempProfile.connectedClinicId!;
+
+                // Ensure membership
+                await _clinicService.ensureReceptionistMembershipFor(
+                  linkedClinicId,
+                  _currentUser!.id,
+                  tempReceptionistId: tempReceptionistId,
+                );
+
+                // Upgrade profile to receptionist and connect clinic
+                // Keep displayName empty so receptionist can set it on first login
+                final upgraded = _currentUser!.copyWith(
+                  userType: UserType.receptionist,
+                  clinicRole: ClinicRole.receptionist,
+                  connectedClinicId: linkedClinicId,
+                  displayName: '', // Empty - receptionist will set their own
+                  updatedAt: DateTime.now(),
+                );
+                await _clinicService.updateUserProfile(upgraded);
+                _currentUser = upgraded;
+                await _loadConnectedClinic(linkedClinicId);
+                if (!_isDisposed) notifyListeners();
+
+                // Delete the invite document now that user has logged in
+                try {
+                  await _clinicService.deleteReceptionistInvite(
+                    linkedClinicId,
+                    signedInEmail,
+                  );
+                  developer.log(
+                    'Deleted receptionist invite for: $signedInEmail',
+                    name: 'UserProvider',
+                  );
+                } catch (e) {
+                  developer.log(
+                    'Failed to delete receptionist invite (will ignore): $e',
+                    name: 'UserProvider',
+                  );
+                }
+
+                // Best-effort delete temp user doc
+                try {
+                  await _clinicService.deleteUserDocOnly(tempReceptionistId);
+                  developer.log(
+                    'Deleted temporary receptionist user doc: $tempReceptionistId',
+                    name: 'UserProvider',
+                  );
+                } catch (e) {
+                  developer.log(
+                    'Failed to delete temp receptionist user doc (will ignore): $e',
+                    name: 'UserProvider',
+                  );
+                }
+              }
             }
           }
         }
@@ -373,6 +510,7 @@ class UserProvider extends ChangeNotifier {
           .replaceAll('+', '_');
       final tempAdminId = 'temp_admin_$emailToken';
       final tempVetId = 'temp_vet_$emailToken';
+      final tempReceptionistId = 'temp_receptionist_$emailToken';
 
       developer.log(
         'Checking for temp admin profile with ID: $tempAdminId',
@@ -469,10 +607,64 @@ class UserProvider extends ChangeNotifier {
             }
           }
         } else {
+          // Check for receptionist invite
           developer.log(
-            'No existing admin or vet profile found for email: $email',
+            'No temp vet found, checking for temp receptionist profile with ID: $tempReceptionistId',
             name: 'UserProvider',
           );
+
+          existingProfile = await _clinicService.getUserProfile(
+            tempReceptionistId,
+          );
+
+          if (existingProfile != null &&
+              existingProfile.userType == UserType.receptionist) {
+            developer.log(
+              'Found existing receptionist profile for email: $email',
+              name: 'UserProvider',
+            );
+
+            // This user is a receptionist that was invited by a clinic admin
+            userType = UserType.receptionist;
+            connectedClinicId = existingProfile.connectedClinicId;
+            clinicRole = ClinicRole.receptionist;
+
+            // Establish membership and link to clinic
+            if (connectedClinicId != null) {
+              developer.log(
+                'Ensuring real receptionist membership',
+                name: 'UserProvider',
+              );
+
+              await _clinicService.ensureReceptionistMembershipFor(
+                connectedClinicId,
+                userId,
+                tempReceptionistId: tempReceptionistId,
+              );
+
+              // Delete the invite document now that user has logged in for the first time
+              try {
+                await _clinicService.deleteReceptionistInvite(
+                  connectedClinicId,
+                  email,
+                );
+                developer.log(
+                  'Deleted receptionist invite for: $email',
+                  name: 'UserProvider',
+                );
+              } catch (e) {
+                developer.log(
+                  'Failed to delete receptionist invite (will ignore): $e',
+                  name: 'UserProvider',
+                );
+              }
+            }
+          } else {
+            developer.log(
+              'No existing admin, vet, or receptionist profile found for email: $email',
+              name: 'UserProvider',
+            );
+          }
         }
       }
 
@@ -483,6 +675,9 @@ class UserProvider extends ChangeNotifier {
         displayName = existingProfile.displayName;
       } else if (userType == UserType.vet && existingProfile != null) {
         // Vets should set their own name - use empty string
+        displayName = '';
+      } else if (userType == UserType.receptionist && existingProfile != null) {
+        // Receptionists should set their own name - use empty string
         displayName = '';
       } else {
         // Pet owners and others use Firebase display name or 'User'
@@ -516,6 +711,20 @@ class UserProvider extends ChangeNotifier {
         } catch (e) {
           developer.log(
             'Failed to delete temp vet user doc (will ignore): $e',
+            name: 'UserProvider',
+          );
+        }
+      } else if (userType == UserType.receptionist && existingProfile != null) {
+        final tempReceptionistId = 'temp_receptionist_$emailToken';
+        try {
+          await _clinicService.deleteUserDocOnly(tempReceptionistId);
+          developer.log(
+            'Deleted temporary receptionist user doc: $tempReceptionistId',
+            name: 'UserProvider',
+          );
+        } catch (e) {
+          developer.log(
+            'Failed to delete temp receptionist user doc (will ignore): $e',
             name: 'UserProvider',
           );
         }

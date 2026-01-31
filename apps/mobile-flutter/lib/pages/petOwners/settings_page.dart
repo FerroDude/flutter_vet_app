@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
 import '../../services/clinic_service.dart';
 import '../../services/media_cache_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../models/clinic_models.dart';
 import 'profile_page.dart';
 
@@ -21,11 +22,113 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String _cacheSize = 'Calculating...';
+  bool _notificationsEnabled = false;
+  bool _notificationsLoading = true;
+  bool _notificationsToggling = false;
 
   @override
   void initState() {
     super.initState();
     _loadCacheSize();
+    _loadNotificationStatus();
+  }
+
+  Future<void> _loadNotificationStatus() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      setState(() {
+        _notificationsLoading = false;
+      });
+      return;
+    }
+
+    try {
+      final pushService = PushNotificationService();
+      final enabled = await pushService.hasNotificationsEnabled(userId);
+      if (mounted) {
+        setState(() {
+          _notificationsEnabled = enabled;
+          _notificationsLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _notificationsLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleNotifications(bool enable) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    setState(() {
+      _notificationsToggling = true;
+    });
+
+    try {
+      final pushService = PushNotificationService();
+      bool success;
+
+      if (enable) {
+        success = await pushService.enableNotifications(userId);
+        if (!success && mounted) {
+          // Permission was denied - show message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Notification permission denied. Please enable notifications in your device settings.',
+              ),
+              backgroundColor: AppTheme.error,
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Open app settings
+                  pushService.getNotificationSettings();
+                },
+              ),
+            ),
+          );
+        }
+      } else {
+        success = await pushService.disableNotifications(userId);
+      }
+
+      if (mounted) {
+        setState(() {
+          if (success) {
+            _notificationsEnabled = enable;
+          }
+          _notificationsToggling = false;
+        });
+
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                enable ? 'Notifications enabled' : 'Notifications disabled',
+              ),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _notificationsToggling = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update notification settings'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadCacheSize() async {
@@ -71,9 +174,7 @@ class _SettingsPageState extends State<SettingsPage> {
         widget.injectedUserProvider ?? context.read<UserProvider>();
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: AppTheme.backgroundGradient,
-      ),
+      decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -88,161 +189,155 @@ class _SettingsPageState extends State<SettingsPage> {
               return ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                if (user != null)
-                  _buildProfileHeader(context, user, userProvider),
+                  if (user != null)
+                    _buildProfileHeader(context, user, userProvider),
 
-                Gap(AppTheme.spacing3),
+                  Gap(AppTheme.spacing3),
 
-                // Only show clinic section for non-app owners
-                // App owners are never connected to clinics
-                if (!userProvider.isAppOwner)
-                  _buildSection(context, 'Account', [
+                  // Only show clinic section for non-app owners
+                  // App owners are never connected to clinics
+                  if (!userProvider.isAppOwner)
+                    _buildSection(context, 'Account', [
+                      _buildTile(
+                        context,
+                        icon: Icons.local_hospital_outlined,
+                        title: 'Connected Clinic',
+                        subtitle:
+                            userProvider.connectedClinic?.name ??
+                            'Not connected',
+                        onTap: () => _showClinicDetails(context, userProvider),
+                      ),
+                    ]),
+
+                  _buildSection(context, 'Preferences', [
+                    _buildNotificationTile(context),
                     _buildTile(
                       context,
-                      icon: Icons.local_hospital_outlined,
-                      title: 'Connected Clinic',
-                      subtitle:
-                          userProvider.connectedClinic?.name ?? 'Not connected',
-                      onTap: () => _showClinicDetails(context, userProvider),
+                      icon: Icons.language_outlined,
+                      title: 'Language',
+                      subtitle: 'English',
+                      onTap: () {},
                     ),
                   ]),
 
-                _buildSection(context, 'Preferences', [
-                  _buildSwitchTile(
-                    context,
-                    icon: Icons.notifications_outlined,
-                    title: 'Notifications',
-                    subtitle: 'Appointments and reminders',
-                    value: true,
-                    onChanged: (value) {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.language_outlined,
-                    title: 'Language',
-                    subtitle: 'English',
-                    onTap: () {},
-                  ),
-                ]),
+                  _buildSection(context, 'Storage', [
+                    _buildTile(
+                      context,
+                      icon: Icons.folder_outlined,
+                      title: 'Cache',
+                      subtitle: _cacheSize,
+                      onTap: _showCacheDetails,
+                    ),
+                  ]),
 
-                _buildSection(context, 'Storage', [
-                  _buildTile(
-                    context,
-                    icon: Icons.folder_outlined,
-                    title: 'Cache',
-                    subtitle: _cacheSize,
-                    onTap: _showCacheDetails,
-                  ),
-                ]),
+                  _buildSection(context, 'Support', [
+                    _buildTile(
+                      context,
+                      icon: Icons.help_outline,
+                      title: 'Help Center',
+                      onTap: () {},
+                    ),
+                    _buildTile(
+                      context,
+                      icon: Icons.chat_bubble_outline,
+                      title: 'Contact Us',
+                      onTap: () {},
+                    ),
+                    _buildTile(
+                      context,
+                      icon: Icons.star_outline,
+                      title: 'Rate App',
+                      onTap: () {},
+                    ),
+                  ]),
 
-                _buildSection(context, 'Support', [
-                  _buildTile(
-                    context,
-                    icon: Icons.help_outline,
-                    title: 'Help Center',
-                    onTap: () {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.chat_bubble_outline,
-                    title: 'Contact Us',
-                    onTap: () {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.star_outline,
-                    title: 'Rate App',
-                    onTap: () {},
-                  ),
-                ]),
+                  _buildSection(context, 'About', [
+                    _buildTile(
+                      context,
+                      icon: Icons.policy_outlined,
+                      title: 'Privacy Policy',
+                      onTap: () {},
+                    ),
+                    _buildTile(
+                      context,
+                      icon: Icons.description_outlined,
+                      title: 'Terms of Service',
+                      onTap: () {},
+                    ),
+                    _buildTile(
+                      context,
+                      icon: Icons.info_outline,
+                      title: 'App Version',
+                      subtitle: '1.0.0',
+                      onTap: null,
+                    ),
+                  ]),
 
-                _buildSection(context, 'About', [
-                  _buildTile(
-                    context,
-                    icon: Icons.policy_outlined,
-                    title: 'Privacy Policy',
-                    onTap: () {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.description_outlined,
-                    title: 'Terms of Service',
-                    onTap: () {},
-                  ),
-                  _buildTile(
-                    context,
-                    icon: Icons.info_outline,
-                    title: 'App Version',
-                    subtitle: '1.0.0',
-                    onTap: null,
-                  ),
-                ]),
-
-                Padding(
-                  padding: EdgeInsets.all(AppTheme.spacing4),
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final shouldSignOut = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Sign Out'),
-                          content: const Text(
-                            'Are you sure you want to sign out?',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel'),
+                  Padding(
+                    padding: EdgeInsets.all(AppTheme.spacing4),
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final shouldSignOut = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Sign Out'),
+                            content: const Text(
+                              'Are you sure you want to sign out?',
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppTheme.error,
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancel'),
                               ),
-                              child: const Text('Sign Out'),
-                            ),
-                          ],
-                        ),
-                      );
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppTheme.error,
+                                ),
+                                child: const Text('Sign Out'),
+                              ),
+                            ],
+                          ),
+                        );
 
-                      if (shouldSignOut == true && context.mounted) {
-                        await FirebaseAuth.instance.signOut();
-                        if (context.mounted) {
-                          Navigator.of(
-                            context,
-                          ).pushNamedAndRemoveUntil('/', (route) => false);
+                        if (shouldSignOut == true && context.mounted) {
+                          await FirebaseAuth.instance.signOut();
+                          if (context.mounted) {
+                            Navigator.of(
+                              context,
+                            ).pushNamedAndRemoveUntil('/', (route) => false);
+                          }
                         }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.error,
-                      elevation: 2,
-                      shadowColor: Colors.black.withValues(alpha: 0.1),
-                      padding: EdgeInsets.symmetric(
-                        vertical: AppTheme.spacing3,
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppTheme.error,
+                        elevation: 2,
+                        shadowColor: Colors.black.withValues(alpha: 0.1),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius2),
+                          side: BorderSide(color: AppTheme.error, width: 1.5),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radius2),
-                        side: BorderSide(color: AppTheme.error, width: 1.5),
-                      ),
-                    ),
-                    child: Text(
-                      'Sign Out',
-                      style: TextStyle(
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w600,
+                      child: Text(
+                        'Sign Out',
+                        style: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                Gap(AppTheme.spacing6),
-              ],
-            );
-          },
+                  Gap(AppTheme.spacing6),
+                ],
+              );
+            },
+          ),
         ),
-      ),
       ),
     );
   }
@@ -254,8 +349,9 @@ class _SettingsPageState extends State<SettingsPage> {
   ) {
     final rawName = user.displayName ?? '';
     final email = user.email ?? '';
-    final displayName =
-        rawName.isNotEmpty ? rawName : (email.isNotEmpty ? email : 'User');
+    final displayName = rawName.isNotEmpty
+        ? rawName
+        : (email.isNotEmpty ? email : 'User');
     final initialSource = displayName.isNotEmpty ? displayName : 'U';
 
     return GestureDetector(
@@ -280,7 +376,7 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             CircleAvatar(
               radius: 32.r,
-              backgroundColor: AppTheme.neutral800.withValues(alpha:0.1),
+              backgroundColor: AppTheme.neutral800.withValues(alpha: 0.1),
               child: Text(
                 initialSource[0].toUpperCase(),
                 style: TextStyle(
@@ -323,7 +419,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _showClinicDetails(BuildContext context, UserProvider userProvider) {
     final clinic = userProvider.connectedClinic;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -356,13 +452,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   // Title
                   Text(
                     'Connected Clinic',
-                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: Theme.of(sheetContext).textTheme.titleLarge
+                        ?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                   ),
                   SizedBox(height: AppTheme.spacing4),
-                  
+
                   if (clinic != null) ...[
                     // Clinic details card
                     Container(
@@ -381,8 +478,12 @@ class _SettingsPageState extends State<SettingsPage> {
                               Container(
                                 padding: EdgeInsets.all(AppTheme.spacing3),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(AppTheme.radius2),
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.radius2,
+                                  ),
                                 ),
                                 child: Icon(
                                   Icons.local_hospital,
@@ -410,7 +511,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.success.withValues(alpha: 0.1),
+                                        color: AppTheme.success.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -433,8 +536,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             Gap(AppTheme.spacing2),
                             Row(
                               children: [
-                                Icon(Icons.location_on_outlined, 
-                                  size: 18.sp, 
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 18.sp,
                                   color: AppTheme.neutral700,
                                 ),
                                 Gap(AppTheme.spacing2),
@@ -454,8 +558,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             Gap(AppTheme.spacing2),
                             Row(
                               children: [
-                                Icon(Icons.phone_outlined, 
-                                  size: 18.sp, 
+                                Icon(
+                                  Icons.phone_outlined,
+                                  size: 18.sp,
                                   color: AppTheme.neutral700,
                                 ),
                                 Gap(AppTheme.spacing2),
@@ -473,8 +578,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             Gap(AppTheme.spacing2),
                             Row(
                               children: [
-                                Icon(Icons.email_outlined, 
-                                  size: 18.sp, 
+                                Icon(
+                                  Icons.email_outlined,
+                                  size: 18.sp,
                                   color: AppTheme.neutral700,
                                 ),
                                 Gap(AppTheme.spacing2),
@@ -505,11 +611,17 @@ class _SettingsPageState extends State<SettingsPage> {
                           icon: Icon(Icons.swap_horiz),
                           label: Text('Connect to Different Clinic'),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppTheme.spacing3,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius2,
+                              ),
                             ),
                           ),
                         ),
@@ -544,9 +656,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           Gap(AppTheme.spacing2),
                           Text(
-                            userProvider.isVet 
-                              ? 'Please contact your clinic administrator'
-                              : 'Connect to a veterinary clinic to access their services',
+                            userProvider.isVet
+                                ? 'Please contact your clinic administrator'
+                                : 'Connect to a veterinary clinic to access their services',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14.sp,
@@ -571,9 +683,13 @@ class _SettingsPageState extends State<SettingsPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: AppTheme.primary,
-                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppTheme.spacing3,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius2,
+                              ),
                             ),
                           ),
                         ),
@@ -589,7 +705,10 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showChangeClinicDialog(BuildContext context, UserProvider userProvider) {
+  void _showChangeClinicDialog(
+    BuildContext context,
+    UserProvider userProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -599,7 +718,7 @@ class _SettingsPageState extends State<SettingsPage> {
           userProvider: userProvider,
           onClinicSelected: (clinic) async {
             Navigator.pop(sheetContext);
-            
+
             // Show loading
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -607,17 +726,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 duration: Duration(seconds: 1),
               ),
             );
-            
+
             // Try to connect
             final success = await userProvider.connectToClinic(clinic.id);
-            
+
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    success 
-                      ? 'Successfully connected to ${clinic.name}!' 
-                      : 'Failed to connect. Please try again.',
+                    success
+                        ? 'Successfully connected to ${clinic.name}!'
+                        : 'Failed to connect. Please try again.',
                   ),
                   backgroundColor: success ? AppTheme.success : AppTheme.error,
                 ),
@@ -741,14 +860,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSwitchTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
+  Widget _buildNotificationTile(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: AppTheme.spacing4,
@@ -756,38 +868,54 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 22.sp, color: AppTheme.neutral800),
+          Icon(
+            _notificationsEnabled
+                ? Icons.notifications_active
+                : Icons.notifications_outlined,
+            size: 22.sp,
+            color: AppTheme.neutral800,
+          ),
           Gap(AppTheme.spacing3),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  'Notifications',
                   style: TextStyle(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w400,
                     color: AppTheme.primary,
                   ),
                 ),
-                if (subtitle != null) ...[
-                  Gap(2.h),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      color: AppTheme.neutral700,
-                    ),
-                  ),
-                ],
+                Gap(2.h),
+                Text(
+                  _notificationsLoading
+                      ? 'Checking status...'
+                      : _notificationsEnabled
+                      ? 'Enabled - Receive updates and reminders'
+                      : 'Disabled - No push notifications',
+                  style: TextStyle(fontSize: 13.sp, color: AppTheme.neutral700),
+                ),
               ],
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppTheme.neutral800,
-          ),
+          if (_notificationsLoading || _notificationsToggling)
+            SizedBox(
+              width: 24.w,
+              height: 24.w,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.primary,
+              ),
+            )
+          else
+            Switch(
+              value: _notificationsEnabled,
+              onChanged: _toggleNotifications,
+              activeColor: AppTheme.brandTeal,
+              activeTrackColor: AppTheme.brandTeal.withValues(alpha: 0.3),
+            ),
         ],
       ),
     );
@@ -837,11 +965,13 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
         nameQuery: query,
         limit: 50,
       );
-      
+
       // Filter out the currently connected clinic
       final currentClinicId = widget.userProvider.connectedClinic?.id;
-      final filteredClinics = clinics.where((c) => c.id != currentClinicId).toList();
-      
+      final filteredClinics = clinics
+          .where((c) => c.id != currentClinicId)
+          .toList();
+
       setState(() {
         _clinics = filteredClinics;
         _isLoading = false;
@@ -870,14 +1000,17 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
             child: Container(
               width: 40,
               height: 4,
-              margin: EdgeInsets.only(top: AppTheme.spacing4, bottom: AppTheme.spacing3),
+              margin: EdgeInsets.only(
+                top: AppTheme.spacing4,
+                bottom: AppTheme.spacing3,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-          
+
           // Title and search
           Padding(
             padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
@@ -900,7 +1033,7 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
                   ),
                 ),
                 SizedBox(height: AppTheme.spacing4),
-                
+
                 // Search field
                 Container(
                   decoration: BoxDecoration(
@@ -928,13 +1061,11 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
               ],
             ),
           ),
-          
+
           SizedBox(height: AppTheme.spacing4),
-          
+
           // Clinic list
-          Expanded(
-            child: _buildClinicList(),
-          ),
+          Expanded(child: _buildClinicList()),
         ],
       ),
     );
@@ -954,7 +1085,11 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48.sp, color: Colors.white.withValues(alpha: 0.5)),
+            Icon(
+              Icons.error_outline,
+              size: 48.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
             Gap(AppTheme.spacing3),
             Text(
               _error!,
@@ -962,7 +1097,9 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
             ),
             Gap(AppTheme.spacing3),
             TextButton(
-              onPressed: () => _loadClinics(_searchController.text.isEmpty ? null : _searchController.text),
+              onPressed: () => _loadClinics(
+                _searchController.text.isEmpty ? null : _searchController.text,
+              ),
               child: Text('Try Again', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -975,7 +1112,11 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_hospital_outlined, size: 48.sp, color: Colors.white.withValues(alpha: 0.5)),
+            Icon(
+              Icons.local_hospital_outlined,
+              size: 48.sp,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
             Gap(AppTheme.spacing3),
             Text(
               _searchController.text.isEmpty
@@ -1054,11 +1195,7 @@ class _ClinicSearchSheetState extends State<_ClinicSearchSheet> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: AppTheme.neutral700,
-              size: 20.sp,
-            ),
+            Icon(Icons.chevron_right, color: AppTheme.neutral700, size: 20.sp),
           ],
         ),
       ),
@@ -1079,7 +1216,8 @@ class _CacheDetailsSheet extends StatefulWidget {
 class _CacheDetailsSheetState extends State<_CacheDetailsSheet> {
   Map<String, CacheTypeInfo>? _cacheInfo;
   bool _isLoading = true;
-  String? _clearingType; // null = not clearing, 'all' = clearing all, or specific type
+  String?
+  _clearingType; // null = not clearing, 'all' = clearing all, or specific type
 
   @override
   void initState() {
@@ -1365,12 +1503,16 @@ class _CacheDetailsSheetState extends State<_CacheDetailsSheet> {
                           )
                         : const Icon(Icons.delete_sweep),
                     label: Text(
-                      _clearingType == 'all' ? 'Clearing...' : 'Clear All Cache',
+                      _clearingType == 'all'
+                          ? 'Clearing...'
+                          : 'Clear All Cache',
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.error,
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                      padding: EdgeInsets.symmetric(
+                        vertical: AppTheme.spacing3,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radius2),
                       ),
@@ -1466,10 +1608,7 @@ class _CacheDetailsSheetState extends State<_CacheDetailsSheet> {
             else
               Text(
                 'Empty',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: AppTheme.neutral500,
-                ),
+                style: TextStyle(fontSize: 12.sp, color: AppTheme.neutral500),
               ),
           ],
         ),

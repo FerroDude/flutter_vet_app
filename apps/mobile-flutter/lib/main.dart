@@ -11,6 +11,7 @@ import 'services/clinic_service.dart';
 import 'services/cache_service.dart';
 import 'services/chat_service.dart';
 import 'services/media_cache_service.dart';
+import 'services/push_notification_service.dart';
 
 import 'core/auth/auth_wrapper.dart';
 
@@ -30,8 +31,16 @@ void main() async {
   final notificationService = NotificationService();
   await notificationService.initialize();
 
+  // Initialize push notifications (FCM)
+  final pushNotificationService = PushNotificationService();
+  await pushNotificationService.initialize();
+
   runApp(
-    MyApp(cacheService: cacheService, notificationService: notificationService),
+    MyApp(
+      cacheService: cacheService,
+      notificationService: notificationService,
+      pushNotificationService: pushNotificationService,
+    ),
   );
 }
 
@@ -40,10 +49,12 @@ class MyApp extends StatelessWidget {
     super.key,
     required this.cacheService,
     required this.notificationService,
+    required this.pushNotificationService,
   });
 
   final CacheService cacheService;
   final NotificationService notificationService;
+  final PushNotificationService pushNotificationService;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +68,9 @@ class MyApp extends StatelessWidget {
             ChangeNotifierProvider(create: (context) => ThemeManager()),
             Provider<CacheService>.value(value: cacheService),
             Provider<NotificationService>.value(value: notificationService),
+            Provider<PushNotificationService>.value(
+              value: pushNotificationService,
+            ),
             Provider<ClinicService>(create: (context) => ClinicService()),
             Provider<ChatService>(create: (context) => ChatService()),
           ],

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as developer;
 import '../../providers/user_provider.dart';
 import '../../models/clinic_models.dart';
+import '../../services/clinic_service.dart';
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
 import 'app_owner_stats.dart';
@@ -2243,28 +2244,183 @@ class _AdminDashboardState extends State<AdminDashboard> {
           children: [
             Icon(Icons.business, color: AppTheme.neutral700),
             const SizedBox(width: 8),
-            Text(clinic.name),
+            Expanded(child: Text(clinic.name)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailRow('Address', clinic.address),
-            _buildDetailRow('Phone', clinic.phone),
-            _buildDetailRow('Email', clinic.email),
-            _buildDetailRow('Status', clinic.isActive ? 'Active' : 'Inactive'),
-            _buildDetailRow('Created', _formatDate(clinic.createdAt)),
-            if (clinic.website != null)
-              _buildDetailRow('Website', clinic.website!),
-            if (clinic.description != null)
-              _buildDetailRow('Description', clinic.description!),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Address', clinic.address),
+              _buildDetailRow('Phone', clinic.phone),
+              _buildDetailRow('Email', clinic.email),
+              _buildDetailRow('Status', clinic.isActive ? 'Active' : 'Inactive'),
+              _buildDetailRow('Created', _formatDate(clinic.createdAt)),
+              if (clinic.website != null)
+                _buildDetailRow('Website', clinic.website!),
+              if (clinic.description != null)
+                _buildDetailRow('Description', clinic.description!),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Staff Management',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppTheme.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAddStaffDialog(context, clinic, 'vet');
+                      },
+                      icon: const Icon(Icons.medical_services, size: 18),
+                      label: const Text('Add Vet'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showAddStaffDialog(context, clinic, 'receptionist');
+                      },
+                      icon: const Icon(Icons.support_agent, size: 18),
+                      label: const Text('Add Receptionist'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddStaffDialog(BuildContext context, Clinic clinic, String role) {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final roleName = role == 'vet' ? 'Vet' : 'Receptionist';
+    final userProvider = context.read<UserProvider>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              role == 'vet' ? Icons.medical_services : Icons.support_agent,
+              color: AppTheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text('Add $roleName to ${clinic.name}'),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter the email address of the $roleName you want to add.',
+                style: TextStyle(color: AppTheme.neutral700),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email Address',
+                  hintText: '$role@example.com',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: const OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Email is required';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final email = emailController.text.trim().toLowerCase();
+                Navigator.pop(dialogContext);
+
+                try {
+                  // Temporarily set the connected clinic for the invite
+                  // This is a workaround since the app owner may not be connected to this clinic
+                  final clinicService = ClinicService();
+                  
+                  if (role == 'vet') {
+                    await clinicService.createVetInvite(clinic.id, email);
+                  } else {
+                    await clinicService.createReceptionistInvite(clinic.id, email);
+                  }
+
+                  // Try to send password reset email
+                  try {
+                    await userProvider.provisionAuthAccountAndSendReset(email);
+                  } catch (_) {}
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$roleName invite sent to $email'),
+                        backgroundColor: AppTheme.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to add $roleName: $e'),
+                        backgroundColor: AppTheme.error,
+                      ),
+                    );
+                  }
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Add $roleName'),
           ),
         ],
       ),

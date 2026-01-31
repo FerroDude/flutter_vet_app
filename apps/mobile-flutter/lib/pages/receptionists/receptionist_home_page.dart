@@ -3,37 +3,38 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/appointment_request_provider.dart';
 import '../../shared/widgets/notification_badge.dart';
-import 'vet_dashboard_page.dart';
-import 'vet_patients_page.dart';
-import '../petOwners/chat_page.dart';
+import 'receptionist_dashboard_page.dart';
+import 'receptionist_clinic_page.dart';
+import '../vets/vet_patients_page.dart';
 
-class VetHomePage extends StatefulWidget {
-  const VetHomePage({super.key});
+class ReceptionistHomePage extends StatefulWidget {
+  const ReceptionistHomePage({super.key});
 
   @override
-  State<VetHomePage> createState() => VetHomePageState();
+  State<ReceptionistHomePage> createState() => ReceptionistHomePageState();
 }
 
-/// Made public so child widgets can access switchToChat() and switchToPatients()
-class VetHomePageState extends State<VetHomePage> {
+/// Made public so child widgets can access navigation methods
+class ReceptionistHomePageState extends State<ReceptionistHomePage> {
   int _selectedIndex = 0;
-  bool _chatInitialized = false;
+  bool _providersInitialized = false;
 
   final List<Widget> _pages = const [
-    VetDashboardPage(),
-    VetPatientsPage(),
-    ChatPage(),
+    ReceptionistDashboardPage(),
+    VetPatientsPage(), // Reuse the patients page from vets
+    ReceptionistClinicPage(), // Unified chats + appointments
   ];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _initializeChatIfNeeded();
+    _initializeProvidersIfNeeded();
   }
 
-  /// Switch to the Chat tab (index 2)
-  void switchToChat() {
+  /// Switch to the Clinic tab (index 2)
+  void switchToClinic() {
     setState(() {
       _selectedIndex = 2;
     });
@@ -46,37 +47,45 @@ class VetHomePageState extends State<VetHomePage> {
     });
   }
 
-  /// Initialize chat provider early so we can show unread badge
-  void _initializeChatIfNeeded() {
-    if (_chatInitialized) return;
+  /// Initialize chat and appointment providers early so we can show badges
+  void _initializeProvidersIfNeeded() {
+    if (_providersInitialized) return;
 
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final appointmentProvider = Provider.of<AppointmentRequestProvider>(
+      context,
+      listen: false,
+    );
 
     if (userProvider.isLoading) return;
 
     final clinicId = userProvider.connectedClinic?.id;
     final userId = userProvider.currentUser?.id;
     if (clinicId != null && userId != null) {
-      _chatInitialized = true;
+      _providersInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         chatProvider.initializeChatRooms(
           clinicId: clinicId,
-          // Vets see their own accepted chats + pending requests
+          // Receptionists see their own accepted chats + pending requests
           vetId: userId,
         );
+        appointmentProvider.initializeForReceptionist(clinicId);
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ChatProvider>(
-      builder: (context, chatProvider, child) {
+    return Consumer2<ChatProvider, AppointmentRequestProvider>(
+      builder: (context, chatProvider, appointmentProvider, child) {
         final unreadCount = chatProvider.totalUnreadCount;
-        // Also count pending requests for vets
-        final pendingCount = chatProvider.pendingRequests.length;
-        final totalBadge = unreadCount + pendingCount;
+        // Count pending chat requests
+        final pendingChatCount = chatProvider.pendingRequests.length;
+        // Count pending appointment requests
+        final pendingAppointmentCount = appointmentProvider.pendingCount;
+        final totalBadge =
+            unreadCount + pendingChatCount + pendingAppointmentCount;
 
         return Scaffold(
           body: _pages[_selectedIndex],
@@ -101,12 +110,12 @@ class VetHomePageState extends State<VetHomePage> {
                 label: 'Patients',
               ),
               BottomNavigationBarItem(
-                icon: BadgedIcon(icon: Icons.chat, badgeCount: totalBadge),
+                icon: BadgedIcon(icon: Icons.business, badgeCount: totalBadge),
                 activeIcon: BadgedIcon(
-                  icon: Icons.chat,
+                  icon: Icons.business,
                   badgeCount: totalBadge,
                 ),
-                label: 'Chats',
+                label: 'Clinic',
               ),
             ],
           ),

@@ -849,6 +849,47 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  /// STAFF-INITIATED CHAT ///
+
+  /// Staff (vet or receptionist) initiates a chat with a pet owner
+  /// This creates a new chat or finds an existing one and assigns the staff member
+  Future<String?> startChatWithPatient({
+    required String clinicId,
+    required String staffId,
+    required String staffName,
+    required String staffRole, // 'vet' or 'receptionist'
+    required String petOwnerId,
+    required String petOwnerName,
+    List<String>? petIds,
+    String? topic,
+    String? initialMessage,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final chatRoomId = await _chatService.createStaffInitiatedChat(
+        clinicId: clinicId,
+        staffId: staffId,
+        staffName: staffName,
+        staffRole: staffRole,
+        petOwnerId: petOwnerId,
+        petOwnerName: petOwnerName,
+        petIds: petIds,
+        topic: topic,
+        initialMessage: initialMessage,
+      );
+
+      _setLoading(false);
+      return chatRoomId;
+    } catch (e) {
+      _setLoading(false);
+      _setError('Failed to start chat with patient: $e');
+      developer.log('Failed to start chat with patient: $e', name: 'ChatProvider');
+      return null;
+    }
+  }
+
   /// Delete/close a chat room (removes for both vet and pet owner)
   Future<bool> deleteChatRoom(String chatRoomId) async {
     try {

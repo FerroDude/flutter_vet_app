@@ -95,6 +95,90 @@ class ChatService {
     }
   }
 
+  /// Create a chat room initiated by clinic staff (vet or receptionist)
+  /// to proactively contact a pet owner.
+  /// This finds an existing chat or creates a new one with the staff member assigned.
+  Future<String> createStaffInitiatedChat({
+    required String clinicId,
+    required String staffId,
+    required String staffName,
+    required String staffRole, // 'vet' or 'receptionist'
+    required String petOwnerId,
+    required String petOwnerName,
+    List<String>? petIds,
+    String? topic,
+    String? initialMessage,
+  }) async {
+    try {
+      // Check if a chat already exists between this pet owner and the clinic
+      // We look for any active chat with this pet owner in this clinic
+      final existingChat = await _chatRoomsCollection
+          .where('clinicId', isEqualTo: clinicId)
+          .where('petOwnerId', isEqualTo: petOwnerId)
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      String chatRoomId;
+      
+      if (existingChat.docs.isNotEmpty) {
+        // Use existing chat room
+        chatRoomId = existingChat.docs.first.id;
+        
+        // Update the chat room to assign this staff member if not already assigned
+        final chatData = existingChat.docs.first.data() as Map<String, dynamic>;
+        if (chatData['vetId'] == null || chatData['vetId'] == '') {
+          await _chatRoomsCollection.doc(chatRoomId).update({
+            'vetId': staffId,
+            'vetName': staffName,
+            'staffRole': staffRole,
+            'status': ChatRoomStatus.active.index,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } else {
+        // Create new chat room with staff assigned
+        final now = DateTime.now();
+        final chatRoom = ChatRoom(
+          id: '',
+          clinicId: clinicId,
+          petOwnerId: petOwnerId,
+          petOwnerName: petOwnerName,
+          vetId: staffId,
+          vetName: staffName,
+          petIds: petIds ?? [],
+          unreadCounts: {},
+          createdAt: now,
+          updatedAt: now,
+          topic: topic ?? 'New conversation',
+          status: ChatRoomStatus.active,
+          initiatedBy: staffRole, // Track who initiated the chat
+        );
+
+        final docRef = await _chatRoomsCollection.add({
+          ...chatRoom.toJson(),
+          'staffRole': staffRole,
+          'initiatedBy': staffRole,
+        });
+        chatRoomId = docRef.id;
+      }
+
+      // Send initial message if provided
+      if (initialMessage != null && initialMessage.isNotEmpty) {
+        await sendMessage(
+          chatRoomId: chatRoomId,
+          content: initialMessage,
+          senderName: staffName,
+          senderRole: staffRole,
+        );
+      }
+
+      return chatRoomId;
+    } catch (e) {
+      throw Exception('Failed to create staff-initiated chat: $e');
+    }
+  }
+
   // Get chat rooms for a vet
   Future<List<ChatRoom>> getVetChatRooms(String vetId) async {
     try {
