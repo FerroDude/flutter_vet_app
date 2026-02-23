@@ -877,6 +877,7 @@ Index 2: ClinicPage (Clinic Communication - Chats & Appointments)
 ```
 
 The **ClinicPage** combines chat conversations and appointment requests in a unified feed with:
+
 - Filter chips: All, Chats, Appointments (with badge counts)
 - Combined feed sorted by pending items first, then recent activity
 - Chat cards with unread indicators and pet info
@@ -893,6 +894,7 @@ Index 2: ReceptionistClinicPage (Unified Chats & Appointments)
 ```
 
 The **ReceptionistClinicPage** mirrors the pet owner's ClinicPage but with staff-specific actions:
+
 - Filter chips: All, Chats, Appointments (with badge counts for pending items)
 - Chat request cards with "Accept" button
 - Appointment request cards with Deny/Chat/Confirm actions
@@ -1081,19 +1083,19 @@ Pet Owner sees status update in their ClinicPage
 class AppointmentRequestService {
   // Create new request (pet owner)
   Future<String> createRequest({...});
-  
+
   // Streams for real-time updates
   Stream<List<AppointmentRequest>> clinicPendingRequestsStream(clinicId);
   Stream<List<AppointmentRequest>> clinicAllRequestsStream(clinicId);
   Stream<List<AppointmentRequest>> petOwnerRequestsStream(petOwnerId);
-  
+
   // Staff actions
   Future<void> confirmRequest({requestId, handledBy, handledByName, message});
   Future<void> denyRequest({requestId, handledBy, handledByName, message});
-  
+
   // Pet owner actions
   Future<void> cancelRequest(requestId);
-  
+
   // Link chat room to request
   Future<void> linkChatRoom({requestId, chatRoomId});
 }
@@ -1107,7 +1109,7 @@ class AppointmentRequestProvider extends ChangeNotifier {
   List<AppointmentRequest> get allRequests;      // All statuses (receptionist)
   List<AppointmentRequest> get myRequests;       // Pet owner's requests
   int get pendingCount;
-  
+
   // Initialize based on role
   void initializeForReceptionist(clinicId);
   void initializeForPetOwner(petOwnerId);
@@ -1383,6 +1385,30 @@ Required composite indexes for queries:
   ]
 }
 ```
+
+## Appendix C: Testing Playbook
+
+Use `docs/TESTING_CHECKLIST.md` as the source of truth for feature validation before release.
+
+### Push Notifications Validation
+
+- Validate FCM behavior on physical devices (emulators/simulators are not sufficient for reliable push delivery).
+- Verify notification permission toggles in settings for all roles.
+- Verify appointment and chat notification flows end to end.
+
+### Appointment Flow Validation
+
+- Pet owner: create request, view request in Clinic tab, cancel request.
+- Receptionist: view pending requests, confirm/deny requests, open chat from appointment.
+- Confirm canceled requests are deleted and no longer visible in feeds.
+
+### Test Environment Deployment Order
+
+Before end-to-end validation, deploy backend changes in this order:
+
+1. `firebase deploy --only firestore:indexes`
+2. `firebase deploy --only firestore:rules`
+3. `firebase deploy --only functions`
 
 ---
 
