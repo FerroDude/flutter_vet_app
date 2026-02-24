@@ -1,25 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
 
+Stream<int> petCountStream(FirebaseFirestore firestore, String userId) {
+  if (userId.isEmpty) return Stream.value(0);
+  return firestore
+      .collection('users')
+      .doc(userId)
+      .collection('pets')
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+}
+
+Stream<int> appointmentCountStream(FirebaseFirestore firestore, String userId) {
+  if (userId.isEmpty) return Stream.value(0);
+  return firestore
+      .collection('appointmentRequests')
+      .where('petOwnerId', isEqualTo: userId)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+}
+
+Stream<int> recordCountStream(FirebaseFirestore firestore, String userId) {
+  if (userId.isEmpty) return Stream.value(0);
+  return firestore
+      .collectionGroup('symptoms')
+      .where('ownerId', isEqualTo: userId)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.length);
+}
+
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key, required this.injectedUserProvider});
+  ProfilePage({
+    super.key,
+    required this.injectedUserProvider,
+    FirebaseFirestore? firestore,
+  }) : firestore = firestore ?? FirebaseFirestore.instance;
 
   final UserProvider injectedUserProvider;
+  final FirebaseFirestore firestore;
 
   @override
   Widget build(BuildContext context) {
     final authUser = FirebaseAuth.instance.currentUser;
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: AppTheme.backgroundGradient,
-      ),
+      decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -29,9 +61,7 @@ class ProfilePage extends StatelessWidget {
           actions: [
             IconButton(
               icon: Icon(Icons.edit_outlined, color: Colors.white),
-              onPressed: () {
-                // missing Navigate to edit profile
-              },
+              onPressed: () => _showEditProfileDialog(context),
             ),
           ],
         ),
@@ -41,74 +71,75 @@ class ProfilePage extends StatelessWidget {
             builder: (context, userProvider, child) {
               final profile = userProvider.currentUser;
               final clinic = userProvider.connectedClinic;
+              final userId = profile?.id ?? authUser?.uid ?? '';
 
               return ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                _buildProfileHeader(context, authUser, profile),
+                  _buildProfileHeader(context, authUser, profile, userId),
 
-                if (clinic != null) ...[
+                  if (clinic != null) ...[
+                    Gap(AppTheme.spacing3),
+                    _buildSection(context, 'Connected Clinic', [
+                      _buildInfoRow(
+                        context,
+                        Icons.business,
+                        'Clinic',
+                        clinic.name,
+                      ),
+                      if (clinic.address.isNotEmpty)
+                        _buildInfoRow(
+                          context,
+                          Icons.location_on_outlined,
+                          'Address',
+                          clinic.address,
+                        ),
+                      if (clinic.phone.isNotEmpty)
+                        _buildInfoRow(
+                          context,
+                          Icons.phone_outlined,
+                          'Phone',
+                          clinic.phone,
+                        ),
+                      if (clinic.email.isNotEmpty)
+                        _buildInfoRow(
+                          context,
+                          Icons.email_outlined,
+                          'Email',
+                          clinic.email,
+                        ),
+                    ]),
+                  ],
+
                   Gap(AppTheme.spacing3),
-                  _buildSection(context, 'Connected Clinic', [
+                  _buildSection(context, 'Account Information', [
                     _buildInfoRow(
                       context,
-                      Icons.business,
-                      'Clinic',
-                      clinic.name,
+                      Icons.email_outlined,
+                      'Email',
+                      profile?.email ?? authUser?.email ?? 'Not set',
                     ),
-                    if (clinic.address.isNotEmpty)
+                    _buildInfoRow(
+                      context,
+                      Icons.shield_outlined,
+                      'Account Type',
+                      _getUserTypeLabel(profile?.globalType),
+                    ),
+                    if (profile?.createdAt != null)
                       _buildInfoRow(
                         context,
-                        Icons.location_on_outlined,
-                        'Address',
-                        clinic.address,
-                      ),
-                    if (clinic.phone.isNotEmpty)
-                      _buildInfoRow(
-                        context,
-                        Icons.phone_outlined,
-                        'Phone',
-                        clinic.phone,
-                      ),
-                    if (clinic.email.isNotEmpty)
-                      _buildInfoRow(
-                        context,
-                        Icons.email_outlined,
-                        'Email',
-                        clinic.email,
+                        Icons.calendar_today_outlined,
+                        'Member Since',
+                        DateFormat('MMMM d, yyyy').format(profile!.createdAt),
                       ),
                   ]),
+
+                  Gap(AppTheme.spacing6),
                 ],
-
-                Gap(AppTheme.spacing3),
-                _buildSection(context, 'Account Information', [
-                  _buildInfoRow(
-                    context,
-                    Icons.email_outlined,
-                    'Email',
-                    profile?.email ?? authUser?.email ?? 'Not set',
-                  ),
-                  _buildInfoRow(
-                    context,
-                    Icons.shield_outlined,
-                    'Account Type',
-                    _getUserTypeLabel(profile?.globalType),
-                  ),
-                  if (profile?.createdAt != null)
-                    _buildInfoRow(
-                      context,
-                      Icons.calendar_today_outlined,
-                      'Member Since',
-                      DateFormat('MMMM d, yyyy').format(profile!.createdAt),
-                    ),
-                ]),
-
-                Gap(AppTheme.spacing6),
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
       ),
     );
   }
@@ -117,9 +148,9 @@ class ProfilePage extends StatelessWidget {
     BuildContext context,
     User? authUser,
     dynamic profile,
+    String userId,
   ) {
-    final rawDisplayName =
-        profile?.displayName ?? authUser?.displayName ?? '';
+    final rawDisplayName = profile?.displayName ?? authUser?.displayName ?? '';
     final email = profile?.email ?? authUser?.email ?? '';
 
     // Ensure we always have a non-empty name to display and to derive initials
@@ -168,21 +199,33 @@ class ProfilePage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildStatItem(context, '0', 'Pets'),
+              _buildStatItem(
+                context,
+                petCountStream(firestore, userId),
+                'Pets',
+              ),
               Container(
                 width: 1,
                 height: 32.h,
                 color: AppTheme.neutral200,
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
               ),
-              _buildStatItem(context, '0', 'Appointments'),
+              _buildStatItem(
+                context,
+                appointmentCountStream(firestore, userId),
+                'Appointments',
+              ),
               Container(
                 width: 1,
                 height: 32.h,
                 color: AppTheme.neutral200,
                 margin: EdgeInsets.symmetric(horizontal: AppTheme.spacing4),
               ),
-              _buildStatItem(context, '0', 'Records'),
+              _buildStatItem(
+                context,
+                recordCountStream(firestore, userId),
+                'Records',
+              ),
             ],
           ),
         ],
@@ -190,16 +233,26 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(BuildContext context, String value, String label) {
+  Widget _buildStatItem(
+    BuildContext context,
+    Stream<int> countStream,
+    String label,
+  ) {
     return Column(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.primary,
-          ),
+        StreamBuilder<int>(
+          stream: countStream,
+          builder: (context, snapshot) {
+            final value = snapshot.data ?? 0;
+            return Text(
+              value.toString(),
+              style: TextStyle(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            );
+          },
         ),
         Gap(4.h),
         Text(
@@ -207,6 +260,102 @@ class ProfilePage extends StatelessWidget {
           style: TextStyle(fontSize: 13.sp, color: AppTheme.neutral700),
         ),
       ],
+    );
+  }
+
+  Future<void> _showEditProfileDialog(BuildContext context) async {
+    final currentProfile = injectedUserProvider.currentUser;
+    final displayNameController = TextEditingController(
+      text: currentProfile?.displayName ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: currentProfile?.phone ?? '',
+    );
+    final addressController = TextEditingController(
+      text: currentProfile?.address ?? '',
+    );
+    bool saving = false;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Profile'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: displayNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Display Name',
+                      ),
+                    ),
+                    Gap(AppTheme.spacing3),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Phone'),
+                    ),
+                    Gap(AppTheme.spacing3),
+                    TextField(
+                      controller: addressController,
+                      decoration: const InputDecoration(labelText: 'Address'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setDialogState(() => saving = true);
+                          final ok = await injectedUserProvider.updateProfile(
+                            displayName: displayNameController.text.trim(),
+                            phone: phoneController.text.trim(),
+                            address: addressController.text.trim(),
+                          );
+                          if (!dialogContext.mounted) return;
+                          Navigator.of(dialogContext).pop(ok);
+                        },
+                  child: saving
+                      ? SizedBox(
+                          width: 16.w,
+                          height: 16.w,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    displayNameController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+
+    if (saved == null || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          saved ? 'Profile updated successfully' : 'Failed to update profile',
+        ),
+        backgroundColor: saved ? AppTheme.brandTeal : Colors.red,
+      ),
     );
   }
 
@@ -290,10 +439,7 @@ class ProfilePage extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 13.sp,
-                    color: AppTheme.neutral700,
-                  ),
+                  style: TextStyle(fontSize: 13.sp, color: AppTheme.neutral700),
                 ),
                 Gap(2.h),
                 Text(

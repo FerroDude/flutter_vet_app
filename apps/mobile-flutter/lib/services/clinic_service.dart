@@ -4,8 +4,14 @@ import '../models/clinic_models.dart';
 import '../models/pet_model.dart';
 
 class ClinicService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _auth;
+
+  ClinicService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth;
+
+  FirebaseAuth get _authClient => _auth ?? FirebaseAuth.instance;
 
   // Collection references
   CollectionReference get _clinicsCollection =>
@@ -104,7 +110,7 @@ class ClinicService {
       // For now, we fetch a batch of active clinics and filter client-side or relying on exact prefix if we used Firestore queries.
       // But the user wants substring match ("test" in "My Test Clinic"). Firestore only does prefix.
       // So we'll fetch active clinics and filter client-side.
-      
+
       Query query = _clinicsCollection
           .where('isActive', isEqualTo: true)
           .limit(50); // increased limit for client-side filtering chance
@@ -124,10 +130,10 @@ class ClinicService {
           final nameMatches = clinic.name.toLowerCase().contains(lowerQuery);
           // Optional: also search address?
           // final addressMatches = clinic.address.toLowerCase().contains(lowerQuery);
-          return nameMatches; 
+          return nameMatches;
         }).toList();
       }
-      
+
       // If we filtered down to 0, maybe we should have fetched more, but this is a simple implementation.
       // Return up to requested limit
       if (clinics.length > limit) {
@@ -205,12 +211,9 @@ class ClinicService {
   /// CLINIC MEMBER MANAGEMENT ///
 
   // Add member to clinic (admin only)
-  Future<void> addVetToClinic(
-    String clinicId,
-    String vetUserId,
-  ) async {
+  Future<void> addVetToClinic(String clinicId, String vetUserId) async {
     try {
-      final currentUser = _auth.currentUser;
+      final currentUser = _authClient.currentUser;
       if (currentUser == null) throw Exception('User not authenticated');
 
       // Verify current user is admin of this clinic
@@ -222,7 +225,8 @@ class ClinicService {
         userId: vetUserId,
         clinicId: clinicId,
         role: ClinicRole.vet,
-        permissions: const [], // No permissions tracking - vets have full access
+        permissions:
+            const [], // No permissions tracking - vets have full access
         addedAt: DateTime.now(),
         addedBy: currentUser.uid,
       );
@@ -326,7 +330,7 @@ class ClinicService {
   // Vets can belong to multiple clinics, so we only deactivate the membership
   Future<void> removeMemberFromClinic(String clinicId, String userId) async {
     try {
-      final currentUser = _auth.currentUser;
+      final currentUser = _authClient.currentUser;
       if (currentUser == null) throw Exception('User not authenticated');
 
       // Verify current user is admin of this clinic
@@ -334,9 +338,9 @@ class ClinicService {
       if (!isAdmin) throw Exception('Insufficient permissions');
 
       // Deactivate clinic member (soft delete)
-      await _getClinicMembersCollection(clinicId).doc(userId).update({
-        'isActive': false,
-      });
+      await _getClinicMembersCollection(
+        clinicId,
+      ).doc(userId).update({'isActive': false});
 
       // Only clear the user's connectedClinicId if it points to THIS clinic
       // This allows vets to remain connected to other clinics
@@ -564,12 +568,9 @@ class ClinicService {
 
   /// Create a vet invite and a temporary vet placeholder user profile
   /// under the clinic's invites subcollection and `users/` respectively.
-  Future<void> createVetInvite(
-    String clinicId,
-    String email,
-  ) async {
+  Future<void> createVetInvite(String clinicId, String email) async {
     try {
-      final currentUser = _auth.currentUser;
+      final currentUser = _authClient.currentUser;
       if (currentUser == null) throw Exception('User not authenticated');
 
       final normalizedEmail = email.trim().toLowerCase();
@@ -613,7 +614,8 @@ class ClinicService {
         userId: tempVetId,
         clinicId: clinicId,
         role: ClinicRole.vet,
-        permissions: const [], // No permissions tracking - vets have full access
+        permissions:
+            const [], // No permissions tracking - vets have full access
         addedAt: DateTime.now(),
         addedBy: currentUser.uid,
         isActive: false,
@@ -691,7 +693,8 @@ class ClinicService {
         userId: userId,
         clinicId: clinicId,
         role: ClinicRole.vet,
-        permissions: const [], // No permissions tracking - vets have full access
+        permissions:
+            const [], // No permissions tracking - vets have full access
         addedAt: DateTime.now(),
         addedBy: userId,
       );
@@ -831,12 +834,9 @@ class ClinicService {
 
   /// Create a receptionist invite and a temporary receptionist placeholder user profile
   /// under the clinic's invites subcollection and `users/` respectively.
-  Future<void> createReceptionistInvite(
-    String clinicId,
-    String email,
-  ) async {
+  Future<void> createReceptionistInvite(String clinicId, String email) async {
     try {
-      final currentUser = _auth.currentUser;
+      final currentUser = _authClient.currentUser;
       if (currentUser == null) throw Exception('User not authenticated');
 
       final normalizedEmail = email.trim().toLowerCase();
@@ -913,9 +913,9 @@ class ClinicService {
         await _usersCollection.doc(tempReceptionistId).delete();
       } catch (_) {}
       try {
-        await _getClinicMembersCollection(clinicId)
-            .doc(tempReceptionistId)
-            .delete();
+        await _getClinicMembersCollection(
+          clinicId,
+        ).doc(tempReceptionistId).delete();
       } catch (_) {}
     } catch (e) {
       throw Exception('Failed to revoke receptionist invite: $e');
@@ -949,9 +949,9 @@ class ClinicService {
     // If there is a temporary receptionist membership, delete it
     if (tempReceptionistId != null && tempReceptionistId.isNotEmpty) {
       try {
-        await _getClinicMembersCollection(clinicId)
-            .doc(tempReceptionistId)
-            .delete();
+        await _getClinicMembersCollection(
+          clinicId,
+        ).doc(tempReceptionistId).delete();
       } catch (_) {
         // Ignore if it does not exist or permission denies
       }
@@ -964,7 +964,7 @@ class ClinicService {
     String receptionistUserId,
   ) async {
     try {
-      final currentUser = _auth.currentUser;
+      final currentUser = _authClient.currentUser;
       if (currentUser == null) throw Exception('User not authenticated');
 
       // Verify current user is admin of this clinic

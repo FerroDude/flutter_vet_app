@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
-import 'package:getwidget/getwidget.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
@@ -244,7 +243,7 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     if (chatProvider.isLoading) {
-      return Center(child: GFLoader(type: GFLoaderType.circle));
+      return const AppLoadingIndicator();
     }
 
     if (chatProvider.error != null) {
@@ -296,7 +295,7 @@ class _ChatPageState extends State<ChatPage> {
                     ? Icons.search_off
                     : Icons.chat_bubble_outline,
                 size: 64.sp,
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
               ),
               Gap(AppTheme.spacing3),
               Text(
@@ -304,7 +303,7 @@ class _ChatPageState extends State<ChatPage> {
                     ? 'No chats found for "$_searchQuery"'
                     : 'No conversations yet',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),

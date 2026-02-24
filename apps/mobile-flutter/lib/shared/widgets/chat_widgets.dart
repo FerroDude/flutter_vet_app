@@ -193,7 +193,7 @@ class _SwipeableMessageState extends State<SwipeableMessage>
                 child: Container(
                   padding: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
+                    color: Colors.white.withValues(alpha: 0.25),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.reply, color: Colors.white, size: 20.sp),
@@ -330,12 +330,14 @@ class ReplyBubble extends StatelessWidget {
         padding: EdgeInsets.all(AppTheme.spacing2),
         decoration: BoxDecoration(
           color: isMe
-              ? Colors.white.withOpacity(0.15)
-              : AppTheme.primary.withOpacity(0.08),
+              ? Colors.white.withValues(alpha: 0.15)
+              : AppTheme.primary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppTheme.radius2),
           border: Border(
             left: BorderSide(
-              color: isMe ? Colors.white.withOpacity(0.5) : AppTheme.primary,
+              color: isMe
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : AppTheme.primary,
               width: 2.w,
             ),
           ),
@@ -349,7 +351,9 @@ class ReplyBubble extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11.sp,
                 fontWeight: FontWeight.w600,
-                color: isMe ? Colors.white.withOpacity(0.9) : AppTheme.primary,
+                color: isMe
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : AppTheme.primary,
               ),
             ),
             Gap(2.h),
@@ -358,7 +362,7 @@ class ReplyBubble extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.sp,
                 color: isMe
-                    ? Colors.white.withOpacity(0.7)
+                    ? Colors.white.withValues(alpha: 0.7)
                     : AppTheme.neutral700,
               ),
               maxLines: 2,
@@ -396,7 +400,7 @@ class EmojiReactionPicker extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radius4),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -459,7 +463,7 @@ class ReactionsDisplay extends StatelessWidget {
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
@@ -580,7 +584,9 @@ class LinkPreviewWidget extends StatelessWidget {
         margin: EdgeInsets.only(top: AppTheme.spacing2),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: isMe ? Colors.white.withOpacity(0.15) : AppTheme.neutral100,
+          color: isMe
+              ? Colors.white.withValues(alpha: 0.15)
+              : AppTheme.neutral100,
           borderRadius: BorderRadius.circular(AppTheme.radius2),
         ),
         child: AnyLinkPreview.builder(
@@ -606,7 +612,7 @@ class LinkPreviewWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.sp,
                       color: isMe
-                          ? Colors.white.withOpacity(0.7)
+                          ? Colors.white.withValues(alpha: 0.7)
                           : AppTheme.neutral700,
                     ),
                     maxLines: 1,
@@ -624,7 +630,7 @@ class LinkPreviewWidget extends StatelessWidget {
                   Icons.link,
                   size: 20.sp,
                   color: isMe
-                      ? Colors.white.withOpacity(0.7)
+                      ? Colors.white.withValues(alpha: 0.7)
                       : AppTheme.primary,
                 ),
                 Gap(AppTheme.spacing2),
@@ -634,7 +640,7 @@ class LinkPreviewWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.sp,
                       color: isMe
-                          ? Colors.white.withOpacity(0.7)
+                          ? Colors.white.withValues(alpha: 0.7)
                           : AppTheme.primary,
                       decoration: TextDecoration.underline,
                     ),
@@ -685,7 +691,7 @@ class LinkPreviewWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12.sp,
                             color: isMe
-                                ? Colors.white.withOpacity(0.7)
+                                ? Colors.white.withValues(alpha: 0.7)
                                 : AppTheme.neutral700,
                           ),
                           maxLines: 2,
@@ -699,7 +705,7 @@ class LinkPreviewWidget extends StatelessWidget {
                             Icons.link,
                             size: 12.sp,
                             color: isMe
-                                ? Colors.white.withOpacity(0.5)
+                                ? Colors.white.withValues(alpha: 0.5)
                                 : AppTheme.neutral600,
                           ),
                           Gap(4.w),
@@ -709,7 +715,7 @@ class LinkPreviewWidget extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 11.sp,
                                 color: isMe
-                                    ? Colors.white.withOpacity(0.5)
+                                    ? Colors.white.withValues(alpha: 0.5)
                                     : AppTheme.neutral600,
                               ),
                               maxLines: 1,
@@ -762,7 +768,7 @@ class ChatSearchBar extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -896,7 +902,7 @@ class HighlightedText extends StatelessWidget {
           style:
               highlightStyle ??
               style?.copyWith(
-                backgroundColor: Colors.yellow.withOpacity(0.5),
+                backgroundColor: Colors.yellow.withValues(alpha: 0.5),
                 fontWeight: FontWeight.bold,
               ),
         ),
@@ -940,7 +946,7 @@ class _MessageHighlightState extends State<MessageHighlight>
     );
 
     _colorAnimation = ColorTween(
-      begin: Colors.lightBlue.withOpacity(0.3),
+      begin: Colors.lightBlue.withValues(alpha: 0.3),
       end: Colors.transparent,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import '../../shared/widgets/app_components.dart';
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
 import 'receptionist_management_page.dart';
@@ -155,22 +156,13 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
 
     if (connectedClinic == null) {
       if (hasClinicConnection) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppTheme.radius3),
-            boxShadow: AppTheme.cardShadow,
-          ),
+        return AppCard(
           child: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppTheme.primary,
-                ),
+                child: AppLoadingIndicator(),
               ),
               const SizedBox(width: 12),
               Text(
@@ -181,13 +173,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
           ),
         );
       }
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppTheme.radius3),
-          boxShadow: AppTheme.cardShadow,
-        ),
+      return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -433,10 +419,7 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
                 Flexible(
                   child: Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.neutral600,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppTheme.neutral600),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

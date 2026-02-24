@@ -279,9 +279,7 @@ class _ClinicPageState extends State<ClinicPage> {
         appointmentProvider.myRequests.isNotEmpty;
 
     if (isLoading && !hasData) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      );
+      return const AppLoadingIndicator();
     }
 
     // Check for errors
@@ -494,12 +492,12 @@ class _ClinicPageState extends State<ClinicPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64.sp, color: Colors.white.withOpacity(0.5)),
+            Icon(icon, size: 64.sp, color: Colors.white.withValues(alpha: 0.5)),
             Gap(AppTheme.spacing3),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),

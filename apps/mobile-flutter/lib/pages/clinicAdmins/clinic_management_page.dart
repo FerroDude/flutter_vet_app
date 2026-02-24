@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../services/clinic_service.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/app_theme.dart';
 
@@ -688,7 +689,29 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
           Navigator.pop(context);
         }
       } else {
-        //Implement clinic update
+        final existingClinic = userProvider.connectedClinic;
+        if (existingClinic == null) {
+          throw Exception('No clinic found to update');
+        }
+
+        final updatedClinic = existingClinic.copyWith(
+          name: _nameController.text.trim(),
+          address: _addressController.text.trim(),
+          phone: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
+          website: _websiteController.text.trim().isEmpty
+              ? null
+              : _websiteController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          businessHours: _buildBusinessHoursMap(),
+          updatedAt: DateTime.now(),
+        );
+
+        await ClinicService().updateClinic(existingClinic.id, updatedClinic);
+        await userProvider.refresh();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Clinic updated successfully'),

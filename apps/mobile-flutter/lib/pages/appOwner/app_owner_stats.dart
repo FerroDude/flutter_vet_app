@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/user_provider.dart';
 import '../../models/clinic_models.dart';
+import '../../shared/widgets/app_components.dart';
 import '../../theme/app_theme.dart';
 
 class AppOwnerStats extends StatefulWidget {
@@ -160,10 +161,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primary,
-              AppTheme.primary.withValues(alpha: 0.8),
-            ],
+            colors: [AppTheme.primary, AppTheme.primary.withValues(alpha: 0.8)],
           ),
         ),
         padding: const EdgeInsets.all(20),
@@ -218,9 +216,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
       stream: FirebaseFirestore.instance.collection('clinics').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          );
+          return const AppLoadingIndicator();
         }
 
         if (snapshot.hasError) {
@@ -290,9 +286,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          );
+          return const AppLoadingIndicator();
         }
 
         if (snapshot.hasError) {
@@ -448,9 +442,7 @@ class _AppOwnerStatsState extends State<AppOwnerStats> {
               }
 
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(color: AppTheme.primary),
-                );
+                return const AppLoadingIndicator();
               }
 
               final recentClinics = snapshot.data?.docs ?? [];
