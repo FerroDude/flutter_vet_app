@@ -485,19 +485,19 @@ class _ReceptionistClinicPageState extends State<ReceptionistClinicPage> {
         icon = Icons.chat_bubble_outline;
         message = _searchQuery.isNotEmpty
             ? 'No chats found for "$_searchQuery"'
-            : 'No chat conversations yet';
+            : 'No chat conversations yet.\nNew chat requests will appear here.';
         break;
       case ReceptionistFeedFilter.appointments:
         icon = Icons.calendar_today;
         message = _searchQuery.isNotEmpty
             ? 'No appointments found for "$_searchQuery"'
-            : 'No appointment requests yet';
+            : 'No appointment requests yet.\nNew requests from pet owners will appear here.';
         break;
       case ReceptionistFeedFilter.all:
         icon = Icons.inbox;
         message = _searchQuery.isNotEmpty
             ? 'No results found for "$_searchQuery"'
-            : 'No communications yet';
+            : 'No communications yet.\nUse pull-to-refresh to check for updates.';
         break;
     }
 
@@ -1055,7 +1055,7 @@ class _ReceptionistClinicPageState extends State<ReceptionistClinicPage> {
                             ),
                           ),
                           icon: const Icon(Icons.chat, size: 16),
-                          label: const Text('Chat'),
+                          label: const Text('Open Chat'),
                         ),
                       ),
                       Gap(AppTheme.spacing2),

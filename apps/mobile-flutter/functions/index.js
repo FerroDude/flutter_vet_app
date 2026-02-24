@@ -15,6 +15,46 @@ const messaging = admin.messaging();
 // ============================================================
 
 /**
+ * Structured log helper for easier filtering in Cloud Logging.
+ * @param {'INFO'|'WARNING'|'ERROR'} severity
+ * @param {string} event
+ * @param {Object} data
+ */
+function logStructured(severity, event, data = {}) {
+  const payload = {
+    severity,
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  };
+  console.log(JSON.stringify(payload));
+}
+
+/**
+ * Extract a consistent error code string from Firebase Admin errors.
+ * @param {any} error
+ * @returns {string}
+ */
+function getErrorCode(error) {
+  return (
+    error?.errorInfo?.code || error?.code || error?.details?.code || 'unknown'
+  );
+}
+
+/**
+ * Returns true if the provided error code indicates a bad token that should
+ * be removed from the user profile.
+ * @param {string} code
+ * @returns {boolean}
+ */
+function shouldDeleteToken(code) {
+  return (
+    code === 'messaging/registration-token-not-registered' ||
+    code === 'messaging/invalid-registration-token'
+  );
+}
+
+/**
  * Send a push notification to a specific user by their userId.
  * Retrieves the FCM token from the user's profile.
  *
@@ -26,15 +66,17 @@ const messaging = admin.messaging();
  */
 async function sendPushToUser(userId, title, body, data = {}) {
   try {
+    logStructured('INFO', 'push_send_attempt', { userId, title });
+
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-      console.log(`User ${userId} not found`);
+      logStructured('WARNING', 'push_skipped_user_not_found', { userId });
       return false;
     }
 
     const fcmToken = userDoc.get('fcmToken');
     if (!fcmToken) {
-      console.log(`No FCM token for user ${userId}`);
+      logStructured('WARNING', 'push_skipped_missing_token', { userId });
       return false;
     }
 
@@ -71,10 +113,33 @@ async function sendPushToUser(userId, title, body, data = {}) {
     };
 
     await messaging.send(message);
-    console.log(`Notification sent to user ${userId}`);
+    logStructured('INFO', 'push_send_success', { userId, title });
     return true;
   } catch (error) {
-    console.error(`Failed to send notification to user ${userId}:`, error);
+    const code = getErrorCode(error);
+    logStructured('ERROR', 'push_send_failed', {
+      userId,
+      title,
+      code,
+      message: error?.message || String(error),
+    });
+
+    // Remove invalid or unregistered tokens to reduce repeated failures.
+    if (shouldDeleteToken(code)) {
+      try {
+        await db.collection('users').doc(userId).update({
+          fcmToken: admin.firestore.FieldValue.delete(),
+        });
+        logStructured('INFO', 'push_token_deleted', { userId, code });
+      } catch (cleanupError) {
+        logStructured('ERROR', 'push_token_delete_failed', {
+          userId,
+          code: getErrorCode(cleanupError),
+          message: cleanupError?.message || String(cleanupError),
+        });
+      }
+    }
+
     return false;
   }
 }
@@ -90,6 +155,11 @@ async function sendPushToUser(userId, title, body, data = {}) {
  */
 async function sendPushToClinicReceptionists(clinicId, title, body, data = {}) {
   try {
+    logStructured('INFO', 'clinic_receptionist_push_fanout_attempt', {
+      clinicId,
+      title,
+    });
+
     // Get all active receptionists in the clinic
     const membersSnap = await db
       .collection('clinics')
@@ -100,7 +170,9 @@ async function sendPushToClinicReceptionists(clinicId, title, body, data = {}) {
       .get();
 
     if (membersSnap.empty) {
-      console.log(`No active receptionists found for clinic ${clinicId}`);
+      logStructured('INFO', 'clinic_receptionist_push_skipped_no_members', {
+        clinicId,
+      });
       return;
     }
 
@@ -108,10 +180,21 @@ async function sendPushToClinicReceptionists(clinicId, title, body, data = {}) {
       sendPushToUser(memberDoc.id, title, body, data),
     );
 
-    await Promise.all(sendPromises);
-    console.log(`Notifications sent to ${membersSnap.size} receptionists`);
+    const results = await Promise.all(sendPromises);
+    const sentCount = results.filter(Boolean).length;
+
+    logStructured('INFO', 'clinic_receptionist_push_fanout_complete', {
+      clinicId,
+      targetCount: membersSnap.size,
+      sentCount,
+      failedCount: membersSnap.size - sentCount,
+    });
   } catch (error) {
-    console.error('Failed to send notifications to receptionists:', error);
+    logStructured('ERROR', 'clinic_receptionist_push_fanout_failed', {
+      clinicId,
+      code: getErrorCode(error),
+      message: error?.message || String(error),
+    });
   }
 }
 
@@ -125,6 +208,11 @@ async function sendPushToClinicReceptionists(clinicId, title, body, data = {}) {
  */
 async function sendPushToClinicStaff(clinicId, title, body, data = {}) {
   try {
+    logStructured('INFO', 'clinic_staff_push_fanout_attempt', {
+      clinicId,
+      title,
+    });
+
     // Get all active staff (admins and receptionists) in the clinic
     const membersSnap = await db
       .collection('clinics')
@@ -134,7 +222,9 @@ async function sendPushToClinicStaff(clinicId, title, body, data = {}) {
       .get();
 
     if (membersSnap.empty) {
-      console.log(`No active staff found for clinic ${clinicId}`);
+      logStructured('INFO', 'clinic_staff_push_skipped_no_members', {
+        clinicId,
+      });
       return;
     }
 
@@ -144,14 +234,32 @@ async function sendPushToClinicStaff(clinicId, title, body, data = {}) {
       return role === 0 || role === 2;
     });
 
+    if (staffMembers.length === 0) {
+      logStructured('INFO', 'clinic_staff_push_skipped_no_staff_roles', {
+        clinicId,
+      });
+      return;
+    }
+
     const sendPromises = staffMembers.map((memberDoc) =>
       sendPushToUser(memberDoc.id, title, body, data),
     );
 
-    await Promise.all(sendPromises);
-    console.log(`Notifications sent to ${staffMembers.length} staff members`);
+    const results = await Promise.all(sendPromises);
+    const sentCount = results.filter(Boolean).length;
+
+    logStructured('INFO', 'clinic_staff_push_fanout_complete', {
+      clinicId,
+      targetCount: staffMembers.length,
+      sentCount,
+      failedCount: staffMembers.length - sentCount,
+    });
   } catch (error) {
-    console.error('Failed to send notifications to staff:', error);
+    logStructured('ERROR', 'clinic_staff_push_fanout_failed', {
+      clinicId,
+      code: getErrorCode(error),
+      message: error?.message || String(error),
+    });
   }
 }
 
@@ -161,6 +269,12 @@ exports.onClinicMemberCreate = functions.firestore
   .onCreate(async (snap, context) => {
     const { clinicId, memberId } = context.params;
     const data = snap.data() || {};
+
+    logStructured('INFO', 'clinic_member_create_triggered', {
+      clinicId,
+      memberId,
+      role: data.role,
+    });
 
     // Ignore temp members and non-vet roles (ClinicRole: admin=0, vet=1)
     if (!memberId || memberId.startsWith('temp_')) return null;
@@ -197,6 +311,12 @@ exports.onClinicMemberCreate = functions.firestore
       await inviteRef.delete();
     } catch (_) {}
 
+    logStructured('INFO', 'clinic_member_invite_cleanup_complete', {
+      clinicId,
+      memberId,
+      inviteId,
+    });
+
     return null;
   });
 
@@ -217,16 +337,22 @@ exports.onAppointmentRequestCreated = functions.firestore
     const { requestId } = context.params;
     const data = snap.data() || {};
 
-    const { clinicId, petOwnerName, petName, isUrgent } = data;
+    const { clinicId, petOwnerName, petName } = data;
+    logStructured('INFO', 'appointment_request_created_triggered', {
+      requestId,
+      clinicId,
+      petOwnerName,
+      petName,
+    });
 
     if (!clinicId) {
-      console.log('No clinicId in appointment request');
+      logStructured('WARNING', 'appointment_request_created_missing_clinic', {
+        requestId,
+      });
       return null;
     }
 
-    const title = isUrgent
-      ? '🚨 Urgent Appointment Request'
-      : 'New Appointment Request';
+    const title = 'New Appointment Request';
     const body = `${petOwnerName} requested an appointment for ${petName}`;
 
     await sendPushToClinicStaff(clinicId, title, body, {
@@ -234,6 +360,15 @@ exports.onAppointmentRequestCreated = functions.firestore
       requestId: requestId,
       clinicId: clinicId,
     });
+
+    logStructured(
+      'INFO',
+      'appointment_request_created_notification_dispatched',
+      {
+        requestId,
+        clinicId,
+      },
+    );
 
     return null;
   });
@@ -251,6 +386,10 @@ exports.onAppointmentRequestUpdated = functions.firestore
 
     // Only notify on status change
     if (before.status === after.status) {
+      logStructured('INFO', 'appointment_request_updated_no_status_change', {
+        requestId,
+        status: after.status,
+      });
       return null;
     }
 
@@ -258,7 +397,13 @@ exports.onAppointmentRequestUpdated = functions.firestore
     const newStatus = after.status;
 
     if (!petOwnerId) {
-      console.log('No petOwnerId in appointment request');
+      logStructured(
+        'WARNING',
+        'appointment_request_updated_missing_pet_owner',
+        {
+          requestId,
+        },
+      );
       return null;
     }
 
@@ -279,6 +424,10 @@ exports.onAppointmentRequestUpdated = functions.firestore
         break;
       default:
         // Don't notify for cancelled (status=3) or other changes
+        logStructured('INFO', 'appointment_request_updated_status_no_notify', {
+          requestId,
+          status: newStatus,
+        });
         return null;
     }
 
@@ -287,6 +436,17 @@ exports.onAppointmentRequestUpdated = functions.firestore
       requestId: requestId,
       status: String(newStatus),
     });
+
+    logStructured(
+      'INFO',
+      'appointment_request_updated_notification_dispatched',
+      {
+        requestId,
+        petOwnerId,
+        status: newStatus,
+        notificationType,
+      },
+    );
 
     return null;
   });

@@ -45,10 +45,26 @@ class PushNotificationService {
   static final PushNotificationService _instance =
       PushNotificationService._internal();
   factory PushNotificationService() => _instance;
-  PushNotificationService._internal();
+  PushNotificationService._internal({
+    FirebaseMessaging? messaging,
+    FirebaseFirestore? firestore,
+  }) : _messaging = messaging,
+       _firestore = firestore ?? FirebaseFirestore.instance;
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  @visibleForTesting
+  factory PushNotificationService.test({
+    FirebaseMessaging? messaging,
+    FirebaseFirestore? firestore,
+  }) => PushNotificationService._internal(
+    messaging: messaging,
+    firestore: firestore,
+  );
+
+  FirebaseMessaging? _messaging;
+  final FirebaseFirestore _firestore;
+
+  FirebaseMessaging get _messagingClient =>
+      _messaging ??= FirebaseMessaging.instance;
 
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
@@ -64,14 +80,14 @@ class PushNotificationService {
 
   /// Check if notifications are currently authorized
   Future<bool> areNotificationsAuthorized() async {
-    final settings = await _messaging.getNotificationSettings();
+    final settings = await _messagingClient.getNotificationSettings();
     return settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
   /// Get current notification settings
   Future<NotificationSettings> getNotificationSettings() async {
-    return await _messaging.getNotificationSettings();
+    return await _messagingClient.getNotificationSettings();
   }
 
   /// Request notification permissions (public method)
@@ -166,7 +182,7 @@ class PushNotificationService {
 
   /// Request notification permissions
   Future<NotificationSettings> _requestPermissions() async {
-    final settings = await _messaging.requestPermission(
+    final settings = await _messagingClient.requestPermission(
       alert: true,
       announcement: false,
       badge: true,
@@ -187,7 +203,7 @@ class PushNotificationService {
     try {
       // For iOS, ensure APNS token is available first
       if (defaultTargetPlatform == TargetPlatform.iOS) {
-        final apnsToken = await _messaging.getAPNSToken();
+        final apnsToken = await _messagingClient.getAPNSToken();
         if (apnsToken == null) {
           debugPrint('APNS token not yet available');
           // Token will be retrieved on refresh
@@ -195,7 +211,7 @@ class PushNotificationService {
         }
       }
 
-      _currentToken = await _messaging.getToken();
+      _currentToken = await _messagingClient.getToken();
       debugPrint('FCM Token: $_currentToken');
       return _currentToken;
     } catch (e) {
@@ -206,7 +222,7 @@ class PushNotificationService {
 
   /// Set up listener for token refresh
   void _setupTokenRefreshListener() {
-    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen(
+    _tokenRefreshSubscription = _messagingClient.onTokenRefresh.listen(
       (newToken) {
         debugPrint('FCM Token refreshed: $newToken');
         _currentToken = newToken;
@@ -248,7 +264,7 @@ class PushNotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
     // Handle notification tap when app was terminated
-    _messaging.getInitialMessage().then((message) {
+    _messagingClient.getInitialMessage().then((message) {
       if (message != null) {
         // Small delay to ensure app is fully initialized
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -396,7 +412,7 @@ class PushNotificationService {
   /// Delete the FCM token from the device (useful for complete logout)
   Future<void> deleteToken() async {
     try {
-      await _messaging.deleteToken();
+      await _messagingClient.deleteToken();
       _currentToken = null;
       debugPrint('FCM token deleted from device');
     } catch (e) {
@@ -409,5 +425,10 @@ class PushNotificationService {
     _tokenRefreshSubscription?.cancel();
     _foregroundMessageSubscription?.cancel();
     _initialized = false;
+  }
+
+  @visibleForTesting
+  void setCurrentTokenForTesting(String? token) {
+    _currentToken = token;
   }
 }

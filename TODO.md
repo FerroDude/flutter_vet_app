@@ -2,6 +2,18 @@
 
 ## ✅ Completed Tasks
 
+### Communication & Appointment System
+
+- [x] **Implement push notification infrastructure (FCM + Cloud Functions)** - Added token management, app initialization, and backend triggers
+- [x] **Add notification settings toggle for users** - In-app enable/disable controls in settings
+- [x] **Build appointment request flow** - Pet owner request form, receptionist confirm/deny, and status propagation
+- [x] **Delete canceled appointment requests** - Cancellations now delete documents instead of keeping cancelled records
+- [x] **Create unified Clinic tab for pet owners** - Combined chats and appointment requests with filter-based actions
+- [x] **Create unified Clinic tab for receptionists** - Combined pending chat requests and appointment management
+- [x] **Add receptionist role management** - Role support in models/providers and receptionist management page
+- [x] **Fix clinic chat permissions for receptionists** - Updated Firestore rules to allow clinic-member chat/message access
+- [x] **Update technical architecture documentation** - Added architecture updates and testing playbook appendix
+
 ### Clinic Creation & Management
 
 - [x] **Fix Provider context issue in CreateClinicAdminDialog** - Fixed by wrapping dialog with ChangeNotifierProvider.value
@@ -65,7 +77,7 @@
 - [ ] **Add loading states and animations** - Improve perceived performance
 - [ ] **Implement error boundaries** - Better error handling and recovery
 - [ ] **Add offline support** - Cache data and sync when online
-- [ ] **Implement push notifications** - For important events and updates
+- [ ] **Improve push notification observability** - Add structured delivery/failure telemetry
 
 ### Technical Debt
 
@@ -76,15 +88,12 @@
 
 ## 🎯 Current Focus
 
-The clinic creation system is now fully functional and production-ready with:
+The communication and appointment system is implemented and in stabilization phase:
 
-- ✅ Proper Provider context handling
-- ✅ Simplified email logic (admin email can serve as clinic contact)
-- ✅ Fixed modal overflow and navigation
-- ✅ Email notification system (placeholder implementation)
-- ✅ Comprehensive success feedback
-- ✅ Clean app bar with settings and profile functionality
-- ✅ Production-ready logging (no print statements)
-- ✅ Unified profile experience for all user types
+- ✅ Unified Clinic communication tab (pet owner + receptionist)
+- ✅ Appointment request creation/management lifecycle
+- ✅ Push notifications for appointment events and chat updates
+- ✅ Receptionist role support and clinic access fixes
+- ✅ Updated technical and testing documentation (`TECHNICAL_ARCHITECTURE.md`, `docs/TESTING_CHECKLIST.md`, `docs/NEXT_STEPS.md`)
 
-**Next priority**: Implement actual email sending service to complete the notification system.
+**Next priority**: Complete device-based end-to-end validation and resolve any issues from `docs/TESTING_CHECKLIST.md`.

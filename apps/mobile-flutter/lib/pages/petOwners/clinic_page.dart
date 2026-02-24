@@ -14,6 +14,7 @@ import '../../shared/widgets/app_components.dart';
 import '../../shared/widgets/pet_info_widget.dart';
 import 'chat_room_page.dart';
 import 'appointment_request_form.dart';
+import 'pet_form_page.dart';
 import 'settings_page.dart';
 import 'profile_page.dart';
 
@@ -403,7 +404,7 @@ class _ClinicPageState extends State<ClinicPage> {
     feedItems.sort((a, b) => b.sortDate.compareTo(a.sortDate));
 
     if (feedItems.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(chatProvider, userProvider);
     }
 
     return ListView.builder(
@@ -427,9 +428,18 @@ class _ClinicPageState extends State<ClinicPage> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(
+    ChatProvider chatProvider,
+    UserProvider userProvider,
+  ) {
     String message;
     IconData icon;
+    Widget? action;
+    final hasPendingChatRequest =
+        userProvider.isPetOwner &&
+        chatProvider.chatRooms.any(
+          (room) => room.status == ChatRoomStatus.pending,
+        );
 
     if (_searchQuery.isNotEmpty) {
       icon = Icons.search_off;
@@ -440,11 +450,35 @@ class _ClinicPageState extends State<ClinicPage> {
           icon = Icons.chat_bubble_outline;
           message =
               'No chat conversations yet.\nStart a new chat with your clinic.';
+          action = FloatingActionButton.extended(
+            heroTag: 'empty_state_chat_fab',
+            onPressed: hasPendingChatRequest
+                ? null
+                : () => _showNewChatRequestDialog(chatProvider, userProvider),
+            backgroundColor: hasPendingChatRequest
+                ? AppTheme.neutral500
+                : AppTheme.neutral800,
+            foregroundColor: Colors.white,
+            icon: Icon(
+              hasPendingChatRequest
+                  ? Icons.hourglass_top
+                  : Icons.add_comment_outlined,
+            ),
+            label: Text(hasPendingChatRequest ? 'Chat Pending' : 'New Chat'),
+          );
           break;
         case ClinicFeedFilter.appointments:
           icon = Icons.calendar_today_outlined;
           message =
               'No appointment requests yet.\nRequest an appointment with your clinic.';
+          action = FloatingActionButton.extended(
+            heroTag: 'empty_state_appointment_fab',
+            onPressed: _openAppointmentForm,
+            backgroundColor: AppTheme.brandTeal,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.calendar_today),
+            label: const Text('Request Appointment'),
+          );
           break;
         case ClinicFeedFilter.all:
           icon = Icons.forum_outlined;
@@ -469,6 +503,10 @@ class _ClinicPageState extends State<ClinicPage> {
               ),
               textAlign: TextAlign.center,
             ),
+            if (_searchQuery.isEmpty && action != null) ...[
+              Gap(AppTheme.spacing3),
+              action,
+            ],
             if (_searchQuery.isNotEmpty) ...[
               Gap(AppTheme.spacing2),
               TextButton(
@@ -1006,7 +1044,7 @@ class _ClinicPageState extends State<ClinicPage> {
             backgroundColor: AppTheme.neutral500,
             foregroundColor: Colors.white,
             icon: const Icon(Icons.hourglass_top),
-            label: const Text('Chat pending'),
+            label: const Text('Chat Pending'),
           );
         }
         return FloatingActionButton.extended(
@@ -1044,7 +1082,7 @@ class _ClinicPageState extends State<ClinicPage> {
                 backgroundColor: AppTheme.neutral800,
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.add_comment_outlined),
-                label: const Text('Chat'),
+                label: const Text('New Chat'),
               )
             else
               FloatingActionButton.extended(
@@ -1053,7 +1091,7 @@ class _ClinicPageState extends State<ClinicPage> {
                 backgroundColor: AppTheme.neutral500,
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.hourglass_top),
-                label: const Text('Pending'),
+                label: const Text('Chat Pending'),
               ),
             Gap(AppTheme.spacing2),
             // Appointment button
@@ -1063,7 +1101,7 @@ class _ClinicPageState extends State<ClinicPage> {
               backgroundColor: AppTheme.brandTeal,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.calendar_today),
-              label: const Text('Appointment'),
+              label: const Text('Request Appointment'),
             ),
           ],
         );
@@ -1076,6 +1114,35 @@ class _ClinicPageState extends State<ClinicPage> {
       context,
       listen: false,
     );
+    final currentUserId = userProvider.currentUser?.id;
+
+    if (currentUserId != null) {
+      final petsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .collection('pets')
+          .limit(1)
+          .get();
+
+      if (petsSnapshot.docs.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Add a pet before requesting an appointment'),
+            action: SnackBarAction(
+              label: 'Add Pet',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PetFormPage()),
+                );
+              },
+            ),
+          ),
+        );
+        return;
+      }
+    }
 
     await Navigator.push(
       context,

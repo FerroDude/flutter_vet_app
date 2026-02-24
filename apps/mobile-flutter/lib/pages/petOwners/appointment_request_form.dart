@@ -9,6 +9,7 @@ import '../../models/appointment_request_model.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/appointment_request_provider.dart';
 import '../../theme/app_theme.dart';
+import 'pet_form_page.dart';
 
 class AppointmentRequestForm extends StatefulWidget {
   const AppointmentRequestForm({super.key});
@@ -169,16 +170,36 @@ class _AppointmentRequestFormState extends State<AppointmentRequestForm> {
               borderRadius: BorderRadius.circular(AppTheme.radius3),
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.pets, color: Colors.white.withValues(alpha: 0.6)),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.pets,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                    Gap(AppTheme.spacing3),
+                    Expanded(
+                      child: Text(
+                        'No pets found. Add a pet first.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 Gap(AppTheme.spacing3),
-                Text(
-                  'No pets found. Add a pet first.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 14.sp,
+                ElevatedButton.icon(
+                  onPressed: _openAddPetForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primary,
                   ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Pet'),
                 ),
               ],
             ),
@@ -500,33 +521,88 @@ class _AppointmentRequestFormState extends State<AppointmentRequestForm> {
   }
 
   Widget _buildSubmitButton(UserProvider userProvider) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : () => _submitRequest(userProvider),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.brandTeal,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AppTheme.brandTeal.withValues(alpha: 0.5),
-          padding: EdgeInsets.symmetric(vertical: AppTheme.spacing4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radius3),
-          ),
-        ),
-        child: _isLoading
-            ? SizedBox(
-                width: 24.w,
-                height: 24.w,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('pets')
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final hasPets = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+        if (!hasPets && snapshot.connectionState != ConnectionState.waiting) {
+          return SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openAddPetForm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppTheme.primary,
+                padding: EdgeInsets.symmetric(vertical: AppTheme.spacing4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radius3),
                 ),
-              )
-            : Text(
-                'Submit Request',
+              ),
+              icon: const Icon(Icons.add),
+              label: Text(
+                'Add Pet to Continue',
                 style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
               ),
-      ),
+            ),
+          );
+        }
+
+        final isButtonLoading =
+            _isLoading || snapshot.connectionState == ConnectionState.waiting;
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: isButtonLoading
+                ? null
+                : () => _submitRequest(userProvider),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.brandTeal,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: AppTheme.brandTeal.withValues(
+                alpha: 0.5,
+              ),
+              padding: EdgeInsets.symmetric(vertical: AppTheme.spacing4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius3),
+              ),
+            ),
+            child: isButtonLoading
+                ? SizedBox(
+                    width: 24.w,
+                    height: 24.w,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    'Submit Request',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openAddPetForm() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PetFormPage()),
     );
   }
 

@@ -97,7 +97,6 @@ class AppointmentRequest {
   /// Request details
   final String reason;
   final String? notes;
-  final bool isUrgent;
 
   /// Status tracking
   final AppointmentRequestStatus status;
@@ -126,7 +125,6 @@ class AppointmentRequest {
     required this.timePreference,
     required this.reason,
     this.notes,
-    this.isUrgent = false,
     this.status = AppointmentRequestStatus.pending,
     this.handledBy,
     this.handledByName,
@@ -151,7 +149,6 @@ class AppointmentRequest {
       timePreference: TimePreference.values[json['timePreference'] ?? 0],
       reason: json['reason'] ?? '',
       notes: json['notes'],
-      isUrgent: json['isUrgent'] ?? false,
       status: AppointmentRequestStatus.values[json['status'] ?? 0],
       handledBy: json['handledBy'],
       handledByName: json['handledByName'],
@@ -178,7 +175,6 @@ class AppointmentRequest {
       'timePreference': timePreference.index,
       'reason': reason,
       'notes': notes,
-      'isUrgent': isUrgent,
       'status': status.index,
       'handledBy': handledBy,
       'handledByName': handledByName,
@@ -216,7 +212,6 @@ class AppointmentRequest {
     TimePreference? timePreference,
     String? reason,
     String? notes,
-    bool? isUrgent,
     AppointmentRequestStatus? status,
     String? handledBy,
     String? handledByName,
@@ -238,7 +233,6 @@ class AppointmentRequest {
       timePreference: timePreference ?? this.timePreference,
       reason: reason ?? this.reason,
       notes: notes ?? this.notes,
-      isUrgent: isUrgent ?? this.isUrgent,
       status: status ?? this.status,
       handledBy: handledBy ?? this.handledBy,
       handledByName: handledByName ?? this.handledByName,

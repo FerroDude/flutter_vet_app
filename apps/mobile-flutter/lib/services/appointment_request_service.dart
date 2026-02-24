@@ -3,7 +3,10 @@ import '../models/appointment_request_model.dart';
 
 /// Service for managing appointment requests between pet owners and clinics.
 class AppointmentRequestService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
+
+  AppointmentRequestService({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _requestsCollection =>
       _firestore.collection('appointmentRequests');
@@ -21,7 +24,6 @@ class AppointmentRequestService {
     required TimePreference timePreference,
     required String reason,
     String? notes,
-    bool isUrgent = false,
   }) async {
     try {
       final now = DateTime.now();
@@ -37,7 +39,6 @@ class AppointmentRequestService {
         'timePreference': timePreference.index,
         'reason': reason,
         'notes': notes,
-        'isUrgent': isUrgent,
         'status': AppointmentRequestStatus.pending.index,
         'handledBy': null,
         'handledByName': null,

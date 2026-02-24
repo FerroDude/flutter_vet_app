@@ -30,9 +30,6 @@ class AppointmentRequestProvider extends ChangeNotifier {
   /// Count of pending requests (for badges)
   int get pendingCount => _pendingRequests.length;
 
-  /// Count of urgent pending requests
-  int get urgentCount => _pendingRequests.where((r) => r.isUrgent).length;
-
   void _setLoading(bool loading) {
     if (_isDisposed) return;
     _isLoading = loading;
@@ -117,7 +114,6 @@ class AppointmentRequestProvider extends ChangeNotifier {
     required TimePreference timePreference,
     required String reason,
     String? notes,
-    bool isUrgent = false,
   }) async {
     try {
       _setLoading(true);
@@ -135,7 +131,6 @@ class AppointmentRequestProvider extends ChangeNotifier {
         timePreference: timePreference,
         reason: reason,
         notes: notes,
-        isUrgent: isUrgent,
       );
 
       _setLoading(false);
