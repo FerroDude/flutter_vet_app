@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/vet_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/appointment_request_provider.dart';
+import '../../models/appointment_request_model.dart';
 import '../../theme/app_theme.dart';
 import '../petOwners/profile_page.dart';
 import '../petOwners/settings_page.dart';
@@ -33,6 +35,9 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
 
       if (clinicId != null) {
         vetProvider.initialize(clinicId);
+        context.read<AppointmentRequestProvider>().initializeForReceptionist(
+          clinicId,
+        );
       }
     });
   }
@@ -47,7 +52,8 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
     return Consumer2<UserProvider, VetProvider>(
       builder: (context, userProvider, vetProvider, _) {
         final clinic = userProvider.connectedClinic;
-        final vetName = userProvider.currentUser?.displayName.split(' ').first ?? 'there';
+        final vetName =
+            userProvider.currentUser?.displayName.split(' ').first ?? 'there';
 
         return Container(
           decoration: const BoxDecoration(
@@ -71,12 +77,17 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                   slivers: [
                     // Unified "Your Day" Section
                     SliverToBoxAdapter(
-                      child: _buildYourDaySection(context, vetName, clinic, userProvider),
+                      child: _buildYourDaySection(
+                        context,
+                        vetName,
+                        clinic,
+                        userProvider,
+                      ),
                     ),
-                    
+
                     // Quick Actions
                     SliverToBoxAdapter(child: _buildQuickActions(context)),
-                    
+
                     // Bottom padding
                     SliverToBoxAdapter(child: Gap(AppTheme.spacing8)),
                   ],
@@ -152,7 +163,11 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.settings_outlined, size: 22.sp, color: Colors.white),
+                icon: Icon(
+                  Icons.settings_outlined,
+                  size: 22.sp,
+                  color: Colors.white,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -164,7 +179,11 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                 },
               ),
               IconButton(
-                icon: Icon(Icons.person_outline, size: 22.sp, color: Colors.white),
+                icon: Icon(
+                  Icons.person_outline,
+                  size: 22.sp,
+                  color: Colors.white,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -199,83 +218,159 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
     return 'Good evening';
   }
 
-  /// Today's Appointments card - placeholder for future integration
+  /// Today's confirmed appointments card driven by real data
   Widget _buildAppointmentsCard() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(AppTheme.spacing4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.15),
-            Colors.white.withValues(alpha: 0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radius4),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Consumer<AppointmentRequestProvider>(
+      builder: (context, provider, _) {
+        final todayAppointments = todaysConfirmedAppointments(
+          provider.allRequests,
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(AppTheme.spacing4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0.15),
+                Colors.white.withValues(alpha: 0.08),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: AppTheme.brandTeal.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppTheme.radius2),
-                ),
-                child: Icon(
-                  Icons.calendar_today,
-                  color: AppTheme.brandTeal,
-                  size: 18.sp,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: AppTheme.brandTeal.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today,
+                      color: AppTheme.brandTeal,
+                      size: 18.sp,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Text(
+                    "Today's Appointments",
+                    style: TextStyle(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (todayAppointments.isNotEmpty)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.brandTeal,
+                        borderRadius: BorderRadius.circular(AppTheme.radius2),
+                      ),
+                      child: Text(
+                        todayAppointments.length.toString(),
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               Gap(AppTheme.spacing3),
-              Text(
-                "Today's Appointments",
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          Gap(AppTheme.spacing3),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(AppTheme.spacing3),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppTheme.radius3),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.white.withValues(alpha: 0.6),
-                  size: 18.sp,
-                ),
-                Gap(AppTheme.spacing2),
-                Expanded(
-                  child: Text(
-                    'Connect your practice management software to see appointments here',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Colors.white.withValues(alpha: 0.7),
+              if (todayAppointments.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(AppTheme.spacing3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppTheme.radius3),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        size: 18.sp,
+                      ),
+                      Gap(AppTheme.spacing2),
+                      Expanded(
+                        child: Text(
+                          'No confirmed appointments for today',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...todayAppointments.map(
+                  (appt) => Padding(
+                    padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(AppTheme.spacing3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radius3),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.pets,
+                            size: 18.sp,
+                            color: AppTheme.primary,
+                          ),
+                          Gap(AppTheme.spacing2),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${appt.petName} — ${appt.petOwnerName}',
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                                Gap(2.h),
+                                Text(
+                                  '${appt.timePreference.shortText} · ${appt.reason}',
+                                  style: TextStyle(
+                                    fontSize: 11.sp,
+                                    color: AppTheme.neutral700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -319,7 +414,8 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                     _MessageCard(
                       icon: Icons.pending_actions,
                       iconColor: Colors.orange,
-                      title: '$pendingCount pending request${pendingCount != 1 ? 's' : ''}',
+                      title:
+                          '$pendingCount pending request${pendingCount != 1 ? 's' : ''}',
                       subtitle: 'Pet owners waiting for your response',
                       badgeCount: pendingCount,
                       badgeColor: Colors.orange,
@@ -332,7 +428,8 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                     _MessageCard(
                       icon: Icons.mark_email_unread,
                       iconColor: AppTheme.brandBlueLight,
-                      title: '$unreadCount unread message${unreadCount != 1 ? 's' : ''}',
+                      title:
+                          '$unreadCount unread message${unreadCount != 1 ? 's' : ''}',
                       subtitle: 'From active conversations',
                       badgeCount: unreadCount,
                       badgeColor: AppTheme.brandBlueLight,
@@ -387,10 +484,7 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                 Gap(2.h),
                 Text(
                   'No pending requests or unread messages',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppTheme.neutral700,
-                  ),
+                  style: TextStyle(fontSize: 12.sp, color: AppTheme.neutral700),
                 ),
               ],
             ),
@@ -415,7 +509,8 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
                   icon: Icons.people_outline,
                   label: 'Patients',
                   onTap: () {
-                    final homeState = context.findAncestorStateOfType<VetHomePageState>();
+                    final homeState = context
+                        .findAncestorStateOfType<VetHomePageState>();
                     homeState?.switchToPatients();
                   },
                 ),
@@ -451,7 +546,6 @@ class _VetDashboardPageState extends State<VetDashboardPage> {
       ),
     );
   }
-
 }
 
 /// Message card for the Messages section
@@ -498,11 +592,7 @@ class _MessageCard extends StatelessWidget {
                   color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppTheme.radius3),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20.sp,
-                ),
+                child: Icon(icon, color: iconColor, size: 20.sp),
               ),
               Gap(AppTheme.spacing3),
               // Text content
@@ -586,18 +676,12 @@ class _QuickActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(AppTheme.radius3),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                color: Colors.white,
-                size: 22.sp,
-              ),
+              Icon(icon, color: Colors.white, size: 22.sp),
               Gap(AppTheme.spacing2),
               Text(
                 label,

@@ -5,7 +5,9 @@ import '../../providers/user_provider.dart';
 import '../../shared/widgets/app_components.dart';
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
+import '../vets/vet_patients_page.dart';
 import 'receptionist_management_page.dart';
+import 'clinic_management_page.dart';
 import '../petOwners/profile_page.dart';
 import '../petOwners/settings_page.dart';
 
@@ -349,8 +351,14 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         subtitle: 'Connected owners',
         color: AppTheme.primary,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pet owner management coming soon')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChangeNotifierProvider.value(
+                value: userProvider,
+                child: const VetPatientsPage(),
+              ),
+            ),
           );
         },
       ),
@@ -360,8 +368,14 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         subtitle: 'Clinic details',
         color: AppTheme.primary,
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Clinic settings coming soon')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChangeNotifierProvider.value(
+                value: userProvider,
+                child: const ClinicManagementPage(),
+              ),
+            ),
           );
         },
       ),

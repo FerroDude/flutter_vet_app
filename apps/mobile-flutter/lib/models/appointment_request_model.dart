@@ -267,3 +267,20 @@ class AppointmentRequest {
     return '$startStr - $endStr';
   }
 }
+
+/// Filters a list of appointment requests to only confirmed ones
+/// whose preferred date range overlaps [referenceDate].
+List<AppointmentRequest> todaysConfirmedAppointments(
+  List<AppointmentRequest> requests, {
+  DateTime? referenceDate,
+}) {
+  final ref = referenceDate ?? DateTime.now();
+  final dayStart = DateTime(ref.year, ref.month, ref.day);
+  final dayEnd = dayStart.add(const Duration(days: 1));
+
+  return requests.where((r) {
+    if (r.status != AppointmentRequestStatus.confirmed) return false;
+    return r.preferredDateStart.isBefore(dayEnd) &&
+        r.preferredDateEnd.isAfter(dayStart);
+  }).toList();
+}

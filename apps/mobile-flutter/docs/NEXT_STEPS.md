@@ -112,35 +112,23 @@ This is a gradual effort — not a single PR. Strategy:
 - [x] Avoided broad risky refactors on stable screens; applied targeted consistency updates
 - [x] Updated Phase A baseline; remaining broad component migration can continue incrementally in Phase B
 
-### Phase B — Medium features (code-only)
+### Phase B — Medium features (code-only) ✅ COMPLETED
 
-#### 6. Receptionist "Today's Appointments" card
+#### 6. Receptionist "Today's Appointments" card ✅
 
-`receptionist_dashboard_page.dart` — currently a "Coming soon" placeholder. Pull confirmed appointments for today from the existing appointment request data.
+Replaced the placeholder card with a live, data-driven card. Filters `allRequests` for confirmed appointments whose date range overlaps today. Shows pet name, owner, time preference, and reason. Displays a count badge when there are appointments.
 
-- [ ] Query today's confirmed appointments from Firestore
-- [ ] Display in the dashboard card with pet/owner info and time preference
+#### 7. Vet dashboard "Today's Appointments" card ✅
 
-#### 7. Vet dashboard "Today's Appointments" card
+Same approach as #6. Added `AppointmentRequestProvider` initialization in the vet dashboard. Shows confirmed appointments for the vet's clinic. Empty state reads "No confirmed appointments for today."
 
-`vet_dashboard_page.dart` — same placeholder ("Connect your practice management software"). Same approach: show confirmed appointments for the vet's clinic.
+#### 8. Clinic Admin: Pet Owner management ✅
 
-- [ ] Decide: show confirmed appointments for the vet's clinic, or keep placeholder
-- [ ] If yes, build a read-only appointment list card
+Wired the "Pet Owners" action card to navigate to the existing `VetPatientsPage`, which lists all pet owners connected to the clinic with search functionality.
 
-#### 8. Clinic Admin: Pet Owner management
+#### 9. Clinic Admin: Clinic Settings ✅
 
-`clinic_admin_dashboard.dart` — shows "Pet owner management coming soon."
-
-- [ ] Define scope: list pet owners connected to the clinic? View their pets? Remove access?
-- [ ] Implement basic pet owner listing for the clinic
-
-#### 9. Clinic Admin: Clinic Settings
-
-`clinic_admin_dashboard.dart` — shows "Clinic settings coming soon."
-
-- [ ] Define scope: business hours, notification preferences, clinic branding?
-- [ ] Implement settings screen
+Wired the "Clinic Settings" action card to navigate to the existing `ClinicManagementPage`, which already supports viewing and editing clinic details, business hours, and contact information.
 
 ---
 

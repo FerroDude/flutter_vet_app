@@ -7,6 +7,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/vet_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/appointment_request_provider.dart';
+import '../../models/appointment_request_model.dart';
 import '../../theme/app_theme.dart';
 import '../petOwners/profile_page.dart';
 import '../petOwners/settings_page.dart';
@@ -329,81 +330,159 @@ class _ReceptionistDashboardPageState extends State<ReceptionistDashboardPage> {
     );
   }
 
-  /// Today's Appointments card - placeholder for future integration
+  /// Today's confirmed appointments card driven by real data
   Widget _buildAppointmentsCard() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(AppTheme.spacing4),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.15),
-            Colors.white.withValues(alpha: 0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radius4),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Consumer<AppointmentRequestProvider>(
+      builder: (context, provider, _) {
+        final todayAppointments = todaysConfirmedAppointments(
+          provider.allRequests,
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(AppTheme.spacing4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0.15),
+                Colors.white.withValues(alpha: 0.08),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppTheme.radius4),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: AppTheme.brandTeal.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppTheme.radius2),
-                ),
-                child: Icon(
-                  Icons.calendar_today,
-                  color: AppTheme.brandTeal,
-                  size: 18.sp,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: AppTheme.brandTeal.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(AppTheme.radius2),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today,
+                      color: AppTheme.brandTeal,
+                      size: 18.sp,
+                    ),
+                  ),
+                  Gap(AppTheme.spacing3),
+                  Text(
+                    "Today's Appointments",
+                    style: TextStyle(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (todayAppointments.isNotEmpty)
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.brandTeal,
+                        borderRadius: BorderRadius.circular(AppTheme.radius2),
+                      ),
+                      child: Text(
+                        todayAppointments.length.toString(),
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               Gap(AppTheme.spacing3),
-              Text(
-                "Today's Appointments",
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          Gap(AppTheme.spacing3),
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(AppTheme.spacing3),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppTheme.radius3),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.white.withValues(alpha: 0.6),
-                  size: 18.sp,
-                ),
-                Gap(AppTheme.spacing2),
-                Expanded(
-                  child: Text(
-                    'Connect your practice management software to see appointments here',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Colors.white.withValues(alpha: 0.7),
+              if (todayAppointments.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(AppTheme.spacing3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppTheme.radius3),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        size: 18.sp,
+                      ),
+                      Gap(AppTheme.spacing2),
+                      Expanded(
+                        child: Text(
+                          'No confirmed appointments for today',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...todayAppointments.map(
+                  (appt) => Padding(
+                    padding: EdgeInsets.only(bottom: AppTheme.spacing2),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(AppTheme.spacing3),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radius3),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.pets,
+                            size: 18.sp,
+                            color: AppTheme.primary,
+                          ),
+                          Gap(AppTheme.spacing2),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${appt.petName} — ${appt.petOwnerName}',
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                                Gap(2.h),
+                                Text(
+                                  '${appt.timePreference.shortText} · ${appt.reason}',
+                                  style: TextStyle(
+                                    fontSize: 11.sp,
+                                    color: AppTheme.neutral700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
