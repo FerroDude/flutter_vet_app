@@ -215,7 +215,7 @@ class _AppointmentRequestFormState extends State<AppointmentRequestForm> {
             boxShadow: AppTheme.cardShadow,
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedPetId,
+            initialValue: _selectedPetId,
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.pets, color: AppTheme.primary),
               contentPadding: EdgeInsets.symmetric(

@@ -1142,6 +1142,7 @@ class _ClinicPageState extends State<ClinicPage> {
       }
     }
 
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(

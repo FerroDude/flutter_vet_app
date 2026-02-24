@@ -1983,11 +1983,12 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       return;
     }
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final success = await chatProvider.startVoiceRecording();
-    if (!success && mounted) {
+    if (!mounted) return;
+    if (!success) {
       // Check if it was a permission issue
       final newStatus = await Permission.microphone.status;
+      if (!mounted) return;
       if (newStatus.isDenied || newStatus.isPermanentlyDenied) {
         _showPermissionDeniedDialog(
           title: 'Microphone Access Required',
@@ -1995,7 +1996,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               'Voice messages require microphone access. Please allow microphone access to record voice messages.',
         );
       } else {
-        scaffoldMessenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not start recording. Please try again.'),
           ),
@@ -3135,7 +3136,7 @@ class _FullScreenVideoPlayerState extends State<_FullScreenVideoPlayer> {
                     onPressed: () async {
                       if (_cachedFilePath != null) {
                         final result = await OpenFilex.open(_cachedFilePath!);
-                        if (result.type != ResultType.done && mounted) {
+                        if (result.type != ResultType.done && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(

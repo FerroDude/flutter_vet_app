@@ -31,7 +31,10 @@ class _VetManagementPageState extends State<VetManagementPage> {
               appBar: AppBar(
                 title: Text(
                   'Vet Management',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -56,7 +59,10 @@ class _VetManagementPageState extends State<VetManagementPage> {
             appBar: AppBar(
               title: Text(
                 'Vet Management',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               backgroundColor: Colors.transparent,
               foregroundColor: Colors.white,
@@ -96,13 +102,17 @@ class _VetManagementPageState extends State<VetManagementPage> {
       children: [
         // Pending invites section FIRST (more important when no active vets)
         _buildInvitesSection(userProvider),
-        
+
         Gap(AppTheme.spacing6),
-        
+
         // Section header for active vets
         Row(
           children: [
-            Icon(Icons.medical_services_outlined, color: Colors.white, size: 18.sp),
+            Icon(
+              Icons.medical_services_outlined,
+              color: Colors.white,
+              size: 18.sp,
+            ),
             Gap(AppTheme.spacing2),
             Text(
               'Active Veterinarians',
@@ -131,7 +141,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
           ],
         ),
         Gap(AppTheme.spacing3),
-        
+
         // Vets list or empty state
         if (vets.isEmpty)
           _buildGlassyContainer(
@@ -224,7 +234,11 @@ class _VetManagementPageState extends State<VetManagementPage> {
                   padding: EdgeInsets.all(AppTheme.spacing4),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: AppTheme.error, size: 20.sp),
+                      Icon(
+                        Icons.error_outline,
+                        color: AppTheme.error,
+                        size: 20.sp,
+                      ),
                       Gap(AppTheme.spacing2),
                       Expanded(
                         child: Text(
@@ -348,34 +362,40 @@ class _VetManagementPageState extends State<VetManagementPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(vet.userId)
-                              .get(),
-                          builder: (context, snapshot) {
-                            String name = 'Veterinarian';
-                            if (snapshot.hasData && snapshot.data!.exists) {
-                              final data = snapshot.data!.data();
-                              final displayName = data?['displayName'] as String?;
-                              final email = data?['email'] as String?;
-                              if (displayName != null && displayName.isNotEmpty) {
-                                name = displayName;
-                              } else if (email != null && email.isNotEmpty) {
-                                name = email;
-                              }
-                            }
-                            return Text(
-                              name,
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
+                        child:
+                            FutureBuilder<
+                              DocumentSnapshot<Map<String, dynamic>>
+                            >(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(vet.userId)
+                                  .get(),
+                              builder: (context, snapshot) {
+                                String name = 'Veterinarian';
+                                if (snapshot.hasData && snapshot.data!.exists) {
+                                  final data = snapshot.data!.data();
+                                  final displayName =
+                                      data?['displayName'] as String?;
+                                  final email = data?['email'] as String?;
+                                  if (displayName != null &&
+                                      displayName.isNotEmpty) {
+                                    name = displayName;
+                                  } else if (email != null &&
+                                      email.isNotEmpty) {
+                                    name = email;
+                                  }
+                                }
+                                return Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontSize: 15.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
+                            ),
                       ),
                       if (!isActive) ...[
                         Gap(8.w),
@@ -590,9 +610,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Icon(
           icon,
@@ -606,41 +624,6 @@ class _VetManagementPageState extends State<VetManagementPage> {
       return Tooltip(message: tooltip, child: btn);
     }
     return btn;
-  }
-
-  Widget _buildGlassyButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(AppTheme.radius2),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 20.sp),
-            Gap(8.w),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showVetActions(ClinicMember vet, UserProvider userProvider) {
@@ -723,9 +706,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppTheme.radius3),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -791,10 +772,7 @@ class _VetManagementPageState extends State<VetManagementPage> {
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppTheme.error,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
       );
     }
   }
@@ -859,9 +837,13 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(sheetContext),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -881,9 +863,13 @@ class _VetManagementPageState extends State<VetManagementPage> {
                           messenger.showSnackBar(
                             SnackBar(
                               content: Text(
-                                ok ? 'Invite revoked' : 'Failed to revoke invite',
+                                ok
+                                    ? 'Invite revoked'
+                                    : 'Failed to revoke invite',
                               ),
-                              backgroundColor: ok ? AppTheme.success : AppTheme.error,
+                              backgroundColor: ok
+                                  ? AppTheme.success
+                                  : AppTheme.error,
                             ),
                           );
                         } catch (e) {
@@ -898,7 +884,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.error,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -992,7 +980,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
                       style: TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'vet@example.com',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
                         prefixIcon: Icon(
                           Icons.email_outlined,
                           color: Colors.white.withValues(alpha: 0.6),
@@ -1021,11 +1011,17 @@ class _VetManagementPageState extends State<VetManagementPage> {
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(sheetContext),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppTheme.spacing3,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius2,
+                              ),
                             ),
                           ),
                           child: const Text('Cancel'),
@@ -1037,15 +1033,22 @@ class _VetManagementPageState extends State<VetManagementPage> {
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
                               Navigator.pop(sheetContext);
-                              await _addVet(emailController.text.trim(), userProvider);
+                              await _addVet(
+                                emailController.text.trim(),
+                                userProvider,
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.brandTeal,
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppTheme.spacing3,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius2,
+                              ),
                             ),
                           ),
                           child: const Text('Send Invite'),
@@ -1081,7 +1084,10 @@ class _VetManagementPageState extends State<VetManagementPage> {
       } else {
         final errorMessage = userProvider.error ?? 'Failed to invite vet.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: AppTheme.error),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     } finally {
@@ -1173,9 +1179,13 @@ class _VetManagementPageState extends State<VetManagementPage> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(sheetContext),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -1193,7 +1203,9 @@ class _VetManagementPageState extends State<VetManagementPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.error,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),

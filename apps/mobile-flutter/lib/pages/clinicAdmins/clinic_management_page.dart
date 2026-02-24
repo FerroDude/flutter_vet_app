@@ -711,6 +711,7 @@ class _ClinicManagementPageState extends State<ClinicManagementPage> {
 
         await ClinicService().updateClinic(existingClinic.id, updatedClinic);
         await userProvider.refresh();
+        if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

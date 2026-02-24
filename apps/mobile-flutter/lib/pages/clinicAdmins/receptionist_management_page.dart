@@ -11,10 +11,12 @@ class ReceptionistManagementPage extends StatefulWidget {
   const ReceptionistManagementPage({super.key});
 
   @override
-  State<ReceptionistManagementPage> createState() => _ReceptionistManagementPageState();
+  State<ReceptionistManagementPage> createState() =>
+      _ReceptionistManagementPageState();
 }
 
-class _ReceptionistManagementPageState extends State<ReceptionistManagementPage> {
+class _ReceptionistManagementPageState
+    extends State<ReceptionistManagementPage> {
   bool _isLoading = false;
 
   @override
@@ -31,7 +33,10 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
               appBar: AppBar(
                 title: Text(
                   'Receptionist Management',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 backgroundColor: Colors.transparent,
                 foregroundColor: Colors.white,
@@ -56,14 +61,18 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
             appBar: AppBar(
               title: Text(
                 'Receptionist Management',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               backgroundColor: Colors.transparent,
               foregroundColor: Colors.white,
               elevation: 0,
               actions: [
                 IconButton(
-                  onPressed: () => _showAddReceptionistDialog(context, userProvider),
+                  onPressed: () =>
+                      _showAddReceptionistDialog(context, userProvider),
                   icon: const Icon(Icons.add),
                 ),
               ],
@@ -96,9 +105,9 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
       children: [
         // Pending invites section FIRST (more important when no active receptionists)
         _buildInvitesSection(userProvider),
-        
+
         Gap(AppTheme.spacing6),
-        
+
         // Section header for active receptionists
         Row(
           children: [
@@ -131,7 +140,7 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
           ],
         ),
         Gap(AppTheme.spacing3),
-        
+
         // Receptionists list or empty state
         if (receptionists.isEmpty)
           _buildGlassyContainer(
@@ -224,7 +233,11 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                   padding: EdgeInsets.all(AppTheme.spacing4),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: AppTheme.error, size: 20.sp),
+                      Icon(
+                        Icons.error_outline,
+                        color: AppTheme.error,
+                        size: 20.sp,
+                      ),
                       Gap(AppTheme.spacing2),
                       Expanded(
                         child: Text(
@@ -301,7 +314,10 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
     );
   }
 
-  Widget _buildGlassyReceptionistCard(ClinicMember receptionist, UserProvider userProvider) {
+  Widget _buildGlassyReceptionistCard(
+    ClinicMember receptionist,
+    UserProvider userProvider,
+  ) {
     final isActive = receptionist.isActive;
 
     return Container(
@@ -348,34 +364,40 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                   Row(
                     children: [
                       Expanded(
-                        child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(receptionist.userId)
-                              .get(),
-                          builder: (context, snapshot) {
-                            String name = 'Receptionist';
-                            if (snapshot.hasData && snapshot.data!.exists) {
-                              final data = snapshot.data!.data();
-                              final displayName = data?['displayName'] as String?;
-                              final email = data?['email'] as String?;
-                              if (displayName != null && displayName.isNotEmpty) {
-                                name = displayName;
-                              } else if (email != null && email.isNotEmpty) {
-                                name = email;
-                              }
-                            }
-                            return Text(
-                              name,
-                              style: TextStyle(
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
+                        child:
+                            FutureBuilder<
+                              DocumentSnapshot<Map<String, dynamic>>
+                            >(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(receptionist.userId)
+                                  .get(),
+                              builder: (context, snapshot) {
+                                String name = 'Receptionist';
+                                if (snapshot.hasData && snapshot.data!.exists) {
+                                  final data = snapshot.data!.data();
+                                  final displayName =
+                                      data?['displayName'] as String?;
+                                  final email = data?['email'] as String?;
+                                  if (displayName != null &&
+                                      displayName.isNotEmpty) {
+                                    name = displayName;
+                                  } else if (email != null &&
+                                      email.isNotEmpty) {
+                                    name = email;
+                                  }
+                                }
+                                return Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontSize: 15.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
+                            ),
                       ),
                       if (!isActive) ...[
                         Gap(8.w),
@@ -590,9 +612,7 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Icon(
           icon,
@@ -608,42 +628,10 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
     return btn;
   }
 
-  Widget _buildGlassyButton({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(AppTheme.radius2),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.25),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 20.sp),
-            Gap(8.w),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showReceptionistActions(ClinicMember receptionist, UserProvider userProvider) {
+  void _showReceptionistActions(
+    ClinicMember receptionist,
+    UserProvider userProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -668,7 +656,7 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                
+
                 // Actions
                 if (receptionist.isActive)
                   _buildActionTile(
@@ -726,9 +714,7 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppTheme.radius3),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -794,10 +780,7 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: AppTheme.error,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
       );
     }
   }
@@ -862,9 +845,13 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(sheetContext),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -879,14 +866,19 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                         Navigator.pop(sheetContext);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
-                          final ok = await userProvider.revokeReceptionistInvite(email);
+                          final ok = await userProvider
+                              .revokeReceptionistInvite(email);
                           if (!mounted) return;
                           messenger.showSnackBar(
                             SnackBar(
                               content: Text(
-                                ok ? 'Invite revoked' : 'Failed to revoke invite',
+                                ok
+                                    ? 'Invite revoked'
+                                    : 'Failed to revoke invite',
                               ),
-                              backgroundColor: ok ? AppTheme.success : AppTheme.error,
+                              backgroundColor: ok
+                                  ? AppTheme.success
+                                  : AppTheme.error,
                             ),
                           );
                         } catch (e) {
@@ -901,7 +893,9 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.error,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -919,7 +913,10 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
     );
   }
 
-  void _showAddReceptionistDialog(BuildContext context, UserProvider userProvider) {
+  void _showAddReceptionistDialog(
+    BuildContext context,
+    UserProvider userProvider,
+  ) {
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -995,7 +992,9 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                       style: TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'receptionist@example.com',
-                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
                         prefixIcon: Icon(
                           Icons.email_outlined,
                           color: Colors.white.withValues(alpha: 0.6),
@@ -1024,11 +1023,17 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                         child: OutlinedButton(
                           onPressed: () => Navigator.pop(sheetContext),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppTheme.spacing3,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius2,
+                              ),
                             ),
                           ),
                           child: const Text('Cancel'),
@@ -1040,15 +1045,22 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                           onPressed: () async {
                             if (formKey.currentState!.validate()) {
                               Navigator.pop(sheetContext);
-                              await _addReceptionist(emailController.text.trim(), userProvider);
+                              await _addReceptionist(
+                                emailController.text.trim(),
+                                userProvider,
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.brandTeal,
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                            padding: EdgeInsets.symmetric(
+                              vertical: AppTheme.spacing3,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius2),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius2,
+                              ),
                             ),
                           ),
                           child: const Text('Send Invite'),
@@ -1082,9 +1094,13 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
           ),
         );
       } else {
-        final errorMessage = userProvider.error ?? 'Failed to invite receptionist.';
+        final errorMessage =
+            userProvider.error ?? 'Failed to invite receptionist.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: AppTheme.error),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppTheme.error,
+          ),
         );
       }
     } finally {
@@ -1116,7 +1132,10 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
     }
   }
 
-  void _showRemoveReceptionistDialog(ClinicMember receptionist, UserProvider userProvider) {
+  void _showRemoveReceptionistDialog(
+    ClinicMember receptionist,
+    UserProvider userProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1176,9 +1195,13 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(sheetContext),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -1196,7 +1219,9 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.error,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: AppTheme.spacing3),
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing3,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radius2),
                         ),
@@ -1214,11 +1239,16 @@ class _ReceptionistManagementPageState extends State<ReceptionistManagementPage>
     );
   }
 
-  Future<void> _removeReceptionist(ClinicMember receptionist, UserProvider userProvider) async {
+  Future<void> _removeReceptionist(
+    ClinicMember receptionist,
+    UserProvider userProvider,
+  ) async {
     setState(() => _isLoading = true);
 
     try {
-      final success = await userProvider.removeMemberFromClinic(receptionist.userId);
+      final success = await userProvider.removeMemberFromClinic(
+        receptionist.userId,
+      );
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

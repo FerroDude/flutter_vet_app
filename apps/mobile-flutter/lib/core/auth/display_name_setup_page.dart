@@ -144,8 +144,9 @@ class _DisplayNameSetupPageState extends State<DisplayNameSetupPage> {
                       validator: (value) {
                         final v = value?.trim() ?? '';
                         if (v.isEmpty) return 'Display name is required';
-                        if (v.length < 2)
+                        if (v.length < 2) {
                           return 'Please enter at least 2 characters';
+                        }
                         return null;
                       },
                       onFieldSubmitted: (_) => _submit(),

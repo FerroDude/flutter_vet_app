@@ -10,7 +10,7 @@ class MedicationProvider extends ChangeNotifier {
   final MedicationRepository _repository;
 
   // State
-  Map<String, List<Medication>> _medicationsByPet = {};
+  final Map<String, List<Medication>> _medicationsByPet = {};
   bool _isLoading = false;
   String? _error;
 
@@ -31,16 +31,16 @@ class MedicationProvider extends ChangeNotifier {
 
   /// Get active medications for a specific pet
   List<Medication> getActiveMedicationsForPet(String petId) {
-    return getMedicationsForPet(petId)
-        .where((m) => m.status == MedicationStatus.active)
-        .toList();
+    return getMedicationsForPet(
+      petId,
+    ).where((m) => m.status == MedicationStatus.active).toList();
   }
 
   /// Get past medications for a specific pet
   List<Medication> getPastMedicationsForPet(String petId) {
-    return getMedicationsForPet(petId)
-        .where((m) => m.status != MedicationStatus.active)
-        .toList();
+    return getMedicationsForPet(
+      petId,
+    ).where((m) => m.status != MedicationStatus.active).toList();
   }
 
   /// Get all active medications across all subscribed pets
@@ -79,20 +79,22 @@ class MedicationProvider extends ChangeNotifier {
       name: 'MedicationProvider',
     );
 
-    final subscription = _repository.streamMedicationsForPet(petId).listen(
-      (medications) {
-        _medicationsByPet[petId] = medications;
-        notifyListeners();
-      },
-      onError: (e) {
-        developer.log(
-          'Error streaming medications for pet $petId: $e',
-          name: 'MedicationProvider',
+    final subscription = _repository
+        .streamMedicationsForPet(petId)
+        .listen(
+          (medications) {
+            _medicationsByPet[petId] = medications;
+            notifyListeners();
+          },
+          onError: (e) {
+            developer.log(
+              'Error streaming medications for pet $petId: $e',
+              name: 'MedicationProvider',
+            );
+            _error = e.toString();
+            notifyListeners();
+          },
         );
-        _error = e.toString();
-        notifyListeners();
-      },
-    );
 
     _subscriptions[petId] = subscription;
   }
@@ -264,8 +266,8 @@ class MedicationProvider extends ChangeNotifier {
 
   /// Extend a medication's duration
   Future<bool> extendMedication(
-    String petId, 
-    String medicationId, 
+    String petId,
+    String medicationId,
     int additionalDays,
   ) async {
     try {
@@ -301,27 +303,24 @@ class MedicationProvider extends ChangeNotifier {
         'Logging dose for medication $medicationId, pet $petId',
         name: 'MedicationProvider',
       );
-      
+
       await _repository.logDoseTaken(
         petId,
         medicationId,
         scheduledTime,
         notes: notes,
       );
-      
+
       developer.log(
         'Dose logged successfully, notifying listeners',
         name: 'MedicationProvider',
       );
-      
+
       // Force refresh the medication data
       notifyListeners();
       return true;
     } catch (e) {
-      developer.log(
-        'Error logging dose: $e',
-        name: 'MedicationProvider',
-      );
+      developer.log('Error logging dose: $e', name: 'MedicationProvider');
       _error = e.toString();
       notifyListeners();
       return false;
@@ -364,10 +363,7 @@ class MedicationProvider extends ChangeNotifier {
       notifyListeners();
       return success;
     } catch (e) {
-      developer.log(
-        'Error undoing last dose: $e',
-        name: 'MedicationProvider',
-      );
+      developer.log('Error undoing last dose: $e', name: 'MedicationProvider');
       _error = e.toString();
       notifyListeners();
       return false;

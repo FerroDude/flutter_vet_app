@@ -913,7 +913,7 @@ class _SettingsPageState extends State<SettingsPage> {
             Switch(
               value: _notificationsEnabled,
               onChanged: _toggleNotifications,
-              activeColor: AppTheme.brandTeal,
+              activeThumbColor: AppTheme.brandTeal,
               activeTrackColor: AppTheme.brandTeal.withValues(alpha: 0.3),
             ),
         ],

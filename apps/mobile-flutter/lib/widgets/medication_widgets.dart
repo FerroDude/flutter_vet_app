@@ -514,11 +514,10 @@ class MedicationDetailSheet extends StatelessWidget {
     return Consumer<MedicationProvider>(
       builder: (context, provider, _) {
         // Get the latest medication data from the provider
-        final liveMedication = provider.getMedicationById(
-          medication.petId,
-          medication.id,
-        ) ?? medication;
-        
+        final liveMedication =
+            provider.getMedicationById(medication.petId, medication.id) ??
+            medication;
+
         return _MedicationDetailContent(medication: liveMedication);
       },
     );
@@ -1451,15 +1450,16 @@ class _MedicationDetailContent extends StatelessWidget {
   void _showLogPastDoseDialog(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     // Get provider for fresh medication data
     final provider = context.read<MedicationProvider>();
-    
+
     // Helper to get fresh medication data from provider
     Medication getFreshMedication() {
-      return provider.getMedicationById(medication.petId, medication.id) ?? medication;
+      return provider.getMedicationById(medication.petId, medication.id) ??
+          medication;
     }
-    
+
     // Calculate valid date range (from start date to today or end date)
     final freshMed = getFreshMedication();
     final startDay = DateTime(
@@ -1486,12 +1486,14 @@ class _MedicationDetailContent extends StatelessWidget {
       );
       return;
     }
-    
-    DateTime selectedDate = now.subtract(const Duration(days: 1)); // Default to yesterday
+
+    DateTime selectedDate = now.subtract(
+      const Duration(days: 1),
+    ); // Default to yesterday
     TimeOfDay selectedTime = freshMed.doseTimes.isNotEmpty
         ? freshMed.doseTimes.first
         : const TimeOfDay(hour: 8, minute: 0);
-    
+
     // Helper to check if a date already has all doses taken (uses fresh data)
     bool isDateComplete(DateTime date) {
       final currentMed = getFreshMedication();
@@ -1507,13 +1509,13 @@ class _MedicationDetailContent extends StatelessWidget {
     if (selectedDate.isAfter(lastValidDay)) {
       selectedDate = lastValidDay;
     }
-    
+
     // Find a valid default date (one that doesn't have all doses taken)
     // But never go before startDay
     while (isDateComplete(selectedDate) && selectedDate.isAfter(startDay)) {
       selectedDate = selectedDate.subtract(const Duration(days: 1));
     }
-    
+
     // Final safety check - ensure selectedDate is within valid range
     if (selectedDate.isBefore(startDay)) {
       selectedDate = startDay;
@@ -1543,7 +1545,7 @@ class _MedicationDetailContent extends StatelessWidget {
 
           // Check if selected date already has all doses taken (uses fresh data)
           final selectedDateComplete = isDateComplete(selectedDate);
-          
+
           return AlertDialog(
             backgroundColor: AppTheme.neutral600,
             shape: RoundedRectangleBorder(
@@ -1582,7 +1584,9 @@ class _MedicationDetailContent extends StatelessWidget {
                               surface: AppTheme.neutral600,
                               onSurface: Colors.white,
                             ),
-                            dialogBackgroundColor: AppTheme.neutral600,
+                            dialogTheme: const DialogThemeData(
+                              backgroundColor: AppTheme.neutral600,
+                            ),
                             textButtonTheme: TextButtonThemeData(
                               style: TextButton.styleFrom(
                                 foregroundColor: AppTheme.brandTeal,
@@ -1710,7 +1714,7 @@ class _MedicationDetailContent extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.all(12.w),
                   decoration: BoxDecoration(
-                    color: selectedDateComplete 
+                    color: selectedDateComplete
                         ? AppTheme.warning.withValues(alpha: 0.15)
                         : AppTheme.brandTeal.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -1718,11 +1722,11 @@ class _MedicationDetailContent extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        selectedDateComplete 
+                        selectedDateComplete
                             ? Icons.warning_amber_rounded
                             : Icons.info_outline,
                         size: 16.sp,
-                        color: selectedDateComplete 
+                        color: selectedDateComplete
                             ? AppTheme.warning
                             : AppTheme.brandTeal,
                       ),
@@ -2325,7 +2329,7 @@ class _DoseHistoryDropdownState extends State<_DoseHistoryDropdown>
     // Count total doses being displayed (should match totalDosesTaken)
     final displayedDoseCount = displayDays.fold<int>(
       0,
-      (sum, day) => sum + dosesGroupedByDay[day]!.length,
+      (total, day) => total + dosesGroupedByDay[day]!.length,
     );
 
     // Use the displayed count to ensure consistency
@@ -2570,7 +2574,9 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
   String? _selectedPetId;
   MedicationFrequency _frequency = MedicationFrequency.daily;
   DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now().add(const Duration(days: 7)); // Default 7 days
+  DateTime _endDate = DateTime.now().add(
+    const Duration(days: 7),
+  ); // Default 7 days
   TimeOfDay _doseTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay? _secondDoseTime;
   bool _hasEndDate = true;
@@ -3139,7 +3145,9 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                       secondary: AppTheme.brandTeal,
                       onSecondary: Colors.white,
                     ),
-                    dialogBackgroundColor: AppTheme.neutral600,
+                    dialogTheme: const DialogThemeData(
+                      backgroundColor: AppTheme.neutral600,
+                    ),
                     textButtonTheme: TextButtonThemeData(
                       style: TextButton.styleFrom(
                         foregroundColor: AppTheme.brandTeal,
@@ -3335,7 +3343,9 @@ class _MedicationFormSheetState extends State<MedicationFormSheet> {
                         secondary: AppTheme.brandTeal,
                         onSecondary: Colors.white,
                       ),
-                      dialogBackgroundColor: AppTheme.neutral600,
+                      dialogTheme: const DialogThemeData(
+                        backgroundColor: AppTheme.neutral600,
+                      ),
                       textButtonTheme: TextButtonThemeData(
                         style: TextButton.styleFrom(
                           foregroundColor: AppTheme.brandTeal,
