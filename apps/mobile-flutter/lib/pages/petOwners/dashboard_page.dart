@@ -704,6 +704,7 @@ class _PetCard extends StatelessWidget {
                           // Pass providers to the new route
                           final eventProvider = context.read<EventProvider>();
                           final userProvider = context.read<UserProvider>();
+                          final medicationProvider = context.read<MedicationProvider>();
 
                           Navigator.push(
                             context,
@@ -715,6 +716,9 @@ class _PetCard extends StatelessWidget {
                                   ),
                                   ChangeNotifierProvider.value(
                                     value: userProvider,
+                                  ),
+                                  ChangeNotifierProvider.value(
+                                    value: medicationProvider,
                                   ),
                                 ],
                                 child: PetDetailsPage(petRef: petRef),

@@ -1,6 +1,6 @@
 # Peton Mobile App - Technical Architecture Documentation
 
-> Last Updated: January 2026
+> Last Updated: February 2026
 >
 > This document provides a comprehensive technical overview of the Peton (VetPlus) mobile app, covering architecture, data models, services, state management, styling, and implementation details.
 
@@ -141,13 +141,17 @@ lib/
 ├── pages/
 │   ├── onboarding_pages.dart    # Clinic selection for new users
 │   ├── petOwners/               # Pet owner screens
-│   │   ├── home_page.dart       # Main navigation (Dashboard/Calendar/Chat)
+│   │   ├── home_page.dart       # Main navigation (Dashboard/Calendar/Clinic)
 │   │   ├── dashboard_page.dart  # Pet owner dashboard
 │   │   ├── calendar_page.dart   # Calendar view
+│   │   ├── clinic_page.dart     # Unified clinic communications (chats + appointments)
 │   │   ├── chat_page.dart       # Chat list
 │   │   ├── chat_room_page.dart  # Individual chat conversation
 │   │   ├── pets_page.dart       # Pet list
 │   │   ├── pet_details_page.dart
+│   │   ├── pet_form_page.dart   # Add/edit pet
+│   │   ├── appointment_request_form.dart  # Create appointment request
+│   │   ├── my_appointment_requests_page.dart  # Pet owner's requests
 │   │   ├── profile_page.dart
 │   │   └── settings_page.dart
 │   ├── vets/                    # Vet screens
@@ -665,10 +669,16 @@ Typing status auto-expires after 3 seconds of inactivity.
 
 ### Cloud Functions
 
-Located in `functions/` directory:
+Located in `functions/` directory (Node.js 22, `firebase-functions@^5.1.1`, `firebase-admin@^12.7.0`):
 
-- Push notification triggers on new messages
-- Background data processing (if implemented)
+| Function                           | Trigger                                                   | Purpose                                                                 |
+| ---------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `onNewChatMessage`                 | Firestore `onCreate` on `chatRooms/{id}/messages/{msgId}` | Send FCM push notification to the other chat participant                |
+| `onAppointmentRequestCreated`      | Firestore `onCreate` on `appointmentRequests/{id}`        | Notify clinic staff (receptionists) of a new appointment request        |
+| `onAppointmentRequestStatusChange` | Firestore `onUpdate` on `appointmentRequests/{id}`        | Notify pet owner when their request is confirmed or denied              |
+| `cleanupStaleTokens`               | Scheduled / on-demand                                     | Remove FCM tokens that fail delivery to keep notification fan-out clean |
+
+All functions use structured JSON logging (`console.log(JSON.stringify({...}))`) for observability and include error normalization for non-Error throwables.
 
 ---
 
@@ -1028,10 +1038,10 @@ enum AppointmentRequestStatus {
 }
 
 enum TimePreference {
-  morning,    // 0 - Morning (8am-12pm)
-  afternoon,  // 1 - Afternoon (12pm-5pm)
-  evening,    // 2 - Evening (5pm-8pm)
-  anytime     // 3 - Flexible
+  anyTime,    // 0 - Flexible
+  morning,    // 1 - Morning (8am-12pm)
+  afternoon,  // 2 - Afternoon (12pm-5pm)
+  evening     // 3 - Evening (5pm-8pm)
 }
 
 class AppointmentRequest {
@@ -1280,14 +1290,21 @@ allow update: if
 ### Pet Owner Features
 
 - **Dashboard:** Pet info, quick stats, upcoming events
-- **Pets:** Add/edit pets, track symptoms, view history
+- **Pets:** Add/edit pets, track symptoms (with vet visibility), view history
 - **Calendar:** Appointments, medications, notes with recurrence
-- **Chat:** Request conversations with clinic, real-time messaging
-- **Profile/Settings:** Account management, clinic connection
+- **Clinic Tab (Unified Communications):**
+  - Combined feed of chat conversations and appointment requests
+  - Filter by All/Chats/Appointments with badge counts
+  - Request new chats with clinic, request appointments
+  - View appointment status (pending/confirmed/denied), cancel pending requests
+  - Dynamic FAB based on selected filter
+- **Medications:** Track active medications, log doses, view dose history, pause/resume/extend
+- **Profile:** Edit display name/phone/address, live stats (pets, appointments, symptom records)
+- **Settings:** Notification toggle, clinic connection management
 
 ### Vet Features
 
-- **Dashboard:** Patient overview, pending requests
+- **Dashboard:** Patient overview, pending chat requests, **Today's Appointments** card (live confirmed appointments for today)
 - **Patients:** View connected pet owners and their pets
 - **Chat:** Accept requests, message pet owners, view pet info
 - **Proactive Outreach:** Start chats with patients
@@ -1296,12 +1313,13 @@ allow update: if
 
 - All vet features, plus:
 - **Staff Management:** Invite/manage vets and receptionists
-- **Clinic Settings:** Update clinic info, business hours
+- **Pet Owners:** View all connected pet owners (navigates to patients list with search)
+- **Clinic Settings:** View and edit clinic details, business hours, contact info (navigates to Clinic Management page)
 - **Overview:** All clinic chats and activity
 
 ### Receptionist Features
 
-- **Dashboard:** Overview with pending counts, quick actions, messages section
+- **Dashboard:** Overview with pending counts, **Today's Appointments** card (live confirmed appointments), messages section, quick actions
 - **Patients:** View connected pet owners and their pets
 - **Clinic Tab (Unified Communications):**
   - Combined feed of chat requests, active chats, and appointment requests
@@ -1316,6 +1334,57 @@ allow update: if
 - **Admin Dashboard:** Create clinics, assign clinic admins
 - **Global Overview:** View all clinics and activity
 - **Support Tools:** Manage system-wide settings
+
+---
+
+## 19. Testing & Dependency Injection
+
+### Test Infrastructure
+
+Tests live in `test/` mirroring the `lib/` structure:
+
+```
+test/
+├── services/
+│   ├── appointment_request_service_test.dart   # CRUD, streams, cancellation
+│   ├── push_notification_service_test.dart     # Token management, enable/disable
+│   ├── clinic_service_update_test.dart         # Clinic update persistence
+│   ├── profile_update_test.dart                # User profile update persistence
+│   └── profile_stats_test.dart                 # Pet/appointment/record count streams
+├── models/
+│   └── todays_appointments_test.dart           # todaysConfirmedAppointments filter
+├── integration/
+│   └── appointment_flow_integration_test.dart  # Full create → confirm/deny lifecycle
+└── widget_test.dart                            # Default Flutter widget test
+```
+
+### Dependency Injection for Testability
+
+Services accept optional Firebase instances in their constructors so tests can inject `FakeFirebaseFirestore` (from `fake_cloud_firestore` package):
+
+```dart
+class AppointmentRequestService {
+  final FirebaseFirestore _firestore;
+
+  AppointmentRequestService({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
+}
+
+class ClinicService {
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _auth;
+
+  ClinicService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth;
+}
+```
+
+Widget-level pages that need Firestore access (e.g., `ProfilePage`) also accept an optional `FirebaseFirestore` parameter for the same reason.
+
+### Shared Helpers
+
+`todaysConfirmedAppointments()` in `appointment_request_model.dart` is a pure function that filters a list of requests to confirmed appointments overlapping a given date. It accepts an optional `referenceDate` for deterministic testing.
 
 ---
 

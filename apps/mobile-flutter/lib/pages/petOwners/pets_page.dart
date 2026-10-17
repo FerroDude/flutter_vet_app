@@ -8,6 +8,7 @@ import 'package:getwidget/getwidget.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/event_provider.dart';
+import '../../providers/medication_provider.dart';
 import 'pet_details_page.dart';
 import 'pet_form_page.dart';
 import 'settings_page.dart';
@@ -224,6 +225,8 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
 
                           final eventProvider = context.read<EventProvider>();
                           final userProvider = context.read<UserProvider>();
+                          final medicationProvider = context
+                              .read<MedicationProvider>();
 
                           Navigator.push(
                             context,
@@ -235,6 +238,9 @@ class _ModernPetsPageContentState extends State<_ModernPetsPageContent> {
                                   ),
                                   ChangeNotifierProvider.value(
                                     value: userProvider,
+                                  ),
+                                  ChangeNotifierProvider.value(
+                                    value: medicationProvider,
                                   ),
                                 ],
                                 child: PetDetailsPage(petRef: petRef),

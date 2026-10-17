@@ -3819,7 +3819,7 @@ class MedicationsSection extends StatelessWidget {
         maxChildSize: 0.9,
         builder: (context, controller) => Container(
           decoration: BoxDecoration(
-            color: context.surfacePrimary,
+            gradient: AppTheme.backgroundGradient,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -3829,7 +3829,7 @@ class MedicationsSection extends StatelessWidget {
                 width: 40.w,
                 height: 4.h,
                 decoration: BoxDecoration(
-                  color: AppTheme.neutral300,
+                  color: Colors.white.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -3840,7 +3840,7 @@ class MedicationsSection extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.w700,
-                    color: context.textColor,
+                    color: Colors.white,
                   ),
                 ),
               ),

@@ -56,9 +56,21 @@ class _ReceptionistDashboardPageState extends State<ReceptionistDashboardPage> {
   }
 
   void _navigateToAppointmentRequests() {
+    final userProvider = context.read<UserProvider>();
+    final appointmentProvider = context.read<AppointmentRequestProvider>();
+    final chatProvider = context.read<ChatProvider>();
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const AppointmentRequestsPage()),
+      MaterialPageRoute(
+        builder: (context) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: userProvider),
+            ChangeNotifierProvider.value(value: appointmentProvider),
+            ChangeNotifierProvider.value(value: chatProvider),
+          ],
+          child: const AppointmentRequestsPage(),
+        ),
+      ),
     );
   }
 

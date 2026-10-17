@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/vet_provider.dart';
 import '../../shared/widgets/app_components.dart';
 import '../../theme/app_theme.dart';
 import '../vets/vet_management_page.dart';
@@ -351,11 +352,15 @@ class _ClinicAdminDashboardState extends State<ClinicAdminDashboard> {
         subtitle: 'Connected owners',
         color: AppTheme.primary,
         onTap: () {
+          final vetProvider = context.read<VetProvider>();
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ChangeNotifierProvider.value(
-                value: userProvider,
+              builder: (context) => MultiProvider(
+                providers: [
+                  ChangeNotifierProvider.value(value: userProvider),
+                  ChangeNotifierProvider.value(value: vetProvider),
+                ],
                 child: const VetPatientsPage(),
               ),
             ),

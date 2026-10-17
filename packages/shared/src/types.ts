@@ -1,0 +1,226 @@
+// TypeScript mirrors of the Flutter domain models. These are the in-memory
+// (parsed) shapes used by the web app. Firestore <-> these are handled by
+// per-feature converters that use helpers in converters.ts.
+
+import type {
+  UserType,
+  ClinicRole,
+  MessageType,
+  MessageStatus,
+  ChatRoomStatus,
+  AppointmentRequestStatus,
+  TimePreference,
+  MedicationStatus,
+  MedicationFrequency,
+  EventType,
+  SymptomType,
+  SenderRole,
+} from './enums';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  userType: UserType;
+  connectedClinicId?: string | null;
+  clinicRole?: ClinicRole | null;
+  phone?: string | null;
+  address?: string | null;
+  hasSkippedClinicSelection: boolean;
+  mustChangePassword: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  globalType?: string | null; // 'appOwner' | null
+  fcmToken?: string | null;
+}
+
+export interface Clinic {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  adminId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  website?: string | null;
+  description?: string | null;
+  businessHours?: Record<string, unknown> | null;
+}
+
+export interface ClinicMember {
+  userId: string;
+  clinicId: string;
+  role: ClinicRole;
+  permissions: string[];
+  addedAt: Date;
+  addedBy: string;
+  isActive: boolean;
+  lastActive?: Date | null;
+}
+
+export interface Pet {
+  id: string;
+  ownerId: string;
+  name: string;
+  species?: string | null;
+  breed?: string | null;
+  sex?: string | null;
+  birthDate?: Date | null;
+  weightKg?: number | null;
+  microchip?: string | null;
+  photoUrl?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PetSymptom {
+  id: string;
+  ownerId: string;
+  petId: string;
+  type: SymptomType;
+  timestamp: Date;
+  note?: string | null;
+  createdAt: Date;
+}
+
+export interface DoseLog {
+  id: string;
+  scheduledTime: Date;
+  takenAt?: Date | null;
+  skipped: boolean;
+  notes?: string | null;
+}
+
+export interface TimeOfDay {
+  hour: number;
+  minute: number;
+}
+
+export interface Medication {
+  id: string;
+  petId: string;
+  ownerId: string;
+  name: string;
+  dosage: string;
+  instructions?: string | null;
+  frequency: MedicationFrequency;
+  doseTimes: TimeOfDay[];
+  startDate: Date;
+  endDate?: Date | null;
+  totalDays?: number | null;
+  status: MedicationStatus;
+  trackDoses: boolean;
+  doseHistory: DoseLog[];
+  remindersEnabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  prescribedByVetId?: string | null;
+  prescribedByVetName?: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: SenderRole | string;
+  content: string;
+  type: MessageType;
+  status: MessageStatus;
+  timestamp: Date;
+  deliveredAt?: Date | null;
+  readAt?: Date | null;
+  mediaUrl?: string | null;
+  thumbnailUrl?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  mimeType?: string | null;
+  audioDuration?: number | null;
+  appointmentId?: string | null;
+  medicationId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  isDeleted: boolean;
+  deletedAt?: Date | null;
+}
+
+export interface ChatRoom {
+  id: string;
+  clinicId: string;
+  petOwnerId: string;
+  petOwnerName: string;
+  vetId: string;
+  vetName: string;
+  petIds: string[];
+  lastMessage?: ChatMessage | null;
+  unreadCounts: Record<string, number>;
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  topic?: string | null;
+  status: ChatRoomStatus;
+  requestDescription?: string | null;
+  initiatedBy?: string | null;
+  staffRole?: string | null;
+}
+
+export interface AppointmentRequest {
+  id: string;
+  clinicId: string;
+  petOwnerId: string;
+  petOwnerName: string;
+  petId: string;
+  petName: string;
+  petSpecies?: string | null;
+  preferredDateStart: Date;
+  preferredDateEnd: Date;
+  timePreference: TimePreference;
+  reason: string;
+  notes?: string | null;
+  status: AppointmentRequestStatus;
+  handledBy?: string | null;
+  handledByName?: string | null;
+  handledAt?: Date | null;
+  responseMessage?: string | null;
+  linkedChatRoomId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CalendarEventBase {
+  id: string;
+  title: string;
+  description: string;
+  dateTime: Date;
+  type: EventType;
+  petId?: string | null;
+  userId: string;
+  seriesId?: string | null;
+  isRecurring: boolean;
+  recurrencePattern?: string | null; // daily | weekly | monthly
+  recurrenceInterval?: number | null;
+  endDate?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Role helpers (mirror UserProfile getters in Dart).
+export function isAppOwner(u: Pick<UserProfile, 'globalType' | 'userType'>): boolean {
+  return u.globalType === 'appOwner' || u.userType === 3;
+}
+export function isClinicAdmin(u: Pick<UserProfile, 'clinicRole'>): boolean {
+  return u.clinicRole === 0;
+}
+export function isVet(u: Pick<UserProfile, 'clinicRole'>): boolean {
+  return u.clinicRole === 1;
+}
+export function isReceptionist(u: Pick<UserProfile, 'clinicRole'>): boolean {
+  return u.clinicRole === 2;
+}
+export function isPetOwner(
+  u: Pick<UserProfile, 'globalType' | 'userType' | 'clinicRole'>,
+): boolean {
+  return !isAppOwner(u) && !isVet(u) && !isClinicAdmin(u) && !isReceptionist(u);
+}

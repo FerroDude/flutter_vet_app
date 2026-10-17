@@ -130,6 +130,32 @@ Wired the "Pet Owners" action card to navigate to the existing `VetPatientsPage`
 
 Wired the "Clinic Settings" action card to navigate to the existing `ClinicManagementPage`, which already supports viewing and editing clinic details, business hours, and contact information.
 
+### Phase C — Next code-only tasks
+
+#### 14. Deeper `AppLoadingIndicator` / `AppEmptyState` migration
+
+Deferred from Phase A items 4-5. Many screens still use raw `CircularProgressIndicator` and ad-hoc empty states.
+
+- [ ] Migrate remaining dashboard-adjacent pages (forms, modals, detail screens)
+- [ ] Audit and replace ad-hoc empty states with `AppEmptyState` where appropriate
+
+#### 15. Broader `app_components.dart` adoption
+
+Continue the gradual component migration started in Phase A.
+
+- [ ] Migrate vet and receptionist pages to use `AppCard`, `AppButton`, `AppTextField`
+- [ ] Replace raw `Container` + `BoxDecoration` patterns with `AppCard` on detail/list screens
+
+#### 16. Academy feature (online courses for pet owners)
+
+New feature concept: provide pet training, grooming, and care courses inside the app.
+
+- [ ] Define scope: video-based courses? Article-based? Both?
+- [ ] Design data model: Course, Lesson, Progress
+- [ ] Decide hosting: Firebase Storage for media, or external video provider?
+- [ ] Build Academy tab / section in the pet owner navigation
+- [ ] Consider monetization: free tier vs paid courses
+
 ---
 
 ## Pending — Requires Devices or Product Decisions
@@ -138,10 +164,10 @@ These stay tracked but are blocked until the prerequisite is met.
 
 | #   | Task                                           | Blocker                | Notes                                                                                                         |
 | --- | ---------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 10  | Run `TESTING_CHECKLIST.md` on physical devices | Needs physical devices | Push notifications, full appointment flow, chat-from-appointment, notification toggle, regression             |
-| 11  | Fix bugs found during device testing           | Depends on #10         |                                                                                                               |
-| 12  | Vet appointment visibility scope               | Product decision       | Should vets see requests? Read-only or actionable?                                                            |
-| 13  | Email system (SendGrid/SES)                    | Product decision       | Firebase Auth handles invites/resets. Decide if transactional email is still needed or if push is sufficient. |
+| 17  | Run `TESTING_CHECKLIST.md` on physical devices | Needs physical devices | Push notifications, full appointment flow, chat-from-appointment, notification toggle, regression             |
+| 18  | Fix bugs found during device testing           | Depends on #17         |                                                                                                               |
+| 19  | Vet appointment visibility scope               | Product decision       | Should vets see requests? Read-only or actionable?                                                            |
+| 20  | Email system (SendGrid/SES)                    | Product decision       | Firebase Auth handles invites/resets. Decide if transactional email is still needed or if push is sufficient. |
 
 ### Watch For (during device testing)
 
@@ -155,6 +181,18 @@ These stay tracked but are blocked until the prerequisite is met.
 ## Completed
 
 Archived from previous iterations.
+
+### Analyzer / Lint Cleanup
+
+- [x] Removed unused `_buildGlassyButton` in `receptionist_management_page.dart` and `vet_management_page.dart`
+- [x] Added `mounted` / `context.mounted` guards after async gaps in `clinic_management_page.dart`, `chat_room_page.dart`, `clinic_page.dart`
+- [x] Replaced deprecated `activeColor` → `activeThumbColor` on Switch in `settings_page.dart`
+- [x] Replaced deprecated `dialogBackgroundColor` → `DialogThemeData(backgroundColor: ...)` in `medication_widgets.dart`
+- [x] Replaced deprecated `DropdownButtonFormField.value` → `initialValue` in `appointment_request_form.dart`
+- [x] Added curly braces in `display_name_setup_page.dart` validator
+- [x] Made `_medicationsByPet` final in `medication_provider.dart`
+- [x] Replaced `print` → `developer.log` in `cleanup_old_medications.dart`
+- [x] Renamed fold parameter `sum` → `total` in `medication_widgets.dart` to avoid `avoid_types_as_parameter_names`
 
 ### Pre-Release Cleanup and Validation
 

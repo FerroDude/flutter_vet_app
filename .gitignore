@@ -1,0 +1,8 @@
+node_modules/
+.codegraph/
+dist/
+build/
+.env
+.env.local
+*.local
+.DS_Store
