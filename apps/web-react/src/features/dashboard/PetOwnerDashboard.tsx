@@ -205,7 +205,7 @@ export function PetOwnerDashboard() {
             ))}
             {activeMeds.length > 3 && (
               <p className="text-center text-sm text-muted-foreground">
-                +{activeMeds.length - 3} noutros animais
+                +{activeMeds.length - 3} {activeMeds.length - 3 === 1 ? 'outra medicação' : 'outras medicações'}
               </p>
             )}
           </div>
@@ -224,16 +224,18 @@ export function PetOwnerDashboard() {
           <div className="space-y-2">
             {todayEvents.map((e) => (
               <Card key={e.id} className="flex items-center gap-3 p-3">
-                <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
                   {timeFmt.format(e.dateTime)}
                 </span>
-                <span className="font-medium text-foreground">{e.title}</span>
-                {e.petId && petNames.get(e.petId) && (
-                  <span className="text-xs text-muted-foreground">· {petNames.get(e.petId)}</span>
-                )}
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-medium text-foreground">{e.title}</span>
+                  {e.petId && petNames.get(e.petId) && (
+                    <span className="text-xs text-muted-foreground"> · {petNames.get(e.petId)}</span>
+                  )}
+                </span>
                 <Button
                   variant="ghost"
-                  className="ml-auto h-8 px-3 text-xs"
+                  className="h-8 shrink-0 px-3 text-xs"
                   onClick={() => navigate('/calendar')}
                 >
                   Ver

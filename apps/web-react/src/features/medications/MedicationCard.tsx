@@ -46,9 +46,13 @@ export function MedicationCard({
   const p = progress(med);
   const canTake = active && !allDosesTakenToday(med);
   const remaining = daysRemaining(med);
+  const pick = (fn: () => void) => () => {
+    setMenuOpen(false);
+    fn();
+  };
 
   return (
-    <Card className={cn('p-4', !active && 'opacity-80')}>
+    <Card className={cn('relative p-4', !active && 'opacity-80', menuOpen && 'z-20')}>
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
           <Pill size={20} />
@@ -63,41 +67,49 @@ export function MedicationCard({
                 {petName ? ` · ${petName}` : ''}
               </p>
             </div>
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setMenuOpen((o) => !o)}
-                onBlur={() => setTimeout(() => setMenuOpen(false), 150)}
                 className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
                 aria-label="Opções da medicação"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
               >
                 <MoreVertical size={16} />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)">
-                  <MenuItem onClick={onEdit} icon={<Pencil size={14} />}>
-                    Editar
-                  </MenuItem>
-                  {active ? (
-                    <MenuItem onClick={() => onSetStatus(MedicationStatus.paused)}>
-                      Pausar
-                    </MenuItem>
-                  ) : (
-                    <MenuItem onClick={() => onSetStatus(MedicationStatus.active)}>
-                      Retomar
-                    </MenuItem>
-                  )}
-                  <MenuItem onClick={() => onSetStatus(MedicationStatus.completed)}>
-                    Marcar como concluída
-                  </MenuItem>
-                  <MenuItem
-                    onClick={onDelete}
-                    icon={<Trash2 size={14} />}
-                    danger
+                <>
+                  <button
+                    type="button"
+                    aria-label="Fechar menu"
+                    className="fixed inset-0 z-20 cursor-default"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)"
                   >
-                    Apagar
-                  </MenuItem>
-                </div>
+                    <MenuItem onClick={pick(onEdit)} icon={<Pencil size={14} />}>
+                      Editar
+                    </MenuItem>
+                    {active ? (
+                      <MenuItem onClick={pick(() => onSetStatus(MedicationStatus.paused))}>
+                        Pausar
+                      </MenuItem>
+                    ) : (
+                      <MenuItem onClick={pick(() => onSetStatus(MedicationStatus.active))}>
+                        Retomar
+                      </MenuItem>
+                    )}
+                    <MenuItem onClick={pick(() => onSetStatus(MedicationStatus.completed))}>
+                      Marcar como concluída
+                    </MenuItem>
+                    <MenuItem onClick={pick(onDelete)} icon={<Trash2 size={14} />} danger>
+                      Apagar
+                    </MenuItem>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -134,7 +146,7 @@ export function MedicationCard({
           )}
 
           {active && (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
               <Button
                 size="md"
                 variant={canTake ? 'primary' : 'outline'}
@@ -176,10 +188,8 @@ function MenuItem({
   return (
     <button
       type="button"
-      onMouseDown={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
+      role="menuitem"
+      onClick={onClick}
       className={cn(
         'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary',
         danger ? 'text-destructive' : 'text-foreground',

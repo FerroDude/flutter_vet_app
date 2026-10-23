@@ -50,7 +50,8 @@ export function ChatPage() {
   const open = Boolean(selectedId);
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] flex-col">
+    // Mobile: top bar + main top padding + bottom-nav padding. Desktop: main py-10.
+    <div className="flex h-[calc(100dvh-12.25rem)] min-h-[22rem] flex-col lg:h-[calc(100dvh-5rem)]">
       <PageHeader
         title="Chat"
         subtitle="Mensagens com a sua veterinária."

@@ -70,6 +70,14 @@ const STATUS_META: Record<
 };
 
 const dateFmt = new Intl.DateTimeFormat('pt-PT', { month: 'short', day: 'numeric' });
+const bookedFmt = new Intl.DateTimeFormat('pt-PT', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 function dateRange(r: AppointmentRequest): string {
   const start = dateFmt.format(r.preferredDateStart);
@@ -266,7 +274,7 @@ export function AppointmentQueuePage() {
                       <StatusIcon size={13} />
                       {meta.label}
                     </span>
-                    <span className="text-xs text-muted-foreground">{r.petOwnerName}</span>
+                    <span className="truncate text-xs text-muted-foreground">{r.petOwnerName}</span>
                   </div>
 
                   <div className="flex items-center gap-2 font-medium text-foreground">
@@ -290,8 +298,17 @@ export function AppointmentQueuePage() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-foreground">{r.reason}</p>
-                  {r.notes && <p className="text-sm text-muted-foreground">{r.notes}</p>}
+                  {r.status === AppointmentRequestStatus.confirmed && r.bookedDateTime && (
+                    <p className="inline-flex items-center gap-1.5 text-sm font-medium text-primary">
+                      <CheckCircle2 size={14} />
+                      Marcado para {bookedFmt.format(r.bookedDateTime)}
+                    </p>
+                  )}
+
+                  <p className="whitespace-pre-wrap break-words text-sm text-foreground">{r.reason}</p>
+                  {r.notes && (
+                    <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{r.notes}</p>
+                  )}
 
                   {r.responseMessage && (
                     <div className="flex items-start gap-2 rounded-(--radius-md) bg-secondary p-3 text-sm text-muted-foreground">

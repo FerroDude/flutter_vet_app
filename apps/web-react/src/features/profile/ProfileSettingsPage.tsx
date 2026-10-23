@@ -124,8 +124,8 @@ export function ProfileSettingsPage() {
     }
   };
 
-  const displayName = profile?.displayName?.trim() || profile?.email || 'User';
-  const initial = displayName.charAt(0).toUpperCase() || 'U';
+  const displayName = profile?.displayName?.trim() || profile?.email || 'Utilizador';
+  const initial = displayName.charAt(0).toUpperCase() || '?';
 
   const saveProfile = async () => {
     setSavingProfile(true);
@@ -161,7 +161,7 @@ export function ProfileSettingsPage() {
       {/* Identity + stats */}
       <Card className="mb-6">
         <CardBody className="flex flex-wrap items-center gap-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-light text-2xl font-semibold text-primary">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary-light text-2xl font-semibold text-primary">
             {initial}
           </div>
           <div className="min-w-0 flex-1">
@@ -200,14 +200,18 @@ export function ProfileSettingsPage() {
         <Section title="Veterinária">
           <Card>
             <CardBody className="flex flex-wrap items-start gap-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
                 <Stethoscope size={18} />
               </span>
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="font-medium text-foreground">{vet?.displayName || 'A sua veterinária'}</p>
-                {vet?.phone && <p className="text-sm text-muted-foreground">{vet.phone}</p>}
+                <p className="break-words font-medium text-foreground">{vet?.displayName || 'A sua veterinária'}</p>
+                {vet?.phone && (
+                  <a href={`tel:${vet.phone}`} className="block text-sm text-muted-foreground hover:text-foreground">
+                    {vet.phone}
+                  </a>
+                )}
                 {vet?.address && (
-                  <p className="text-sm text-muted-foreground">{vet.address}</p>
+                  <p className="break-words text-sm text-muted-foreground">{vet.address}</p>
                 )}
                 {!vet && (
                   <p className="text-sm text-muted-foreground">
@@ -326,8 +330,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="truncate text-sm font-medium text-foreground">{value}</span>
+      <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-sm font-medium text-foreground">{value}</span>
     </div>
   );
 }

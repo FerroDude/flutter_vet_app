@@ -172,12 +172,12 @@ export function PetDetailPage() {
         onClick={() => navigate(isVetView ? `/patients/${ownerParam}` : '/pets')}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> Animais
+        <ArrowLeft size={16} /> {isVetView ? 'Cliente' : 'Animais'}
       </button>
 
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-center gap-4">
-        <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-(--radius-lg) bg-primary-light">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-lg) bg-primary-light">
           {pet.photoUrl ? (
             <img src={pet.photoUrl} alt={pet.name} className="h-full w-full object-cover" />
           ) : (
@@ -185,7 +185,7 @@ export function PetDetailPage() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-3xl font-bold text-foreground">{pet.name}</h1>
+          <h1 className="break-words font-display text-3xl font-bold text-foreground">{pet.name}</h1>
           <p className="text-muted-foreground">
             {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Animal'} ·{' '}
             {petAgeLabel(pet.dateOfBirth)}
@@ -264,7 +264,7 @@ export function PetDetailPage() {
       </Card>
 
       {/* Medications */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl font-bold text-foreground">Medicação</h2>
         <Button
           variant="outline"
@@ -303,7 +303,7 @@ export function PetDetailPage() {
       )}
 
       {/* Appointments */}
-      <div className="mb-3 mt-8 flex items-center justify-between">
+      <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl font-bold text-foreground">Consultas</h2>
         <Button
           variant="outline"
@@ -352,7 +352,11 @@ export function PetDetailPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void deleteEvent(uid, e.id)}
+                      onClick={() =>
+                        void deleteEvent(uid, e.id).catch((err) =>
+                          toast.error(err instanceof Error ? err.message : 'Não foi possível apagar'),
+                        )
+                      }
                       className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
                       aria-label="Apagar marcação"
                     >
@@ -367,7 +371,7 @@ export function PetDetailPage() {
       )}
 
       {/* Symptoms */}
-      <div className="mb-3 mt-8 flex items-center justify-between">
+      <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-display text-xl font-bold text-foreground">Sintomas</h2>
         <Button variant="outline" onClick={() => setLogOpen(true)}>
           <Plus size={16} /> Registar sintoma
@@ -392,12 +396,18 @@ export function PetDetailPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">{dateFmt.format(s.timestamp)}</p>
                   {s.note && (
-                    <p className="mt-1 text-sm text-muted-foreground">{s.note}</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                      {s.note}
+                    </p>
                   )}
                 </div>
                 <button
                   type="button"
-                  onClick={() => void deleteSymptom(uid, pet.id, s.id)}
+                  onClick={() =>
+                    void deleteSymptom(uid, pet.id, s.id).catch((err) =>
+                      toast.error(err instanceof Error ? err.message : 'Não foi possível apagar'),
+                    )
+                  }
                   className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
                   aria-label="Apagar sintoma"
                 >

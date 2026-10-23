@@ -248,14 +248,16 @@ export function Conversation({ roomId }: { roomId: string }) {
   };
 
   const isPending = room?.status === ChatRoomStatus.pending;
+  const iAmVet = Boolean(room && uid === room.vetId);
+  const otherName = iAmVet ? room?.petOwnerName?.trim() : room?.vetName?.trim();
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-border px-5 py-3">
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-bold text-foreground">
-            {room?.vetName?.trim() || room?.topic || 'Conversa'}
+            {otherName || room?.topic || 'Conversa'}
           </p>
           <p className="truncate text-xs text-muted-foreground">
             {isPending ? 'À espera que a veterinária aceite' : room?.topic || 'Conversa ativa'}
@@ -264,7 +266,11 @@ export function Conversation({ roomId }: { roomId: string }) {
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 space-y-1 overflow-y-auto px-5 py-4">
+      <div
+        ref={scrollRef}
+        data-chat-scroll
+        className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 py-4"
+      >
         {loading && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <Spinner size={28} />
@@ -571,6 +577,8 @@ function MessageActions({
   onDelete: (m: ChatMessage) => void;
 }) {
   const canCopy = m.type === MessageType.text;
+  // Open below the button when there isn't room above inside the scroll area.
+  const [dropDown, setDropDown] = useState(false);
   return (
     <div className="relative shrink-0 self-center">
       <button
@@ -578,7 +586,12 @@ function MessageActions({
         aria-label="Ações da mensagem"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={onToggleMenu}
+        onClick={(e) => {
+          const btn = e.currentTarget.getBoundingClientRect();
+          const area = e.currentTarget.closest('[data-chat-scroll]')?.getBoundingClientRect();
+          setDropDown(area ? btn.top - area.top < 200 : false);
+          onToggleMenu();
+        }}
         className={cn(
           'grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition-opacity hover:bg-secondary hover:text-foreground focus-visible:opacity-100',
           open ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
@@ -598,7 +611,8 @@ function MessageActions({
           <div
             role="menu"
             className={cn(
-              'absolute bottom-9 z-40 w-44 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)',
+              'absolute z-40 w-44 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)',
+              dropDown ? 'top-9' : 'bottom-9',
               mine ? 'right-0' : 'left-0',
             )}
           >
@@ -671,7 +685,7 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
           <img
             src={m.mediaUrl}
             alt="Imagem partilhada"
-            className="max-h-64 rounded-(--radius-md) object-cover"
+            className="max-h-64 max-w-full rounded-(--radius-md) object-cover"
           />
         </a>
       ) : (
@@ -679,7 +693,7 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
       );
     case MessageType.video:
       return m.mediaUrl ? (
-        <video src={m.mediaUrl} controls className="max-h-64 rounded-(--radius-md)" />
+        <video src={m.mediaUrl} controls className="max-h-64 max-w-full rounded-(--radius-md)" />
       ) : (
         <span>{m.content}</span>
       );
@@ -695,10 +709,10 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
           href={m.mediaUrl ?? '#'}
           target="_blank"
           rel="noreferrer"
-          className={`flex items-center gap-2 underline ${mine ? '' : 'text-primary'}`}
+          className={`flex min-w-0 items-center gap-2 underline ${mine ? '' : 'text-primary'}`}
         >
-          <FileText size={16} />
-          {m.fileName ?? 'Anexo'}
+          <FileText size={16} className="shrink-0" />
+          <span className="break-all">{m.fileName ?? 'Anexo'}</span>
         </a>
       );
     default:

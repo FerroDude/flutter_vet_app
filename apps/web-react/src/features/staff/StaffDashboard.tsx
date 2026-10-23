@@ -15,9 +15,12 @@ import {
   TimePreference,
   type ChatRoom,
   ChatRoomStatus,
+  type UserProfile,
 } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
+import { clientsQuery } from '@/lib/clientService';
+import { mapPatient, isPatient } from '@/lib/clinicService';
 import { clinicRequestsQuery, vetRequestsQuery, mapAppointmentRequest } from '@/lib/appointmentRequestService';
 import { staffRoomsQuery, clinicRoomsQuery, mapRoom } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
@@ -37,6 +40,8 @@ const dayFmt = new Intl.DateTimeFormat('pt-PT', {
   day: 'numeric',
 });
 
+const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
 function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
@@ -55,7 +60,7 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
   const clinicId = connectedClinic?.id ?? '';
-  const firstName = (profile?.displayName?.trim() || profile?.email || 'there').split(' ')[0];
+  const firstName = (profile?.displayName?.trim() || '').split(' ')[0];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
@@ -77,9 +82,17 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
           if (r.bookedDateTime) return isSameDay(r.bookedDateTime, new Date());
           return withinToday(r);
         })
-        .sort((a, b) => a.preferredDateStart.getTime() - b.preferredDateStart.getTime()),
+        .sort(
+          (a, b) =>
+            (a.bookedDateTime ?? a.preferredDateStart).getTime() -
+            (b.bookedDateTime ?? b.preferredDateStart).getTime(),
+        ),
     [requests],
   );
+
+  const clientsQ = useMemo(() => (role === 'vet' && uid ? clientsQuery(uid) : null), [role, uid]);
+  const { data: clientDocs } = useCollection<UserProfile>(clientsQ, mapPatient);
+  const clientCount = useMemo(() => clientDocs.filter(isPatient).length, [clientDocs]);
 
   const myRoomsQ = useMemo(() => (uid ? staffRoomsQuery(uid) : null), [uid]);
   const { data: myRooms } = useCollection<ChatRoom>(myRoomsQ, mapRoom);
@@ -144,7 +157,7 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
           icon={<Users size={20} />}
           title="Clientes"
           value={0}
-          caption="Ver clientes"
+          caption={clientCount === 1 ? '1 cliente' : `${clientCount} clientes`}
           onClick={() => navigate('/patients')}
         />
       </div>
@@ -172,7 +185,8 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
                       <span className="font-normal text-muted-foreground"> · {r.petOwnerName}</span>
                     </p>
                     <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Clock size={13} /> {TIME_SHORT[r.timePreference]}
+                      <Clock size={13} />{' '}
+                      {r.bookedDateTime ? timeFmt.format(r.bookedDateTime) : TIME_SHORT[r.timePreference]}
                     </p>
                   </div>
                 </CardBody>

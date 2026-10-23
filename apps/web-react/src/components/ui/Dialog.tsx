@@ -108,20 +108,26 @@ export function Dialog({
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cn(
-          'relative w-full max-w-md rounded-(--radius-lg) border border-border bg-card p-6 shadow-(--shadow-lg) outline-none animate-panel-in',
+          'relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col rounded-(--radius-lg) border border-border bg-card p-6 shadow-(--shadow-lg) outline-none animate-panel-in',
           className,
         )}
       >
-        <h2 id={titleId} className="font-display text-xl font-bold text-foreground">
+        <h2 id={titleId} className="shrink-0 font-display text-xl font-bold text-foreground">
           {title}
         </h2>
         {description && (
-          <p id={descId} className="mt-1 text-sm text-muted-foreground">
+          <p id={descId} className="mt-1 shrink-0 text-sm text-muted-foreground">
             {description}
           </p>
         )}
-        {children && <div className="mt-4">{children}</div>}
-        {footer && <div className="mt-6 flex justify-end gap-3">{footer}</div>}
+        {/* Scrolls when content is tall. The inset padding keeps focus rings
+            (outline + offset, 4px) from being clipped by the overflow. */}
+        {children && (
+          <div className="-mx-1.5 mt-3 min-h-0 overflow-y-auto px-1.5 py-1.5">{children}</div>
+        )}
+        {footer && (
+          <div className="mt-5 flex shrink-0 flex-wrap justify-end gap-3">{footer}</div>
+        )}
       </div>
     </div>
   );

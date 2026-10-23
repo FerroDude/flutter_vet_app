@@ -114,25 +114,33 @@ export function PatientDetailPage() {
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 {owner.email && (
-                  <span className="inline-flex items-center gap-2 text-muted-foreground">
-                    <Mail size={15} /> {owner.email}
-                  </span>
+                  <a
+                    href={`mailto:${owner.email}`}
+                    className="flex min-w-0 items-center gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Mail size={15} className="shrink-0" />
+                    <span className="break-all">{owner.email}</span>
+                  </a>
                 )}
                 {owner.phone && (
-                  <span className="inline-flex items-center gap-2 text-muted-foreground">
-                    <Phone size={15} /> {owner.phone}
-                  </span>
+                  <a
+                    href={`tel:${owner.phone}`}
+                    className="flex min-w-0 items-center gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Phone size={15} className="shrink-0" /> {owner.phone}
+                  </a>
                 )}
                 {owner.address && (
-                  <span className="inline-flex items-center gap-2 text-muted-foreground">
-                    <MapPin size={15} /> {owner.address}
+                  <span className="flex min-w-0 items-start gap-2 text-muted-foreground">
+                    <MapPin size={15} className="mt-0.5 shrink-0" />
+                    <span className="break-words">{owner.address}</span>
                   </span>
                 )}
               </div>
             </CardBody>
           </Card>
 
-          <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Animais ({pets.length})
             </h2>
@@ -188,7 +196,7 @@ function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
         {open && (
           <div className="border-t border-border px-4 py-3">
             {pet.medicalNotes && (
-              <p className="mb-3 text-sm text-muted-foreground">
+              <p className="mb-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">Notas: </span>
                 {pet.medicalNotes}
               </p>
@@ -239,7 +247,7 @@ function PetSymptoms({ ownerId, petId }: { ownerId: string; petId: string }) {
           <div className="min-w-0">
             <span className="font-medium text-foreground">{SYMPTOM_LABELS[s.type]}</span>
             <span className="text-muted-foreground"> · {symptomDateFmt.format(s.timestamp)}</span>
-            {s.note && <p className="text-muted-foreground">{s.note}</p>}
+            {s.note && <p className="whitespace-pre-wrap break-words text-muted-foreground">{s.note}</p>}
           </div>
         </div>
       ))}

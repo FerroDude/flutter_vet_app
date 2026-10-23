@@ -103,7 +103,7 @@ function PetCard({ pet }: { pet: Pet }) {
           )}
         </div>
         <div className="p-4">
-          <p className="font-display text-lg font-semibold text-foreground">
+          <p className="truncate font-display text-lg font-semibold text-foreground">
             {pet.name}
           </p>
           {subtitle && (

@@ -44,7 +44,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             <button
               type="button"
               onClick={() => setShow((s) => !s)}
-              aria-label={show ? 'Hide password' : 'Show password'}
+              aria-label={show ? 'Esconder palavra-passe' : 'Mostrar palavra-passe'}
               className="absolute inset-y-0 right-0 grid w-11 place-items-center text-muted-foreground hover:text-foreground"
             >
               {show ? <EyeOff /> : <Eye />}
