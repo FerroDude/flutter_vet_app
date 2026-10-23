@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Activity,
@@ -29,7 +30,7 @@ import {
 } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
-import { eventsQuery, mapEvent, deleteEvent, setEventCompleted, type CalendarEvent } from '@/lib/eventService';
+import { eventsQuery, mapEvent, deleteEvent, setEventCompleted, isCancelled, type CalendarEvent } from '@/lib/eventService';
 import { petsQuery, mapPet, deleteSymptom, type Pet } from '@/lib/petService';
 import { logDoseTaken } from '@/lib/medicationService';
 import { useAllMedications } from '@/lib/useAllMedications';
@@ -67,6 +68,7 @@ const vetBooked = (e: CalendarEvent) => e.type === EventType.appointment && Bool
 /** Client agenda: requests to the vet, the month calendar and upcoming visits. */
 export function AgendaPage() {
   const { firebaseUser, profile } = useAuth();
+  const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
   const vetId = profile?.vetId ?? '';
   const confirm = useConfirm();
@@ -150,7 +152,7 @@ export function AgendaPage() {
   const marks = (d: Date, isSel: boolean) => {
     const slot = byDay.get(dayKey(d));
     const colors = [
-      slot?.events.some((e) => e.type === EventType.appointment) && 'bg-event-appointment',
+      slot?.events.some((e) => e.type === EventType.appointment && !isCancelled(e)) && 'bg-event-appointment',
       activeMeds.some((m) => isDoseScheduledOnDate(m, d)) && 'bg-event-medication',
       slot?.symptoms.length && 'bg-event-symptom',
       slot?.events.some((e) => e.type === EventType.note) && 'bg-accent',
@@ -224,7 +226,12 @@ export function AgendaPage() {
                     key={e.id}
                     event={e}
                     petName={e.petId ? petName.get(e.petId) : undefined}
-                    onEdit={vetBooked(e) ? undefined : () => setEditing(e)}
+                    onOpen={
+                      e.type === EventType.appointment
+                        ? () => navigate(`/agenda/consultas/${e.id}`)
+                        : undefined
+                    }
+                    onEdit={vetBooked(e) || isCancelled(e) ? undefined : () => setEditing(e)}
                     onDelete={vetBooked(e) ? undefined : () => void removeEvent(e)}
                     onToggle={
                       e.type === EventType.note
@@ -369,28 +376,33 @@ function MedRow({ med, day, petName, onLog }: { med: Medication; day: Date; petN
 function EventRow({
   event: e,
   petName,
+  onOpen,
   onEdit,
   onDelete,
   onToggle,
 }: {
   event: CalendarEvent;
   petName?: string;
+  onOpen?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onToggle?: () => void;
 }) {
   const completed = e.type === EventType.note && e.isCompleted;
   const appt = e.type === EventType.appointment ? e : null;
-  return (
+  const cancelled = Boolean(appt?.cancelledAt);
+  const row = (
     <Row
       color={appt ? 'bg-event-appointment' : 'bg-accent'}
       title={e.title}
-      strike={completed}
+      strike={completed || cancelled}
       meta={[timeFmt.format(e.dateTime), petName, appt?.bookedByVetId && (appt.vetName || 'Veterinária')]
         .filter(Boolean)
         .join(' · ')}
       extra={
-        appt?.location ? (
+        cancelled ? (
+          <span className="font-medium text-destructive">Cancelada{appt?.cancelReason ? ` — ${appt.cancelReason}` : ''}</span>
+        ) : appt?.location ? (
           <span className="inline-flex items-center gap-1">
             <MapPin size={12} /> {appt.location}
           </span>
@@ -401,7 +413,7 @@ function EventRow({
         ) : null
       }
       actions={
-        <>
+        <span className="contents" onClick={(ev) => ev.stopPropagation()}>
           {onToggle && (
             <IconAction label={completed ? 'Marcar por fazer' : 'Marcar como feito'} onClick={onToggle} active={completed}>
               <Check size={15} />
@@ -417,9 +429,26 @@ function EventRow({
               <Trash2 size={15} />
             </IconAction>
           )}
-        </>
+        </span>
       }
     />
+  );
+  if (!onOpen) return row;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          onOpen();
+        }
+      }}
+      className="cursor-pointer rounded-(--radius-lg) transition-shadow hover:shadow-(--shadow-md)"
+    >
+      {row}
+    </div>
   );
 }
 

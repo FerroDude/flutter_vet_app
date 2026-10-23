@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Activity, ArrowLeft, CalendarDays, PawPrint, Pencil, Pill, Plus, Trash2 } from 'lucide-react';
 import { PetAvatar } from '@/components/ui/PetAvatar';
@@ -15,7 +15,7 @@ import {
   logDoseTaken,
   undoLastDose,
 } from '@/lib/medicationService';
-import { eventsQuery, mapEvent, deleteEvent, type AppointmentEvent, type CalendarEvent } from '@/lib/eventService';
+import { eventsQuery, mapEvent, deleteEvent, isCancelled, type AppointmentEvent, type CalendarEvent } from '@/lib/eventService';
 import { clientLabel } from '@/lib/clientService';
 import { dateTimeFmt, errorMessage, longDateFmt } from '@/lib/format';
 import { cn } from '@/lib/cn';
@@ -194,9 +194,11 @@ export function PetDetailPage() {
               {petEvents.map((e) => (
                 <ListRow
                   key={e.id}
+                  to={!isVetView && e.type === EventType.appointment ? `/agenda/consultas/${e.id}` : undefined}
+                  strike={isCancelled(e)}
                   dot={e.type === EventType.appointment ? 'bg-event-appointment' : 'bg-accent'}
                   title={e.title}
-                  meta={dateTimeFmt.format(e.dateTime)}
+                  meta={`${dateTimeFmt.format(e.dateTime)}${isCancelled(e) ? ' · Cancelada' : ''}`}
                   actions={
                     canEdit(e) && (
                       <>
@@ -331,21 +333,38 @@ function ListRow({
   meta,
   note,
   actions,
+  strike,
+  to,
 }: {
   dot: string;
   title: string;
   meta: string;
   note?: string | null;
   actions?: ReactNode;
+  strike?: boolean;
+  to?: string;
 }) {
-  return (
-    <li className="flex items-start gap-3 p-4">
+  const content = (
+    <>
       <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', dot)} />
       <div className="min-w-0 flex-1">
-        <p className="break-words text-sm font-medium text-foreground">{title}</p>
+        <p className={cn('break-words text-sm font-medium text-foreground', strike && 'line-through opacity-60')}>
+          {title}
+        </p>
         <p className="text-xs text-muted-foreground">{meta}</p>
         {note && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">{note}</p>}
       </div>
+    </>
+  );
+  return (
+    <li className="flex items-start gap-3 p-4">
+      {to ? (
+        <Link to={to} className="flex min-w-0 flex-1 items-start gap-3">
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
       {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
     </li>
   );

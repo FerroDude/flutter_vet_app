@@ -32,18 +32,18 @@ Menu: Painel · Animais · Agenda · Chat · Perfil.
 
 - **Painel**: greeting, unread messages, upcoming appointments (next 3), up to 3 active medications, today's entries. Pets live only in the Animais tab.
 - **Animais**: pet list and search; pet form (create/edit); pet page with record, medications (log/undo dose, pause, complete, delete), appointments and symptoms.
-- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit; "Adicionar" adds a reminder, a medication or a symptom.
+- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit; "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat.
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
 - **Perfil**: name, phone, address; the vet's contact details; sign out.
 
-Appointments the vet booked are read-only for the client.
+Appointments the vet booked are read-only for the client, except a one-shot cancellation with a reason.
 
 ## Vet app (`VetApp`)
 
 Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 
-- **Painel**: pending requests, unread messages, client count, today's appointments.
-- **Agenda**: pending requests (confirm with a time → booked into the client's calendar in one batch; deny with a reason; open chat), month calendar with appointment counts, the selected day, upcoming appointments, and the handled-requests history. "Nova consulta" books an appointment for any client/pet (warns about clashes within 30 minutes); edit and cancel from the list.
+- **Painel**: pending requests, unread messages, client count, upcoming appointments, and "Canceladas recentemente" (client cancellations from the last 7 days, with the reason).
+- **Agenda**: pending requests (confirm with a time → booked into the client's calendar in one batch; deny with a reason; open chat), month calendar with appointment counts, the selected day (client-cancelled appointments shown struck through and removable), and the handled-requests history. "Nova consulta" books an appointment for any client/pet (warns about clashes within 30 minutes); edit and cancel from the list.
 - **Clientes**: list and search; add client. Client page: contact details, chat, book appointment, upcoming appointments, pets (open a pet page or add a pet).
 - **Pet page (vet view)**: everything the client sees plus **private notes** (a list of notes only the vet can read) and booking appointments directly.
 - **Chat**: conversation list + open conversation.

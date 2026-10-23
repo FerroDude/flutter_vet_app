@@ -73,17 +73,20 @@ export function VetAgendaPage() {
   };
 
   const cancel = async (a: AppointmentEvent) => {
+    const cancelled = Boolean(a.cancelledAt);
     const ok = await confirm({
-      title: 'Cancelar consulta?',
-      description: `${a.clientName ? `Com ${a.clientName}. ` : ''}Sai também do calendário do cliente.`,
-      confirmLabel: 'Cancelar consulta',
+      title: cancelled ? 'Remover consulta?' : 'Cancelar consulta?',
+      description: cancelled
+        ? 'Remover esta consulta cancelada da agenda?'
+        : `${a.clientName ? `Com ${a.clientName}. ` : ''}Sai também do calendário do cliente.`,
+      confirmLabel: cancelled ? 'Remover' : 'Cancelar consulta',
       cancelLabel: 'Manter',
       danger: true,
     });
     if (!ok) return;
     try {
       await deleteEvent(a.userId, a.id);
-      toast.success('Consulta cancelada');
+      toast.success(cancelled ? 'Consulta removida' : 'Consulta cancelada');
     } catch (e) {
       toast.error(errorMessage(e));
     }
@@ -152,7 +155,7 @@ export function VetAgendaPage() {
           onMonthChange={setMonth}
           onSelect={setDay}
           marks={(d, isSel) => {
-            const n = byDay.get(dayKey(d))?.length ?? 0;
+            const n = byDay.get(dayKey(d))?.filter((a) => !a.cancelledAt).length ?? 0;
             return n ? (
               <span
                 className={cn(
@@ -223,7 +226,7 @@ export function VetAgendaPage() {
         vetName={vetName}
         defaultDay={day}
         existing={editing}
-        others={appointments}
+        others={appointments.filter((a) => !a.cancelledAt)}
       />
 
       <AnswerDialog answering={answering} onClose={() => setAnswering(null)} vetId={uid} vetName={vetName} />
@@ -271,8 +274,9 @@ function AppointmentRow({
   onEdit: () => void;
   onCancel: () => void;
 }) {
+  const cancelled = Boolean(a.cancelledAt);
   return (
-    <Card className="p-3">
+    <Card className={cn('p-3', cancelled && 'opacity-70')}>
       <div className="flex items-start gap-3">
         <div className="w-14 shrink-0 text-center">
           <p className="font-display text-lg font-bold tabular-nums leading-tight text-foreground">
@@ -280,7 +284,9 @@ function AppointmentRow({
           </p>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="break-words font-medium text-foreground">{a.title}</p>
+          <p className={cn('break-words font-medium text-foreground', cancelled && 'line-through opacity-60')}>
+            {a.title}
+          </p>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <button type="button" onClick={onClient} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
               <User size={12} /> {a.clientName || 'Cliente'}
@@ -296,23 +302,30 @@ function AppointmentRow({
               </span>
             )}
           </p>
+          {cancelled && (
+            <p className="mt-1 text-xs text-destructive">
+              Cancelada pelo cliente{a.cancelReason ? `: ${a.cancelReason}` : ''}
+            </p>
+          )}
           {a.description && (
             <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">{a.description}</p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label="Editar consulta"
-            className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
-          >
-            <Pencil size={15} />
-          </button>
+          {!cancelled && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Editar consulta"
+              className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
+            >
+              <Pencil size={15} />
+            </button>
+          )}
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Cancelar consulta"
+            aria-label={cancelled ? 'Remover' : 'Cancelar consulta'}
             className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
           >
             <Trash2 size={15} />
