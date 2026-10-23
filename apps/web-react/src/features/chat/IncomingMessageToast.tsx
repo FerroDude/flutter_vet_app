@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthProvider';
-import { useCollection } from '@/lib/useFirestore';
-import { mapRoom, petOwnerRoomsQuery, staffRoomsQuery } from '@/lib/chatService';
-import type { ChatRoom } from '@vetplus/shared';
+import { useRooms } from '@/lib/chatService';
 import {
   getActiveChatRoom,
   incomingBody,
@@ -34,11 +32,7 @@ export function IncomingMessageToast() {
   const { firebaseUser, role } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const roomsQ = useMemo(() => {
-    if (!uid) return null;
-    return role === 'vet' ? staffRoomsQuery(uid) : petOwnerRoomsQuery(uid);
-  }, [uid, role]);
-  const { data: rooms, loading } = useCollection<ChatRoom>(roomsQ, mapRoom);
+  const { rooms, loading } = useRooms(role === 'vet' ? 'vetId' : 'petOwnerId', uid);
   const seen = useRef<Map<string, number> | null>(null);
 
   useEffect(() => {

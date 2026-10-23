@@ -1,7 +1,12 @@
 import { FirebaseError } from 'firebase/app';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
-import { collection, doc, query, setDoc, where } from 'firebase/firestore';
-import { UserType, userProfileToFirestore, type UserProfile } from '@vetplus/shared';
+import { collection, doc, query, setDoc, where, type DocumentData } from 'firebase/firestore';
+import {
+  UserType,
+  userProfileFromFirestore,
+  userProfileToFirestore,
+  type UserProfile,
+} from '@vetplus/shared';
 import { db, getSecondaryAuth } from './firebase';
 import { findOrCreateOneOnOneChat } from './chatService';
 
@@ -13,10 +18,15 @@ function randomPassword(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-/** Clients linked to one vet. userType is filtered in the UI so this stays a single-field query. */
+/** Clients linked to one vet. userType is filtered in useClients so this stays a single-field query. */
 export function clientsQuery(vetId: string) {
   return query(usersCol(), where('vetId', '==', vetId));
 }
+
+export const mapClient = (id: string, d: DocumentData): UserProfile => userProfileFromFirestore(id, d);
+
+export const clientLabel = (c: Pick<UserProfile, 'displayName' | 'email'>): string =>
+  c.displayName?.trim() || c.email || 'Cliente';
 
 /**
  * Vet adds a client. Creates the Auth user, writes the profile with vetId,
@@ -72,9 +82,8 @@ export async function addClientByEmail(args: {
     await findOrCreateOneOnOneChat({
       petOwnerId: uid,
       petOwnerName: name,
-      staffId: args.vetId,
-      staffName: args.vetName,
-      staffRole: 'vet',
+      vetId: args.vetId,
+      vetName: args.vetName,
     });
   } finally {
     await signOut(secondary).catch(() => {});

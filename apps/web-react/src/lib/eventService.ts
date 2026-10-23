@@ -1,8 +1,5 @@
-// Calendar event data layer (pet owner). Mirrors
-// apps/mobile-flutter/lib/repositories/event_repository.dart and the three
-// CalendarEvent subtypes in event_model.dart.
-//
-// Storage: users/{uid}/events/{eventId}
+// Calendar events: users/{uid}/events/{eventId}. Appointments the vet books
+// carry bookedByVetId so her agenda can find them across clients.
 // Interop: dates as millisecondsSinceEpoch, `type` as the EventType integer
 // index. Recurring events are NOT expanded into occurrences — each event is a
 // single dated document (the mobile app spawns a new doc when a recurring dose
@@ -16,7 +13,6 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  getDoc,
   getDocs,
   query,
   orderBy,
@@ -96,8 +92,11 @@ export function vetAppointmentsQuery(vetId: string) {
   return query(collectionGroup(db, 'events'), where('bookedByVetId', '==', vetId));
 }
 
-/** Vet books (or edits) an appointment straight into a client's calendar. */
-export async function saveVetAppointment(args: {
+export const appointmentTitle = (petName?: string | null): string =>
+  petName?.trim() ? `Consulta — ${petName.trim()}` : 'Consulta';
+
+export interface VetAppointmentInput {
+  /** Existing event id to update; omit to create. */
   id?: string | null;
   clientId: string;
   clientName: string;
@@ -109,32 +108,43 @@ export async function saveVetAppointment(args: {
   description: string;
   location: string | null;
   dateTime: Date;
-  createdAt?: Date | null;
   appointmentRequestId?: string | null;
-}): Promise<string> {
+}
+
+/**
+ * Ref + data for a vet-booked appointment in the client's calendar. Write it
+ * with `{ merge: true }`; on update createdAt is left untouched.
+ */
+export function vetAppointmentWrite(a: VetAppointmentInput) {
   const now = new Date();
-  const ref = args.id ? eventDoc(args.clientId, args.id) : doc(eventsCol(args.clientId));
-  const event: AppointmentEvent = {
+  const ref = a.id ? eventDoc(a.clientId, a.id) : doc(eventsCol(a.clientId));
+  const data = eventToJson({
     id: ref.id,
     type: EventType.appointment,
-    title: args.title,
-    description: args.description,
-    dateTime: args.dateTime,
-    petId: args.petId,
-    userId: args.clientId,
+    title: a.title,
+    description: a.description,
+    dateTime: a.dateTime,
+    petId: a.petId,
+    userId: a.clientId,
     isRecurring: false,
-    createdAt: args.createdAt ?? now,
+    createdAt: now,
     updatedAt: now,
-    vetName: args.vetName,
-    location: args.location,
+    vetName: a.vetName,
+    location: a.location,
     isConfirmed: true,
-    appointmentRequestId: args.appointmentRequestId ?? null,
-    bookedByVetId: args.vetId,
-    clientName: args.clientName,
-    petName: args.petName,
-  };
-  await setDoc(ref, eventToJson(event), { merge: true });
-  return ref.id;
+    appointmentRequestId: a.appointmentRequestId ?? null,
+    bookedByVetId: a.vetId,
+    clientName: a.clientName,
+    petName: a.petName,
+  });
+  if (a.id) delete data.createdAt;
+  return { ref, data };
+}
+
+/** Vet books (or edits) an appointment straight into a client's calendar. */
+export async function saveVetAppointment(a: VetAppointmentInput): Promise<void> {
+  const { ref, data } = vetAppointmentWrite(a);
+  await setDoc(ref, data, { merge: true });
 }
 
 /* ------------------------------ (de)serialize ------------------------------ */
@@ -268,11 +278,6 @@ export function eventToJson(e: CalendarEvent): DocumentData {
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 export type NewEvent = DistributiveOmit<CalendarEvent, 'id'>;
-
-export async function getEvent(uid: string, id: string): Promise<CalendarEvent | null> {
-  const snap = await getDoc(eventDoc(uid, id));
-  return snap.exists() ? mapEvent(snap.id, snap.data()) : null;
-}
 
 export async function createEvent(uid: string, event: NewEvent): Promise<string> {
   const json = eventToJson({ ...event, id: '' } as CalendarEvent);
