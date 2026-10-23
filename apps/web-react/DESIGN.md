@@ -85,8 +85,8 @@ bg            #faf7f4   warm off-white (app background)
 surface       #ffffff   cards, sheets, inputs
 text          #201713   near-black brown (primary text)
 text-muted    #675851   secondary text
-primary       #ca4a1c   deep brand orange  ← hero
-ring          #e95925   brand orange (focus ring)
+primary       #fa5119   brand orange (yoshivetcare.com buttons)  ← hero
+ring          #fa5119   brand orange (focus ring)
 primary-light #fbebe4   orange tint (selected/active backgrounds)
 accent        #ea9374   soft brand orange (yoshivetcare.com accent)
 border        #e7dfda   hairline dividers, input borders
@@ -113,9 +113,9 @@ symptom       #e23670 (magenta pink)
   --card-foreground:      20 25% 10%;
   --popover:              0 0% 100%;
   --popover-foreground:   20 25% 10%;
-  --primary:              16 76% 45%;    /* #ca4a1c */
+  --primary:              15 96% 54%;    /* #fa5119 yoshivetcare.com buttons */
   --primary-foreground:   0 0% 100%;
-  --primary-light:        16 74% 94%;    /* #fbebe4 */
+  --primary-light:        15 96% 95%;    /* #fff0eb */
   --secondary:            28 25% 94%;
   --secondary-foreground: 20 25% 10%;
   --muted:                28 25% 94%;
@@ -129,7 +129,7 @@ symptom       #e23670 (magenta pink)
   --info:                 217 91% 60%;
   --border:               25 22% 88%;    /* #e7dfda */
   --input:                25 22% 88%;
-  --ring:                 16 81% 53%;    /* #e95925 brand-orange focus ring */
+  --ring:                 15 96% 54%;    /* #fa5119 focus ring */
   --radius: 0.875rem;                    /* 14px base (md) */
 }
 ```
