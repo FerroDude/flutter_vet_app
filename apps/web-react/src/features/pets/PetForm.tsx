@@ -135,7 +135,8 @@ export function PetForm() {
 
       toast.success(isEdit ? 'Animal atualizado' : 'Animal adicionado');
       if (photoError) toast.error(`O animal foi guardado, mas a foto falhou: ${photoError}`);
-      navigate(`${petBase}/${id}`);
+      // New pet → back to the list of pets (client: Animais; vet: the client page).
+      navigate(isEdit ? `${petBase}/${id}` : isVetView ? `/clients/${ownerParam}` : '/pets');
     } catch (e) {
       toast.error(errorMessage(e));
     }
