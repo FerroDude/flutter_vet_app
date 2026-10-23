@@ -1,0 +1,10 @@
+node_modules/
+.codegraph/
+dist/
+build/
+.env
+.env.local
+*service-account*.json
+*.local
+.DS_Store
+*-debug.log
