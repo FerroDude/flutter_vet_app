@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 
 const VIEW = 280;
 const OUT = 512;
+const MAX_SRC = 2048;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
@@ -16,10 +17,13 @@ interface PhotoCropDialogProps {
 
 const clampNum = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-/** Drag + zoom cropper that exports a square JPEG blob for the pet avatar. */
+/** Drag + zoom cropper that exports a square JPEG blob for the pet avatar.
+ *  The file is normalised once (EXIF orientation applied, capped at 2048px)
+ *  into a canvas; the preview shows an object URL of that same canvas so
+ *  displayed pixels and crop math always agree. */
 export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogProps) {
   const viewRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const srcRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
 
   const [url, setUrl] = useState<string | null>(null);
@@ -27,18 +31,56 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [off, setOff] = useState({ x: 0, y: 0 });
 
-  // Object URL for the picked file; also resets crop state for the new image.
+  // Normalise the picked file once; resets crop state for the new image.
   useEffect(() => {
     setNat(null);
     setZoom(MIN_ZOOM);
     setOff({ x: 0, y: 0 });
-    if (!file) {
-      setUrl(null);
-      return;
-    }
-    const u = URL.createObjectURL(file);
-    setUrl(u);
-    return () => URL.revokeObjectURL(u);
+    setUrl(null);
+    srcRef.current = null;
+    if (!file) return;
+
+    let cancelled = false;
+    let objUrl: string | null = null;
+    void (async () => {
+      try {
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        const scale = Math.min(1, MAX_SRC / Math.max(bmp.width, bmp.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+        bmp.close();
+        if (cancelled) return;
+        srcRef.current = canvas;
+
+        canvas.toBlob(
+          (b) => {
+            if (!b || cancelled) return;
+            objUrl = URL.createObjectURL(b);
+            setUrl(objUrl);
+          },
+          'image/jpeg',
+          0.92,
+        );
+
+        const b = VIEW / Math.min(canvas.width, canvas.height);
+        setNat({ w: canvas.width, h: canvas.height });
+        setZoom(MIN_ZOOM);
+        setOff({ x: (VIEW - canvas.width * b) / 2, y: (VIEW - canvas.height * b) / 2 });
+      } catch {
+        if (!cancelled) {
+          toast.error('Não foi possível abrir a imagem.');
+          onCancel();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+    // onCancel is intentionally not a dep: the parent passes an inline fn.
   }, [file]);
 
   const base = nat ? VIEW / Math.min(nat.w, nat.h) : 0;
@@ -67,6 +109,11 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
     );
   };
 
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const applyZoomRef = useRef(applyZoom);
+  applyZoomRef.current = applyZoom;
+
   // Non-passive wheel listener so preventDefault stops the page scrolling.
   useEffect(() => {
     const el = viewRef.current;
@@ -79,14 +126,9 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
     return () => el.removeEventListener('wheel', onWheel);
   }, [file, url]);
 
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-  const applyZoomRef = useRef(applyZoom);
-  applyZoomRef.current = applyZoom;
-
   const confirm = () => {
-    const img = imgRef.current;
-    if (!img || !nat) return;
+    const src = srcRef.current;
+    if (!src || !nat) return;
     const s = base * zoom;
     const sx = -off.x / s;
     const sy = -off.y / s;
@@ -94,7 +136,7 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
     const canvas = document.createElement('canvas');
     canvas.width = OUT;
     canvas.height = OUT;
-    canvas.getContext('2d')!.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUT, OUT);
+    canvas.getContext('2d')!.drawImage(src, sx, sy, sSize, sSize, 0, 0, OUT, OUT);
     canvas.toBlob(
       (b) => (b ? onConfirm(b) : toast.error('Não foi possível processar a imagem.')),
       'image/jpeg',
@@ -135,23 +177,13 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
         onPointerUp={() => (dragRef.current = null)}
         onPointerCancel={() => (dragRef.current = null)}
       >
-        {url && (
+        {url && dispW > 0 && (
           <img
-            ref={imgRef}
             src={url}
             alt=""
             draggable={false}
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              const w = img.naturalWidth;
-              const h = img.naturalHeight;
-              const b = VIEW / Math.min(w, h);
-              setNat({ w, h });
-              setZoom(MIN_ZOOM);
-              setOff({ x: (VIEW - w * b) / 2, y: (VIEW - h * b) / 2 });
-            }}
             className="absolute max-w-none"
-            style={{ left: off.x, top: off.y, width: dispW || undefined, height: dispH || undefined }}
+            style={{ left: off.x, top: off.y, width: dispW, height: dispH }}
           />
         )}
       </div>
@@ -168,4 +200,3 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
     </Dialog>
   );
 }
-
