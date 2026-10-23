@@ -32,7 +32,7 @@ export function AppLayout({
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-(--radius-md) focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-(--shadow-md)"
       >
-        Skip to main content
+        Saltar para o conteúdo
       </a>
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 py-6 lg:flex">
@@ -54,7 +54,7 @@ export function AppLayout({
           type="button"
           onClick={onSignOut}
           className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius-md) text-muted-foreground hover:bg-secondary"
-          aria-label="Sign out"
+          aria-label="Terminar sessão"
         >
           <LogOut size={18} />
         </button>
@@ -147,7 +147,7 @@ function UserCard({
         type="button"
         onClick={onSignOut}
         className="inline-flex h-8 w-8 items-center justify-center rounded-(--radius-sm) text-muted-foreground hover:bg-secondary hover:text-foreground"
-        aria-label="Sign out"
+        aria-label="Terminar sessão"
       >
         <LogOut size={16} />
       </button>

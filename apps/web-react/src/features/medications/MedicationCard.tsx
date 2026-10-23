@@ -26,10 +26,10 @@ interface Props {
 }
 
 const statusLabel: Record<MedicationStatus, string> = {
-  [MedicationStatus.active]: 'Active',
-  [MedicationStatus.paused]: 'Paused',
-  [MedicationStatus.completed]: 'Completed',
-  [MedicationStatus.discontinued]: 'Discontinued',
+  [MedicationStatus.active]: 'Ativa',
+  [MedicationStatus.paused]: 'Em pausa',
+  [MedicationStatus.completed]: 'Concluída',
+  [MedicationStatus.discontinued]: 'Interrompida',
 };
 
 export function MedicationCard({
@@ -69,33 +69,33 @@ export function MedicationCard({
                 onClick={() => setMenuOpen((o) => !o)}
                 onBlur={() => setTimeout(() => setMenuOpen(false), 150)}
                 className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
-                aria-label="Medication options"
+                aria-label="Opções da medicação"
               >
                 <MoreVertical size={16} />
               </button>
               {menuOpen && (
                 <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)">
                   <MenuItem onClick={onEdit} icon={<Pencil size={14} />}>
-                    Edit
+                    Editar
                   </MenuItem>
                   {active ? (
                     <MenuItem onClick={() => onSetStatus(MedicationStatus.paused)}>
-                      Pause
+                      Pausar
                     </MenuItem>
                   ) : (
                     <MenuItem onClick={() => onSetStatus(MedicationStatus.active)}>
-                      Resume
+                      Retomar
                     </MenuItem>
                   )}
                   <MenuItem onClick={() => onSetStatus(MedicationStatus.completed)}>
-                    Mark completed
+                    Marcar como concluída
                   </MenuItem>
                   <MenuItem
                     onClick={onDelete}
                     icon={<Trash2 size={14} />}
                     danger
                   >
-                    Delete
+                    Apagar
                   </MenuItem>
                 </div>
               )}
@@ -126,7 +126,9 @@ export function MedicationCard({
               </div>
               <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
                 <span>{Math.round(p * 100)}%</span>
-                {remaining != null && <span>{remaining} days left</span>}
+                {remaining != null && (
+                  <span>{remaining === 1 ? '1 dia' : `${remaining} dias`}</span>
+                )}
               </div>
             </div>
           )}
@@ -140,14 +142,14 @@ export function MedicationCard({
                 onClick={onLogDose}
                 className="h-9 px-3 text-xs"
               >
-                <Check size={15} /> Mark dose taken
+                <Check size={15} /> Registar dose
               </Button>
               <button
                 type="button"
                 onClick={onUndo}
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                <Undo2 size={14} /> Undo
+                <Undo2 size={14} /> Anular
               </button>
               <span className="ml-auto text-[11px] text-muted-foreground">
                 {nextDoseDescription(med) ?? ''}

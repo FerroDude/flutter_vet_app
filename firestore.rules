@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
+    function userData(userId) {
+      return get(userPath(userId)).data;
+    }
+
+    function isVet() {
+      return signedIn() && userData(request.auth.uid).userType == 1;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // The signed-in vet is the vet stored on this client.
+    function isClientsVet(clientId) {
+      return isVet() && userData(clientId).vetId == request.auth.uid;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function vetBooked(event) {
+      return event.bookedByVetId != null && event.bookedByVetId != '';
+    }
+
+    // Field unchanged by this write. Missing on both sides counts as unchanged.
+    function unchanged(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (
+        isSelf(userId) ||
+        resource.data.vetId == request.auth.uid ||
+        userData(request.auth.uid).vetId == userId
+      );
+
+      // Nobody creates their own profile. Vets are provisioned with the Admin
+      // SDK (scripts/create-vet.mjs); a vet creates the profiles of her clients.
+      allow create: if isVet()
+        && !isSelf(userId)
+        && request.resource.data.vetId == request.auth.uid
+        && request.resource.data.userType == 0;
+
+      allow update: if isSelf(userId)
+        && unchanged('vetId')
+        && unchanged('userType')
+        && unchanged('clinicRole')
+        && unchanged('globalType');
+
+      allow delete: if isSelf(userId);
+
+      match /pets/{petId} {
+        allow read, write: if isOwner(userId) || isClientsVet(userId);
+
+        match /medications/{medId} {
+          allow read, write: if isOwner(userId) || isClientsVet(userId);
+        }
+
+        match /symptoms/{symId} {
+          allow read, write: if isOwner(userId) || isClientsVet(userId);
+        }
+
+        match /private/{docId} {
+          allow read, write: if isClientsVet(userId);
+        }
+      }
+
+      match /events/{eventId} {
+        allow read: if isOwner(userId) || isClientsVet(userId);
+        allow create: if isOwner(userId) || isClientsVet(userId);
+        allow update, delete: if isClientsVet(userId)
+          || (isOwner(userId) && !vetBooked(resource.data));
+      }
+    }
+
+    match /chatRooms/{roomId} {
+      function inRoom() {
+        return signedIn() && (
+          request.auth.uid == resource.data.petOwnerId ||
+          request.auth.uid == resource.data.vetId
+        );
+      }
+
+      allow read: if inRoom();
+
+      allow create: if isVet()
+        && request.resource.data.vetId == request.auth.uid
+        && userData(request.resource.data.petOwnerId).vetId == request.auth.uid;
+
+      // Participants only touch activity fields. Who is in the room never changes.
+      allow update: if inRoom()
+        && onlyChanges(['lastMessage', 'unreadCounts', 'updatedAt', 'isActive', 'status']);
+
+      match /messages/{messageId} {
+        function inParent() {
+          return signedIn() && (
+            request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.petOwnerId ||
+            request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.vetId
+          );
+        }
+
+        function isSender() {
+          return resource.data.senderId == request.auth.uid;
+        }
+
+        // Reactions live in metadata.reactions; nothing else in metadata may change.
+        function onlyReactions() {
+          let before = resource.data.get('metadata', null);
+          let after = request.resource.data.metadata;
+          return onlyChanges(['metadata']) && after is map && (
+            (before == null && after.keys().hasOnly(['reactions'])) ||
+            (before != null && after.diff(before).affectedKeys().hasOnly(['reactions']))
+          );
+        }
+
+        allow read: if inParent();
+        allow create: if inParent() && request.resource.data.senderId == request.auth.uid;
+        allow update: if inParent() && (
+          (isSender() && onlyChanges(['isDeleted', 'deletedAt'])) ||
+          (!isSender() && onlyChanges(['status', 'readAt', 'deliveredAt'])) ||
+          onlyReactions()
+        );
+      }
+    }
+
+    match /appointmentRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.petOwnerId == request.auth.uid
+        && request.resource.data.vetId == userData(request.auth.uid).vetId
+        && request.resource.data.status == 0;
+
+      allow read: if signedIn() && (
+        resource.data.petOwnerId == request.auth.uid ||
+        resource.data.vetId == request.auth.uid
+      );
+
+      allow update: if isVet() && resource.data.vetId == request.auth.uid;
+
+      allow delete: if signedIn()
+        && resource.data.petOwnerId == request.auth.uid
+        && resource.data.status == 0;
+    }
+  }
+}

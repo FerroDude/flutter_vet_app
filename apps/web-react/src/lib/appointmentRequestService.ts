@@ -12,6 +12,7 @@ import {
   addDoc,
   updateDoc,
   runTransaction,
+  writeBatch,
   query,
   where,
   type DocumentData,
@@ -19,11 +20,20 @@ import {
 import {
   type AppointmentRequest,
   AppointmentRequestStatus,
+  EventType,
   TimePreference,
+  bookAppointmentFromConfirm,
   parseDate,
   parseDateOptional,
 } from '@vetplus/shared';
 import { db } from './firebase';
+import {
+  eventDoc,
+  eventToJson,
+  eventsCol,
+  getEvent,
+  type AppointmentEvent,
+} from './eventService';
 
 export const requestsCol = () => collection(db, 'appointmentRequests');
 export const requestDoc = (id: string) => doc(db, 'appointmentRequests', id);
@@ -33,7 +43,12 @@ export function petOwnerRequestsQuery(uid: string) {
   return query(requestsCol(), where('petOwnerId', '==', uid));
 }
 
-/** All requests for a clinic (staff). Single-field query; filter/sort client-side. */
+/** Requests addressed to one vet. Single-field query; filter/sort client-side. */
+export function vetRequestsQuery(vetId: string) {
+  return query(requestsCol(), where('vetId', '==', vetId));
+}
+
+/** @deprecated Clinic queue. Kept so old staff screens compile until they are removed. */
 export function clinicRequestsQuery(clinicId: string) {
   return query(requestsCol(), where('clinicId', '==', clinicId));
 }
@@ -41,7 +56,8 @@ export function clinicRequestsQuery(clinicId: string) {
 export function mapAppointmentRequest(id: string, d: DocumentData): AppointmentRequest {
   return {
     id,
-    clinicId: (d.clinicId as string) ?? '',
+    vetId: (d.vetId as string) ?? '',
+    clinicId: (d.clinicId as string | null) ?? null,
     petOwnerId: (d.petOwnerId as string) ?? '',
     petOwnerName: (d.petOwnerName as string) ?? '',
     petId: (d.petId as string) ?? '',
@@ -58,13 +74,15 @@ export function mapAppointmentRequest(id: string, d: DocumentData): AppointmentR
     handledAt: parseDateOptional(d.handledAt) ?? null,
     responseMessage: (d.responseMessage as string | null) ?? null,
     linkedChatRoomId: (d.linkedChatRoomId as string | null) ?? null,
+    calendarEventId: (d.calendarEventId as string | null) ?? null,
+    bookedDateTime: parseDateOptional(d.bookedDateTime) ?? null,
     createdAt: parseDate(d.createdAt),
     updatedAt: parseDate(d.updatedAt),
   };
 }
 
 export interface NewAppointmentRequest {
-  clinicId: string;
+  vetId: string;
   petOwnerId: string;
   petOwnerName: string;
   petId: string;
@@ -80,7 +98,7 @@ export interface NewAppointmentRequest {
 export async function createRequest(r: NewAppointmentRequest): Promise<string> {
   const now = Date.now();
   const data: DocumentData = {
-    clinicId: r.clinicId,
+    vetId: r.vetId,
     petOwnerId: r.petOwnerId,
     petOwnerName: r.petOwnerName,
     petId: r.petId,
@@ -97,6 +115,8 @@ export async function createRequest(r: NewAppointmentRequest): Promise<string> {
     handledAt: null,
     responseMessage: null,
     linkedChatRoomId: null,
+    calendarEventId: null,
+    bookedDateTime: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -104,22 +124,67 @@ export async function createRequest(r: NewAppointmentRequest): Promise<string> {
   return ref.id;
 }
 
-/** Receptionist/staff confirms a request (booked externally). */
+/** Vet confirms a request and writes or updates the client calendar event. */
 export async function confirmRequest(args: {
-  requestId: string;
+  request: AppointmentRequest;
   handledBy: string;
   handledByName: string;
   message?: string | null;
+  dateTime: Date;
 }): Promise<void> {
-  const now = Date.now();
-  await updateDoc(requestDoc(args.requestId), {
+  const now = new Date();
+  let existingCreatedAt: Date | null = null;
+  const existingId = args.request.calendarEventId ?? null;
+  if (existingId) {
+    const existing = await getEvent(args.request.petOwnerId, existingId);
+    existingCreatedAt = existing?.createdAt ?? null;
+  }
+  const booked = bookAppointmentFromConfirm({
+    requestId: args.request.id,
+    clientId: args.request.petOwnerId,
+    petId: args.request.petId,
+    petName: args.request.petName,
+    reason: args.request.reason,
+    dateTime: args.dateTime,
+    vetId: args.handledBy,
+    vetName: args.handledByName,
+    now,
+    existingEventId: existingId,
+    existingCreatedAt,
+  });
+  const eventRef = booked.eventId
+    ? eventDoc(args.request.petOwnerId, booked.eventId)
+    : doc(eventsCol(args.request.petOwnerId));
+  const event: AppointmentEvent = {
+    id: eventRef.id,
+    title: booked.title,
+    description: booked.description,
+    dateTime: booked.dateTime,
+    type: EventType.appointment,
+    petId: booked.petId,
+    userId: booked.userId,
+    isRecurring: false,
+    createdAt: booked.createdAt,
+    updatedAt: booked.updatedAt,
+    vetName: booked.vetName,
+    isConfirmed: true,
+    appointmentRequestId: booked.appointmentRequestId,
+    bookedByVetId: booked.bookedByVetId,
+  };
+  // One batch: the client never sees an event while the request still looks pending.
+  const batch = writeBatch(db);
+  batch.set(eventRef, eventToJson(event), { merge: true });
+  batch.update(requestDoc(args.request.id), {
     status: AppointmentRequestStatus.confirmed,
     handledBy: args.handledBy,
     handledByName: args.handledByName,
-    handledAt: now,
+    handledAt: now.getTime(),
     responseMessage: args.message ?? null,
-    updatedAt: now,
+    calendarEventId: eventRef.id,
+    bookedDateTime: args.dateTime.getTime(),
+    updatedAt: now.getTime(),
   });
+  await batch.commit();
 }
 
 /** Receptionist/staff denies a request (reason required, like mobile). */

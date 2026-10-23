@@ -11,6 +11,7 @@ import {
   ChevronDown,
   MessageSquare,
   Activity,
+  Plus,
 } from 'lucide-react';
 import {
   type UserProfile,
@@ -30,6 +31,7 @@ import {
   type Pet,
 } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
+import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -43,10 +45,10 @@ const STAFF_ROLE: Partial<Record<Role, string>> = {
 
 export function PatientDetailPage() {
   const { ownerId = '' } = useParams();
-  const { firebaseUser, profile, role, connectedClinic } = useAuth();
+  const { firebaseUser, profile, role } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const staffName = profile?.displayName?.trim() || profile?.email || 'Clinic';
+  const staffName = profile?.displayName?.trim() || profile?.email || 'Veterinária';
 
   const ownerRef = useMemo(() => doc(db, 'users', ownerId), [ownerId]);
   const { data: owner, loading } = useDoc<UserProfile>(ownerRef, mapPatient);
@@ -57,23 +59,21 @@ export function PatientDetailPage() {
   const [starting, setStarting] = useState(false);
 
   const startChat = async () => {
-    if (!connectedClinic || !owner) return;
+    if (!owner) return;
     setStarting(true);
     try {
       const roomId = await findOrCreateOneOnOneChat({
-        clinicId: connectedClinic.id,
         petOwnerId: ownerId,
-        petOwnerName: owner.displayName || owner.email || 'Pet owner',
+        petOwnerName: owner.displayName || owner.email || 'Cliente',
         staffId: uid,
         staffName,
         staffRole: STAFF_ROLE[role] ?? 'vet',
         petIds: pets.map((p) => p.id),
       });
-      void roomId;
-      toast.success('Chat opened');
-      navigate('/chat');
+      toast.success('Conversa aberta');
+      navigate(chatRoomPath(roomId));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not start chat');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível abrir a conversa');
     } finally {
       setStarting(false);
     }
@@ -86,7 +86,7 @@ export function PatientDetailPage() {
         onClick={() => navigate('/patients')}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> Patients
+        <ArrowLeft size={16} /> Clientes
       </button>
 
       {loading && !owner ? (
@@ -94,7 +94,7 @@ export function PatientDetailPage() {
           <Spinner size={28} />
         </div>
       ) : !owner ? (
-        <PageHeader title="Patient not found" subtitle="This pet owner no longer exists." />
+        <PageHeader title="Cliente não encontrado" subtitle="Este cliente já não existe." />
       ) : (
         <>
           <Card className="mb-6">
@@ -105,11 +105,11 @@ export function PatientDetailPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-2xl font-bold text-foreground">
-                    {owner.displayName || 'Unnamed'}
+                    {owner.displayName || 'Sem nome'}
                   </p>
                 </div>
                 <Button loading={starting} onClick={() => void startChat()}>
-                  <MessageSquare size={16} /> Message
+                  <MessageSquare size={16} /> Mensagem
                 </Button>
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -132,13 +132,18 @@ export function PatientDetailPage() {
             </CardBody>
           </Card>
 
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pets ({pets.length})
-          </h2>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Animais ({pets.length})
+            </h2>
+            <Button variant="outline" onClick={() => navigate(`/patients/${ownerId}/pets/new`)}>
+              <Plus size={15} /> Adicionar animal
+            </Button>
+          </div>
           {pets.length === 0 ? (
             <Card>
               <CardBody className="text-sm text-muted-foreground">
-                This owner hasn't added any pets yet.
+                Este cliente ainda não tem animais.
               </CardBody>
             </Card>
           ) : (
@@ -156,6 +161,7 @@ export function PatientDetailPage() {
 
 function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   return (
     <Card>
       <CardBody className="p-0">
@@ -170,7 +176,7 @@ function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium text-foreground">{pet.name}</span>
             <span className="block truncate text-xs text-muted-foreground">
-              {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Pet'} ·{' '}
+              {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Animal'} ·{' '}
               {petAgeLabel(pet.dateOfBirth)}
             </span>
           </span>
@@ -183,11 +189,18 @@ function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
           <div className="border-t border-border px-4 py-3">
             {pet.medicalNotes && (
               <p className="mb-3 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Notes: </span>
+                <span className="font-medium text-foreground">Notas: </span>
                 {pet.medicalNotes}
               </p>
             )}
             <PetSymptoms ownerId={ownerId} petId={pet.id} />
+            <Button
+              variant="outline"
+              className="mt-3"
+              onClick={() => navigate(`/patients/${ownerId}/pets/${pet.id}`)}
+            >
+              Abrir ficha
+            </Button>
           </div>
         )}
       </CardBody>
@@ -195,7 +208,7 @@ function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
   );
 }
 
-const symptomDateFmt = new Intl.DateTimeFormat(undefined, {
+const symptomDateFmt = new Intl.DateTimeFormat('pt-PT', {
   month: 'short',
   day: 'numeric',
   hour: 'numeric',
@@ -210,15 +223,15 @@ function PetSymptoms({ ownerId, petId }: { ownerId: string; petId: string }) {
   const recent = useMemo(() => data.slice(0, 10), [data]);
 
   if (loading && data.length === 0) {
-    return <p className="text-sm text-muted-foreground">Loading symptoms…</p>;
+    return <p className="text-sm text-muted-foreground">A carregar sintomas…</p>;
   }
   if (recent.length === 0) {
-    return <p className="text-sm text-muted-foreground">No symptoms logged.</p>;
+    return <p className="text-sm text-muted-foreground">Sem sintomas registados.</p>;
   }
   return (
     <div className="space-y-2">
       <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Activity size={13} /> Recent symptoms
+        <Activity size={13} /> Sintomas recentes
       </p>
       {recent.map((s) => (
         <div key={s.id} className="flex items-start gap-2 text-sm">

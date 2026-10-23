@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -7,7 +6,6 @@ import {
   CalendarDays,
   Clock,
   MessageSquare,
-  Building2,
   CheckCircle2,
   XCircle,
   Hourglass,
@@ -33,10 +31,10 @@ import { Dialog } from '@/components/ui/Dialog';
 import { AppointmentRequestFormDialog } from './AppointmentRequestFormDialog';
 
 const TIME_SHORT: Record<TimePreference, string> = {
-  [TimePreference.anyTime]: 'Any time',
-  [TimePreference.morning]: 'Morning',
-  [TimePreference.afternoon]: 'Afternoon',
-  [TimePreference.evening]: 'Evening',
+  [TimePreference.anyTime]: 'Qualquer hora',
+  [TimePreference.morning]: 'Manhã',
+  [TimePreference.afternoon]: 'Tarde',
+  [TimePreference.evening]: 'Noite',
 };
 
 const STATUS_META: Record<
@@ -44,28 +42,28 @@ const STATUS_META: Record<
   { label: string; classes: string; icon: typeof Hourglass }
 > = {
   [AppointmentRequestStatus.pending]: {
-    label: 'Pending',
+    label: 'Pendente',
     classes: 'bg-warning/15 text-warning',
     icon: Hourglass,
   },
   [AppointmentRequestStatus.confirmed]: {
-    label: 'Confirmed',
+    label: 'Confirmado',
     classes: 'bg-primary-light text-primary',
     icon: CheckCircle2,
   },
   [AppointmentRequestStatus.denied]: {
-    label: 'Denied',
+    label: 'Recusado',
     classes: 'bg-destructive/15 text-destructive',
     icon: XCircle,
   },
   [AppointmentRequestStatus.cancelled]: {
-    label: 'Cancelled',
+    label: 'Cancelado',
     classes: 'bg-muted text-muted-foreground',
     icon: XCircle,
   },
 };
 
-const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const dateFmt = new Intl.DateTimeFormat('pt-PT', { month: 'short', day: 'numeric' });
 
 function dateRange(r: AppointmentRequest): string {
   const start = dateFmt.format(r.preferredDateStart);
@@ -74,9 +72,9 @@ function dateRange(r: AppointmentRequest): string {
 }
 
 export function AppointmentsPage() {
-  const { firebaseUser, profile, connectedClinic } = useAuth();
-  const navigate = useNavigate();
+  const { firebaseUser, profile } = useAuth();
   const uid = firebaseUser?.uid ?? '';
+  const vetId = profile?.vetId ?? '';
 
   const petQ = useMemo(() => (uid ? petsQuery(uid) : null), [uid]);
   const { data: pets } = useCollection<Pet>(petQ, mapPet);
@@ -103,27 +101,26 @@ export function AppointmentsPage() {
     setCancelling(true);
     try {
       await cancelRequest(cancelTarget.id);
-      toast.success('Request cancelled');
+      toast.success('Pedido cancelado');
       setCancelTarget(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not cancel request');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível cancelar o pedido');
     } finally {
       setCancelling(false);
     }
   };
 
-  if (!connectedClinic) {
+  if (!vetId) {
     return (
       <div>
         <PageHeader
-          title="Appointments"
-          subtitle="Request appointments with your clinic and track their status."
+          title="Marcações"
+          subtitle="Peça uma consulta e acompanhe o estado."
         />
         <EmptyState
-          icon={<Building2 size={36} />}
-          title="No clinic connected"
-          description="Connect to a clinic to request appointments."
-          action={<Button onClick={() => navigate('/profile')}>Connect a clinic</Button>}
+          icon={<CalendarDays size={36} />}
+          title="Sem veterinária"
+          description="A veterinária adiciona-o como cliente. Depois já pode pedir uma marcação."
         />
       </div>
     );
@@ -132,12 +129,12 @@ export function AppointmentsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Bookings"
-        title="Appointments"
-        subtitle={`Requests to ${connectedClinic.name}.`}
+        eyebrow="Pedidos"
+        title="Marcações"
+        subtitle="Pedidos para a sua veterinária."
         actions={
           <Button onClick={() => setFormOpen(true)}>
-            <Plus size={16} /> New request
+            <Plus size={16} /> Novo pedido
           </Button>
         }
       />
@@ -145,9 +142,9 @@ export function AppointmentsPage() {
       {loading && requests.length === 0 ? null : requests.length === 0 ? (
         <EmptyState
           icon={<CalendarDays size={36} />}
-          title="No appointment requests"
-          description="Request an appointment with your clinic and track its status here."
-          action={<Button onClick={() => setFormOpen(true)}>Request appointment</Button>}
+          title="Sem pedidos de marcação"
+          description="Peça uma consulta e acompanhe o estado aqui."
+          action={<Button onClick={() => setFormOpen(true)}>Pedir marcação</Button>}
         />
       ) : (
         <div className="space-y-3">
@@ -166,7 +163,7 @@ export function AppointmentsPage() {
                     </span>
                     {r.status === AppointmentRequestStatus.pending && (
                       <Button variant="ghost" onClick={() => setCancelTarget(r)}>
-                        Cancel
+                        Cancelar
                       </Button>
                     )}
                   </div>
@@ -205,7 +202,7 @@ export function AppointmentsPage() {
       <AppointmentRequestFormDialog
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        clinicId={connectedClinic.id}
+        vetId={vetId}
         petOwnerId={uid}
         petOwnerName={profile?.displayName?.trim() || profile?.email || ''}
         pets={pets}
@@ -214,19 +211,19 @@ export function AppointmentsPage() {
       <Dialog
         open={Boolean(cancelTarget)}
         onClose={() => (cancelling ? undefined : setCancelTarget(null))}
-        title="Cancel request?"
+        title="Cancelar pedido?"
         description={
           cancelTarget
-            ? `Cancel the appointment request for ${cancelTarget.petName}? This can't be undone.`
+            ? `Cancelar a marcação de ${cancelTarget.petName}? Não dá para desfazer.`
             : ''
         }
         footer={
           <>
             <Button variant="outline" disabled={cancelling} onClick={() => setCancelTarget(null)}>
-              Keep it
+              Manter
             </Button>
             <Button variant="destructive" loading={cancelling} onClick={() => void doCancel()}>
-              Cancel request
+              Cancelar pedido
             </Button>
           </>
         }

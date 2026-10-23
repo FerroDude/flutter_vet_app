@@ -51,8 +51,9 @@ async function registerSW(): Promise<ServiceWorkerRegistration | undefined> {
     messagingSenderId: firebaseEnv.messagingSenderId,
     appId: firebaseEnv.appId,
   });
-  return navigator.serviceWorker.register(`/firebase-messaging-sw.js?${params.toString()}`, {
-    scope: '/',
+  const base = import.meta.env.BASE_URL;
+  return navigator.serviceWorker.register(`${base}firebase-messaging-sw.js?${params.toString()}`, {
+    scope: base,
   });
 }
 
@@ -116,7 +117,7 @@ export async function initForegroundMessages(): Promise<void> {
     const title = payload.notification?.title;
     const body = payload.notification?.body;
     if (title || body) {
-      toast(title ?? 'New notification', { description: body });
+      toast(title ?? 'Notificação nova', { description: body });
     }
   });
 }

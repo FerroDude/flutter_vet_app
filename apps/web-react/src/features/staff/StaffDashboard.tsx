@@ -18,23 +18,28 @@ import {
 } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
-import { clinicRequestsQuery, mapAppointmentRequest } from '@/lib/appointmentRequestService';
+import { clinicRequestsQuery, vetRequestsQuery, mapAppointmentRequest } from '@/lib/appointmentRequestService';
 import { staffRoomsQuery, clinicRoomsQuery, mapRoom } from '@/lib/chatService';
+import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 
 const TIME_SHORT: Record<TimePreference, string> = {
-  [TimePreference.anyTime]: 'Any time',
-  [TimePreference.morning]: 'Morning',
-  [TimePreference.afternoon]: 'Afternoon',
-  [TimePreference.evening]: 'Evening',
+  [TimePreference.anyTime]: 'Qualquer hora',
+  [TimePreference.morning]: 'Manhã',
+  [TimePreference.afternoon]: 'Tarde',
+  [TimePreference.evening]: 'Noite',
 };
 
-const dayFmt = new Intl.DateTimeFormat(undefined, {
+const dayFmt = new Intl.DateTimeFormat('pt-PT', {
   weekday: 'long',
   month: 'long',
   day: 'numeric',
 });
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
 
 function withinToday(r: AppointmentRequest): boolean {
   const now = new Date();
@@ -46,15 +51,18 @@ function withinToday(r: AppointmentRequest): boolean {
 }
 
 export function StaffDashboard({ showRequests = false }: { showRequests?: boolean }) {
-  const { firebaseUser, profile, connectedClinic } = useAuth();
+  const { firebaseUser, profile, connectedClinic, role } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
   const clinicId = connectedClinic?.id ?? '';
   const firstName = (profile?.displayName?.trim() || profile?.email || 'there').split(' ')[0];
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
-  const reqQ = useMemo(() => (clinicId ? clinicRequestsQuery(clinicId) : null), [clinicId]);
+  const reqQ = useMemo(() => {
+    if (role === 'vet' && uid) return vetRequestsQuery(uid);
+    return clinicId ? clinicRequestsQuery(clinicId) : null;
+  }, [role, uid, clinicId]);
   const { data: requests } = useCollection<AppointmentRequest>(reqQ, mapAppointmentRequest);
 
   const pendingCount = useMemo(
@@ -64,16 +72,27 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
   const todays = useMemo(
     () =>
       requests
-        .filter((r) => r.status === AppointmentRequestStatus.confirmed && withinToday(r))
+        .filter((r) => {
+          if (r.status !== AppointmentRequestStatus.confirmed) return false;
+          if (r.bookedDateTime) return isSameDay(r.bookedDateTime, new Date());
+          return withinToday(r);
+        })
         .sort((a, b) => a.preferredDateStart.getTime() - b.preferredDateStart.getTime()),
     [requests],
   );
 
   const myRoomsQ = useMemo(() => (uid ? staffRoomsQuery(uid) : null), [uid]);
   const { data: myRooms } = useCollection<ChatRoom>(myRoomsQ, mapRoom);
-  const unread = useMemo(
-    () => myRooms.filter((r) => r.isActive).reduce((s, r) => s + (r.unreadCounts[uid] ?? 0), 0),
+  const unreadRooms = useMemo(
+    () =>
+      myRooms
+        .filter((r) => r.isActive && (r.unreadCounts[uid] ?? 0) > 0)
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
     [myRooms, uid],
+  );
+  const unread = useMemo(
+    () => unreadRooms.reduce((s, r) => s + (r.unreadCounts[uid] ?? 0), 0),
+    [unreadRooms, uid],
   );
 
   const clinicRoomsQ = useMemo(() => (clinicId ? clinicRoomsQuery(clinicId) : null), [clinicId]);
@@ -92,7 +111,7 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
           title={firstName ? `${greeting}, ${firstName}` : greeting}
         />
         <p className="mt-1.5 text-sm text-muted-foreground">
-          {connectedClinic?.name ?? 'Your clinic'}
+          A sua prática
         </p>
       </div>
 
@@ -100,41 +119,43 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
         {showRequests && (
           <StatCard
             icon={<CalendarClock size={20} />}
-            title="Appointment requests"
+            title="Pedidos de marcação"
             value={pendingCount}
-            caption={pendingCount === 1 ? '1 pending' : `${pendingCount} pending`}
+            caption={pendingCount === 1 ? '1 pendente' : `${pendingCount} pendentes`}
             onClick={() => navigate('/requests')}
           />
         )}
         <StatCard
           icon={<MessageCircle size={20} />}
-          title="Messages"
+          title="Mensagens"
           value={unread}
           caption={
             pendingChats > 0
-              ? `${pendingChats} pending request${pendingChats === 1 ? '' : 's'}`
+              ? pendingChats === 1
+                ? '1 pedido pendente'
+                : `${pendingChats} pedidos pendentes`
               : unread === 1
-                ? '1 unread'
-                : `${unread} unread`
+                ? '1 por ler'
+                : `${unread} por ler`
           }
-          onClick={() => navigate('/chat')}
+          onClick={() => navigate(unreadRooms[0] ? chatRoomPath(unreadRooms[0].id) : '/chat')}
         />
         <StatCard
           icon={<Users size={20} />}
-          title="Patients"
+          title="Clientes"
           value={0}
-          caption="View pet owners"
+          caption="Ver clientes"
           onClick={() => navigate('/patients')}
         />
       </div>
 
       <section>
-        <SectionHeader className="mb-4" eyebrow="Schedule" title="Today's appointments" />
+        <SectionHeader className="mb-4" eyebrow="Agenda" title="Consultas de hoje" />
         {todays.length === 0 ? (
           <Card>
             <CardBody className="flex items-center gap-3 text-sm text-muted-foreground">
               <CheckCircle2 size={18} className="text-primary" />
-              No confirmed appointments scheduled for today.
+              Sem consultas confirmadas para hoje.
             </CardBody>
           </Card>
         ) : (

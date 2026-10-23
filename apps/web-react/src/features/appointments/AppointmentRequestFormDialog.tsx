@@ -10,10 +10,10 @@ import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 
 const TIME_PREFERENCES: { value: TimePreference; label: string }[] = [
-  { value: TimePreference.anyTime, label: 'Any time' },
-  { value: TimePreference.morning, label: 'Morning (8am - 12pm)' },
-  { value: TimePreference.afternoon, label: 'Afternoon (12pm - 5pm)' },
-  { value: TimePreference.evening, label: 'Evening (5pm - 8pm)' },
+  { value: TimePreference.anyTime, label: 'Qualquer hora' },
+  { value: TimePreference.morning, label: 'Manhã (8h – 12h)' },
+  { value: TimePreference.afternoon, label: 'Tarde (12h – 17h)' },
+  { value: TimePreference.evening, label: 'Noite (17h – 20h)' },
 ];
 
 function toDateInput(d: Date): string {
@@ -31,7 +31,7 @@ function addDays(days: number): Date {
 interface Props {
   open: boolean;
   onClose: () => void;
-  clinicId: string;
+  vetId: string;
   petOwnerId: string;
   petOwnerName: string;
   pets: Pet[];
@@ -40,7 +40,7 @@ interface Props {
 export function AppointmentRequestFormDialog({
   open,
   onClose,
-  clinicId,
+  vetId,
   petOwnerId,
   petOwnerName,
   pets,
@@ -69,11 +69,11 @@ export function AppointmentRequestFormDialog({
   const submit = async () => {
     const pet = pets.find((p) => p.id === petId);
     if (!pet) {
-      setError('Please select a pet.');
+      setError('Escolha um animal.');
       return;
     }
     if (!reason.trim()) {
-      setError('Please enter a reason for the appointment.');
+      setError('Indique o motivo da consulta.');
       return;
     }
     const startDate = start ? new Date(`${start}T00:00:00`) : addDays(1);
@@ -84,7 +84,7 @@ export function AppointmentRequestFormDialog({
     setError(null);
     try {
       await createRequest({
-        clinicId,
+        vetId,
         petOwnerId,
         petOwnerName,
         petId: pet.id,
@@ -96,10 +96,10 @@ export function AppointmentRequestFormDialog({
         reason: reason.trim(),
         notes: notes.trim() ? notes.trim() : null,
       });
-      toast.success('Appointment request submitted');
+      toast.success('Pedido de marcação enviado');
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not submit request');
+      setError(e instanceof Error ? e.message : 'Não foi possível enviar o pedido');
     } finally {
       setSaving(false);
     }
@@ -109,24 +109,24 @@ export function AppointmentRequestFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Request an appointment"
-      description="Your clinic will review and confirm a time."
+      title="Pedir marcação"
+      description="A veterinária revê o pedido e confirma a hora."
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            Cancelar
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            Submit request
+            Enviar pedido
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         {pets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Add a pet first to request an appointment.</p>
+          <p className="text-sm text-muted-foreground">Adicione um animal antes de pedir uma marcação.</p>
         ) : (
-          <Select label="Pet" value={petId} onChange={(e) => setPetId(e.target.value)}>
+          <Select label="Animal" value={petId} onChange={(e) => setPetId(e.target.value)}>
             {pets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.species ? `${p.name} (${p.species})` : p.name}
@@ -137,13 +137,13 @@ export function AppointmentRequestFormDialog({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label="Preferred from"
+            label="De"
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
           />
           <TextField
-            label="Preferred to"
+            label="Até"
             type="date"
             min={start}
             value={end}
@@ -152,7 +152,7 @@ export function AppointmentRequestFormDialog({
         </div>
 
         <Select
-          label="Preferred time"
+          label="Altura do dia"
           value={timePref}
           onChange={(e) => setTimePref(Number(e.target.value) as TimePreference)}
         >
@@ -164,17 +164,17 @@ export function AppointmentRequestFormDialog({
         </Select>
 
         <TextField
-          label="Reason for visit"
+          label="Motivo"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g., Annual checkup, vaccination, skin issue…"
+          placeholder="Consulta anual, vacina, pele…"
         />
 
         <Textarea
-          label="Additional notes (optional)"
+          label="Notas (opcional)"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Any additional information for the clinic…"
+          placeholder="Mais informação para a veterinária…"
         />
 
         {error && <p className="text-sm font-medium text-destructive">{error}</p>}

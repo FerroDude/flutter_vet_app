@@ -9,6 +9,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import {
   addPet,
   updatePet,
+  deletePet,
   petDoc,
   mapPet,
   type PetFields,
@@ -16,24 +17,21 @@ import {
 } from '@/lib/petService';
 import { useDoc } from '@/lib/useFirestore';
 import { TextField } from '@/components/ui/TextField';
-import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Card, CardBody } from '@/components/ui/Card';
+import { Dialog } from '@/components/ui/Dialog';
 import { PageSpinner } from '@/components/Spinner';
 
 const schema = z.object({
-  name: z.string().trim().min(1, 'Please enter a name'),
-  species: z.string().trim().min(1, 'Please enter the species'),
-  breed: z.string().trim().min(1, 'Please enter the breed'),
+  name: z.string().trim().min(1, 'Indique o nome'),
+  species: z.string().trim().min(1, 'Indique a espécie'),
+  breed: z.string().trim().min(1, 'Indique a raça'),
   gender: z.enum(['Male', 'Female', 'Unknown']),
   dateOfBirth: z.string().optional(),
   weight: z.string().optional(),
   color: z.string().optional(),
   microchip: z.string().optional(),
-  veterinarian: z.string().optional(),
-  medicalNotes: z.string().optional(),
-  emergencyContact: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -53,11 +51,13 @@ function fromDateInput(value?: string): Date | null {
 }
 
 export function PetForm() {
-  const { petId } = useParams<{ petId: string }>();
+  const { petId, ownerId: ownerParam } = useParams<{ petId: string; ownerId?: string }>();
   const isEdit = Boolean(petId);
   const navigate = useNavigate();
-  const { firebaseUser } = useAuth();
-  const uid = firebaseUser?.uid ?? '';
+  const { firebaseUser, role } = useAuth();
+  const uid = ownerParam || firebaseUser?.uid || '';
+  const isVetView = role === 'vet' && Boolean(ownerParam);
+  const petBase = isVetView ? `/patients/${ownerParam}/pets` : '/pets';
 
   const ref = useMemo(
     () => (isEdit && uid ? petDoc(uid, petId!) : null),
@@ -76,6 +76,8 @@ export function PetForm() {
   });
 
   const [hydrated, setHydrated] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     if (isEdit && existing && !hydrated) {
       reset({
@@ -87,9 +89,6 @@ export function PetForm() {
         weight: existing.weight,
         color: existing.color,
         microchip: existing.microchip,
-        veterinarian: existing.veterinarian,
-        medicalNotes: existing.medicalNotes,
-        emergencyContact: existing.emergencyContact,
       });
       setHydrated(true);
     }
@@ -108,22 +107,35 @@ export function PetForm() {
       weight: values.weight ?? '',
       color: values.color ?? '',
       microchip: values.microchip ?? '',
-      veterinarian: values.veterinarian ?? '',
-      medicalNotes: values.medicalNotes ?? '',
-      emergencyContact: values.emergencyContact ?? '',
+      veterinarian: existing?.veterinarian ?? '',
+      medicalNotes: existing?.medicalNotes ?? '',
+      emergencyContact: existing?.emergencyContact ?? '',
     };
     try {
       if (isEdit) {
         await updatePet(uid, petId!, fields);
-        toast.success('Pet updated');
-        navigate(`/pets/${petId}`);
+        toast.success('Animal atualizado');
+        navigate(`${petBase}/${petId}`);
       } else {
         const newId = await addPet(uid, fields);
-        toast.success('Pet added');
-        navigate(`/pets/${newId}`);
+        toast.success('Animal adicionado');
+        navigate(`${petBase}/${newId}`);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not save pet');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível guardar o animal');
+    }
+  };
+
+  const onDelete = async () => {
+    if (!uid || !petId) return;
+    setDeleting(true);
+    try {
+      await deletePet(uid, petId);
+      toast.success('Animal apagado');
+      navigate('/pets');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível apagar o animal');
+      setDeleting(false);
     }
   };
 
@@ -134,38 +146,38 @@ export function PetForm() {
         onClick={() => navigate(-1)}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> Back
+        <ArrowLeft size={16} /> Voltar
       </button>
       <h1 className="mb-6 font-display text-3xl font-bold text-foreground">
-        {isEdit ? 'Edit pet' : 'Add a pet'}
+        {isEdit ? 'Editar animal' : 'Adicionar animal'}
       </h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardBody className="space-y-4">
-            <p className="text-sm font-semibold text-foreground">Basic information</p>
-            <TextField label="Name" error={errors.name?.message} {...register('name')} />
+            <p className="text-sm font-semibold text-foreground">Dados</p>
+            <TextField label="Nome" error={errors.name?.message} {...register('name')} />
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
-                label="Species"
-                placeholder="Dog, Cat, Bird…"
+                label="Espécie"
+                placeholder="Cão, gato, ave…"
                 error={errors.species?.message}
                 {...register('species')}
               />
               <TextField
-                label="Breed"
+                label="Raça"
                 error={errors.breed?.message}
                 {...register('breed')}
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Gender" error={errors.gender?.message} {...register('gender')}>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Unknown">Unknown</option>
+              <Select label="Sexo" error={errors.gender?.message} {...register('gender')}>
+                <option value="Male">Macho</option>
+                <option value="Female">Fêmea</option>
+                <option value="Unknown">Desconhecido</option>
               </Select>
               <TextField
-                label="Date of birth"
+                label="Data de nascimento"
                 type="date"
                 error={errors.dateOfBirth?.message}
                 {...register('dateOfBirth')}
@@ -173,13 +185,13 @@ export function PetForm() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
-                label="Weight"
-                placeholder="e.g. 15 kg"
+                label="Peso"
+                placeholder="ex. 15 kg"
                 {...register('weight')}
               />
               <TextField
-                label="Color / markings"
-                placeholder="Brown, white spots…"
+                label="Cor / marcas"
+                placeholder="Castanho, manchas brancas…"
                 {...register('color')}
               />
             </div>
@@ -188,39 +200,49 @@ export function PetForm() {
 
         <Card>
           <CardBody className="space-y-4">
-            <p className="text-sm font-semibold text-foreground">Medical information</p>
+            <p className="text-sm font-semibold text-foreground">Microchip</p>
             <TextField
-              label="Microchip number"
-              placeholder="ID number if microchipped"
+              label="Número de microchip"
+              placeholder="Número, se tiver microchip"
               {...register('microchip')}
-            />
-            <TextField
-              label="Veterinarian"
-              placeholder="Primary vet name or clinic"
-              {...register('veterinarian')}
-            />
-            <Textarea
-              label="Medical notes"
-              placeholder="Allergies, conditions, medications"
-              {...register('medicalNotes')}
-            />
-            <TextField
-              label="Emergency contact"
-              placeholder="Name and phone number"
-              {...register('emergencyContact')}
             />
           </CardBody>
         </Card>
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-            Cancel
+            Cancelar
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            {isEdit ? 'Save changes' : 'Add pet'}
+            {isEdit ? 'Guardar' : 'Adicionar animal'}
           </Button>
         </div>
+
+        {isEdit && !isVetView && (
+          <div className="border-t border-border pt-6">
+            <Button type="button" variant="destructive" onClick={() => setDeleteOpen(true)}>
+              Apagar animal
+            </Button>
+          </div>
+        )}
       </form>
+
+      <Dialog
+        open={deleteOpen}
+        onClose={() => (deleting ? undefined : setDeleteOpen(false))}
+        title="Apagar animal"
+        description={`Apagar ${existing?.name ?? 'este animal'}? Não dá para desfazer.`}
+        footer={
+          <>
+            <Button variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" loading={deleting} onClick={() => void onDelete()}>
+              Apagar
+            </Button>
+          </>
+        }
+      />
     </div>
   );
 }

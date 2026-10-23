@@ -107,22 +107,22 @@ export const SYMPTOM_TYPES = [
 export type SymptomType = (typeof SYMPTOM_TYPES)[number];
 
 export const SYMPTOM_LABELS: Record<SymptomType, string> = {
-  vomiting: 'Vomiting',
-  diarrhea: 'Diarrhea',
-  cough: 'Cough',
-  sneezing: 'Sneezing',
-  choking: 'Choking',
-  seizure: 'Seizure',
-  disorientation: 'Disorientation',
-  circling: 'Circling',
-  restlessness: 'Restlessness',
-  limping: 'Limping',
-  jointDiscomfort: 'Joint Discomfort',
-  itching: 'Itching',
-  ocularDischarge: 'Ocular Discharge',
-  vaginalDischarge: 'Vaginal Discharge',
-  estrus: 'Estrus',
-  other: 'Other',
+  vomiting: 'Vómito',
+  diarrhea: 'Diarreia',
+  cough: 'Tosse',
+  sneezing: 'Espirros',
+  choking: 'Engasgo',
+  seizure: 'Convulsão',
+  disorientation: 'Desorientação',
+  circling: 'Andar em círculos',
+  restlessness: 'Inquietação',
+  limping: 'Coxear',
+  jointDiscomfort: 'Desconforto articular',
+  itching: 'Comichão',
+  ocularDischarge: 'Secreção ocular',
+  vaginalDischarge: 'Secreção vaginal',
+  estrus: 'Cio',
+  other: 'Outro',
 };
 
 // Sender role strings used on chat messages (senderRole field).

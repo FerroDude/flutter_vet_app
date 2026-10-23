@@ -8,7 +8,7 @@
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { firebaseEnv, isFirebaseConfigured } from './env';
 
@@ -37,7 +37,19 @@ export const app: FirebaseApp = getApps().length
   : initializeApp(firebaseConfig);
 
 export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
+// Long polling avoids a Firestore watch-stream crash (INTERNAL ASSERTION ca9)
+// when a listen is rejected. The WebChannel path throws instead of reporting
+// through onSnapshot's error callback. HMR may already have a Firestore
+// instance; fall back to that one.
+function createDb(firebaseApp: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(firebaseApp, { experimentalForceLongPolling: true });
+  } catch {
+    return getFirestore(firebaseApp);
+  }
+}
+
+export const db: Firestore = createDb(app);
 export const storage: FirebaseStorage = getStorage(app);
 
 const SECONDARY_NAME = 'secondary';

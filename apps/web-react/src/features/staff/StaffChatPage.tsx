@@ -18,11 +18,11 @@ import {
 } from '@/lib/chatService';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { Conversation } from '@/features/chat/Conversation';
+import { useSelectedChatRoom } from '@/features/chat/useSelectedChatRoom';
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const dateFmt = new Intl.DateTimeFormat('pt-PT', { month: 'short', day: 'numeric' });
 
 function roomTime(d: Date): string {
   const today = new Date();
@@ -33,7 +33,7 @@ export function StaffChatPage() {
   const { firebaseUser, profile, connectedClinic } = useAuth();
   const uid = firebaseUser?.uid ?? '';
   const clinicId = connectedClinic?.id ?? '';
-  const staffName = profile?.displayName?.trim() || profile?.email || 'Clinic';
+  const staffName = profile?.displayName?.trim() || profile?.email || 'Veterinária';
 
   const myQ = useMemo(() => (uid ? staffRoomsQuery(uid) : null), [uid]);
   const { data: myRaw } = useCollection<ChatRoom>(myQ, mapRoom);
@@ -55,7 +55,7 @@ export function StaffChatPage() {
     [clinicRaw],
   );
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useSelectedChatRoom();
   const [accepting, setAccepting] = useState<string | null>(null);
 
   const selected =
@@ -66,43 +66,30 @@ export function StaffChatPage() {
     try {
       await acceptChatRequest({ roomId: room.id, staffId: uid, staffName });
       setSelectedId(room.id);
-      toast.success('Chat accepted');
+      toast.success('Conversa aceite');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not accept chat');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível aceitar a conversa');
     } finally {
       setAccepting(null);
     }
   };
 
-  if (!connectedClinic) {
-    return (
-      <div>
-        <PageHeader title="Chat" subtitle="Conversations with pet owners." />
-        <EmptyState
-          icon={<MessageCircle size={36} />}
-          title="No clinic"
-          description="Your account isn't linked to a clinic yet."
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-[calc(100dvh-7rem)] flex-col">
-      <PageHeader eyebrow="Messages" title="Chat" subtitle={`${connectedClinic.name} conversations.`} />
+      <PageHeader eyebrow="Mensagens" title="Chat" subtitle="Conversas com os seus clientes." />
 
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-(--radius-lg) border border-border bg-card">
         {/* List */}
         <aside
           className={
             'w-full shrink-0 overflow-y-auto border-border md:w-80 md:border-r ' +
-            (selected ? 'hidden md:block' : 'block')
+            (selectedId ? 'hidden md:block' : 'block')
           }
         >
           {pending.length > 0 && (
             <div>
               <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Pending requests
+                Pedidos pendentes
               </p>
               <ul className="divide-y divide-border">
                 {pending.map((r) => (
@@ -117,10 +104,10 @@ export function StaffChatPage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-foreground">
-                          {r.petOwnerName || 'Pet owner'}
+                          {r.petOwnerName || 'Cliente'}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {r.topic || r.requestDescription || 'New chat request'}
+                          {r.topic || r.requestDescription || 'Novo pedido de conversa'}
                         </span>
                       </span>
                     </button>
@@ -130,7 +117,7 @@ export function StaffChatPage() {
                       onClick={() => void accept(r)}
                       className="mt-2 w-full"
                     >
-                      <Check size={15} /> Accept
+                      <Check size={15} /> Aceitar
                     </Button>
                   </li>
                 ))}
@@ -139,11 +126,11 @@ export function StaffChatPage() {
           )}
 
           <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Conversations
+            Conversas
           </p>
           {myRooms.length === 0 ? (
             <div className="p-6 text-center text-sm text-muted-foreground">
-              No active conversations.
+              Sem conversas ativas.
             </div>
           ) : (
             <ul className="divide-y divide-border">
@@ -163,7 +150,7 @@ export function StaffChatPage() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate font-medium text-foreground">
-                          {r.petOwnerName || 'Pet owner'}
+                          {r.petOwnerName || 'Cliente'}
                         </span>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
                           {roomTime(r.updatedAt)}
@@ -171,7 +158,7 @@ export function StaffChatPage() {
                       </span>
                       <span className="flex items-center justify-between gap-2">
                         <span className="truncate text-xs text-muted-foreground">
-                          {r.lastMessage?.content || r.topic || 'No messages yet'}
+                          {r.lastMessage?.content || r.topic || 'Ainda sem mensagens'}
                         </span>
                         {(r.unreadCounts[uid] ?? 0) > 0 && (
                           <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
@@ -188,37 +175,37 @@ export function StaffChatPage() {
         </aside>
 
         {/* Conversation */}
-        <section className={'min-w-0 flex-1 ' + (selected ? 'block' : 'hidden md:block')}>
-          {selected ? (
+        <section className={'min-w-0 flex-1 ' + (selectedId ? 'block' : 'hidden md:block')}>
+          {selectedId ? (
             <div className="flex h-full flex-col">
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
                 className="flex items-center gap-1.5 border-b border-border px-4 py-2 text-sm text-muted-foreground md:hidden"
               >
-                <ArrowLeft size={16} /> Back
+                <ArrowLeft size={16} /> Voltar
               </button>
-              {selected.status === ChatRoomStatus.pending && (
+              {selected && selected.status === ChatRoomStatus.pending && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-warning/10 px-4 py-2.5">
                   <p className="text-sm text-foreground">
-                    Pending request from {selected.petOwnerName || 'pet owner'}.
+                    Pedido pendente de {selected.petOwnerName || 'cliente'}.
                   </p>
                   <Button
                     loading={accepting === selected.id}
                     onClick={() => void accept(selected)}
                   >
-                    <Check size={15} /> Accept
+                    <Check size={15} /> Aceitar
                   </Button>
                 </div>
               )}
               <div className="min-h-0 flex-1">
-                <Conversation roomId={selected.id} />
+                <Conversation roomId={selectedId} />
               </div>
             </div>
           ) : (
             <div className="hidden h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm text-muted-foreground md:flex">
               <Inbox size={32} className="text-muted-foreground/60" />
-              Select a conversation or accept a pending request.
+              Escolha uma conversa.
             </div>
           )}
         </section>

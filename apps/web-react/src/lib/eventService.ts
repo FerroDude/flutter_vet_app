@@ -14,6 +14,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
   getDocs,
   query,
   orderBy,
@@ -47,6 +48,8 @@ export interface AppointmentEvent extends EventCommon {
   appointmentType?: string | null;
   isConfirmed: boolean;
   contactInfo?: string | null;
+  appointmentRequestId?: string | null;
+  bookedByVetId?: string | null;
 }
 
 export interface MedicationEvent extends EventCommon {
@@ -115,6 +118,8 @@ export function mapEvent(id: string, d: DocumentData): CalendarEvent {
         appointmentType: (d.appointmentType as string | null) ?? null,
         isConfirmed: Boolean(d.isConfirmed),
         contactInfo: (d.contactInfo as string | null) ?? null,
+        appointmentRequestId: (d.appointmentRequestId as string | null) ?? null,
+        bookedByVetId: (d.bookedByVetId as string | null) ?? null,
       };
     case EventType.medication:
       return {
@@ -174,6 +179,8 @@ export function eventToJson(e: CalendarEvent): DocumentData {
         appointmentType: e.appointmentType ?? null,
         isConfirmed: e.isConfirmed,
         contactInfo: e.contactInfo ?? null,
+        appointmentRequestId: e.appointmentRequestId ?? null,
+        bookedByVetId: e.bookedByVetId ?? null,
       };
     case EventType.medication:
       return {
@@ -205,6 +212,11 @@ export function eventToJson(e: CalendarEvent): DocumentData {
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 export type NewEvent = DistributiveOmit<CalendarEvent, 'id'>;
+
+export async function getEvent(uid: string, id: string): Promise<CalendarEvent | null> {
+  const snap = await getDoc(eventDoc(uid, id));
+  return snap.exists() ? mapEvent(snap.id, snap.data()) : null;
+}
 
 export async function createEvent(uid: string, event: NewEvent): Promise<string> {
   const json = eventToJson({ ...event, id: '' } as CalendarEvent);

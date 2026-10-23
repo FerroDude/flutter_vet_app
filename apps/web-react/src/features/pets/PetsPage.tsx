@@ -29,12 +29,12 @@ export function PetsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Your animals"
-        title="My pets"
-        subtitle="Manage your animals and their health records."
+        eyebrow="Os seus animais"
+        title="Animais"
+        subtitle="Os seus animais e os registos de saúde."
         actions={
           <Button onClick={() => navigate('/pets/new')}>
-            <Plus size={18} /> Add pet
+            <Plus size={18} /> Adicionar animal
           </Button>
         }
       />
@@ -48,7 +48,7 @@ export function PetsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search pets…"
+            placeholder="Procurar animais…"
             className="h-11 w-full rounded-(--radius-md) border border-input bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           />
         </div>
@@ -59,16 +59,16 @@ export function PetsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<PawPrint size={40} />}
-          title={search ? 'No pets found' : 'No pets yet'}
+          title={search ? 'Nenhum animal encontrado' : 'Ainda sem animais'}
           description={
             search
-              ? 'Try a different search term.'
-              : 'Add your first pet to start tracking symptoms, medications and appointments.'
+              ? 'Tente outra pesquisa.'
+              : 'Adicione o primeiro animal para registar sintomas, medicação e marcações.'
           }
           action={
             !search ? (
               <Button onClick={() => navigate('/pets/new')}>
-                <Plus size={18} /> Add your first pet
+                <Plus size={18} /> Adicionar animal
               </Button>
             ) : undefined
           }

@@ -116,7 +116,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
   const submit = async () => {
     if (!name.trim()) {
-      toast.error('Please enter a medication name');
+      toast.error('Indique o nome da medicação');
       return;
     }
     const [y, mo, d] = startDate.split('-').map(Number);
@@ -134,14 +134,14 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
     try {
       if (isEdit && existing) {
         await updateMedicationFields(uid, petId, existing.id, input);
-        toast.success('Medication updated');
+        toast.success('Medicação atualizada');
       } else {
         await createMedication(uid, petId, input);
-        toast.success('Medication added');
+        toast.success('Medicação adicionada');
       }
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not save medication');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível guardar a medicação');
     } finally {
       setSaving(false);
     }
@@ -151,30 +151,30 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
     <Dialog
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Edit medication' : 'Add medication'}
+      title={isEdit ? 'Editar medicação' : 'Adicionar medicação'}
       className="max-w-lg"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            Cancelar
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            {isEdit ? 'Save' : 'Add'}
+            {isEdit ? 'Guardar' : 'Adicionar'}
           </Button>
         </>
       }
     >
       <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label="Dosage"
-            placeholder="e.g. 1 tablet, 5 ml"
+            label="Dose"
+            placeholder="ex. 1 comprimido, 5 ml"
             value={dosage}
             onChange={(e) => setDosage(e.target.value)}
           />
           <Select
-            label="Frequency"
+            label="Frequência"
             value={frequency}
             onChange={(e) => setFrequency(Number(e.target.value) as MedicationFrequency)}
           >
@@ -188,7 +188,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
         {times.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-foreground">Dose times</span>
+            <span className="text-sm font-medium text-foreground">Horas da dose</span>
             <div className="flex flex-wrap gap-2">
               {times.map((t, i) => (
                 <input
@@ -207,13 +207,13 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label="Start date"
+            label="Data de início"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-foreground">Duration</span>
+            <span className="text-sm font-medium text-foreground">Duração</span>
             <div className="flex items-center gap-2">
               <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <input
@@ -222,7 +222,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   onChange={(e) => setOngoing(e.target.checked)}
                   className="h-4 w-4 accent-[hsl(var(--primary))]"
                 />
-                Ongoing
+                Contínua
               </label>
               {!ongoing && (
                 <input
@@ -231,19 +231,19 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   value={totalDays}
                   onChange={(e) => setTotalDays(e.target.value)}
                   className="h-11 w-24 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  aria-label="Total days"
+                  aria-label="Dias no total"
                 />
               )}
-              {!ongoing && <span className="text-sm text-muted-foreground">days</span>}
+              {!ongoing && <span className="text-sm text-muted-foreground">dias</span>}
             </div>
           </div>
         </div>
 
         <Textarea
-          label="Instructions (optional)"
+          label="Instruções (opcional)"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="With food, etc."
+          placeholder="Com comida, etc."
         />
 
         <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -253,7 +253,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
             onChange={(e) => setTrackDoses(e.target.checked)}
             className="h-4 w-4 accent-[hsl(var(--primary))]"
           />
-          Track doses (log each dose taken)
+          Registar doses (marcar cada toma)
         </label>
       </div>
     </Dialog>

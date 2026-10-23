@@ -20,12 +20,15 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
 import {
   clinicRequestsQuery,
+  vetRequestsQuery,
   mapAppointmentRequest,
   confirmRequest,
   denyRequest,
   linkChatRoom,
 } from '@/lib/appointmentRequestService';
+import { TextField } from '@/components/ui/TextField';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
+import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -34,10 +37,10 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Textarea } from '@/components/ui/Textarea';
 
 const TIME_SHORT: Record<TimePreference, string> = {
-  [TimePreference.anyTime]: 'Any time',
-  [TimePreference.morning]: 'Morning',
-  [TimePreference.afternoon]: 'Afternoon',
-  [TimePreference.evening]: 'Evening',
+  [TimePreference.anyTime]: 'Qualquer hora',
+  [TimePreference.morning]: 'Manhã',
+  [TimePreference.afternoon]: 'Tarde',
+  [TimePreference.evening]: 'Noite',
 };
 
 const STATUS_META: Record<
@@ -45,28 +48,28 @@ const STATUS_META: Record<
   { label: string; classes: string; icon: typeof Hourglass }
 > = {
   [AppointmentRequestStatus.pending]: {
-    label: 'Pending',
+    label: 'Pendente',
     classes: 'bg-warning/15 text-warning',
     icon: Hourglass,
   },
   [AppointmentRequestStatus.confirmed]: {
-    label: 'Confirmed',
+    label: 'Confirmado',
     classes: 'bg-primary-light text-primary',
     icon: CheckCircle2,
   },
   [AppointmentRequestStatus.denied]: {
-    label: 'Denied',
+    label: 'Recusado',
     classes: 'bg-destructive/15 text-destructive',
     icon: XCircle,
   },
   [AppointmentRequestStatus.cancelled]: {
-    label: 'Cancelled',
+    label: 'Cancelado',
     classes: 'bg-muted text-muted-foreground',
     icon: XCircle,
   },
 };
 
-const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const dateFmt = new Intl.DateTimeFormat('pt-PT', { month: 'short', day: 'numeric' });
 
 function dateRange(r: AppointmentRequest): string {
   const start = dateFmt.format(r.preferredDateStart);
@@ -76,14 +79,29 @@ function dateRange(r: AppointmentRequest): string {
 
 type Tab = 'pending' | 'handled';
 
+function toDatetimeLocal(d: Date): string {
+  const pad = (n: number) => `${n}`.padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function defaultConfirmTime(start: Date): string {
+  const d = new Date(start);
+  if (d.getHours() === 0 && d.getMinutes() === 0) d.setHours(9, 0, 0, 0);
+  return toDatetimeLocal(d);
+}
+
 export function AppointmentQueuePage() {
-  const { firebaseUser, profile, connectedClinic } = useAuth();
+  const { firebaseUser, profile, connectedClinic, role } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const staffName = profile?.displayName?.trim() || profile?.email || 'Clinic';
+  const staffName = profile?.displayName?.trim() || profile?.email || 'Vet';
   const clinicId = connectedClinic?.id ?? '';
+  const isVet = role === 'vet';
 
-  const q = useMemo(() => (clinicId ? clinicRequestsQuery(clinicId) : null), [clinicId]);
+  const q = useMemo(() => {
+    if (isVet && uid) return vetRequestsQuery(uid);
+    return clinicId ? clinicRequestsQuery(clinicId) : null;
+  }, [isVet, uid, clinicId]);
   const { data: raw } = useCollection<AppointmentRequest>(q, mapAppointmentRequest);
 
   const pending = useMemo(
@@ -109,25 +127,32 @@ export function AppointmentQueuePage() {
   const [confirmTarget, setConfirmTarget] = useState<AppointmentRequest | null>(null);
   const [denyTarget, setDenyTarget] = useState<AppointmentRequest | null>(null);
   const [message, setMessage] = useState('');
+  const [when, setWhen] = useState('');
   const [busy, setBusy] = useState(false);
 
   const list = tab === 'pending' ? pending : handled;
 
   const doConfirm = async () => {
     if (!confirmTarget) return;
+    const dateTime = new Date(when);
+    if (!when || Number.isNaN(dateTime.getTime())) {
+      toast.error('Escolha a data e a hora.');
+      return;
+    }
     setBusy(true);
     try {
       await confirmRequest({
-        requestId: confirmTarget.id,
+        request: confirmTarget,
         handledBy: uid,
         handledByName: staffName,
         message: message.trim() ? message.trim() : null,
+        dateTime,
       });
-      toast.success('Request confirmed');
+      toast.success('Pedido confirmado');
       setConfirmTarget(null);
       setMessage('');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not confirm');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível confirmar');
     } finally {
       setBusy(false);
     }
@@ -136,7 +161,7 @@ export function AppointmentQueuePage() {
   const doDeny = async () => {
     if (!denyTarget) return;
     if (!message.trim()) {
-      toast.error('Please add a reason for the denial.');
+      toast.error('Indique o motivo da recusa.');
       return;
     }
     setBusy(true);
@@ -147,11 +172,11 @@ export function AppointmentQueuePage() {
         handledByName: staffName,
         message: message.trim(),
       });
-      toast.success('Request denied');
+      toast.success('Pedido recusado');
       setDenyTarget(null);
       setMessage('');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not deny');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível recusar');
     } finally {
       setBusy(false);
     }
@@ -160,31 +185,30 @@ export function AppointmentQueuePage() {
   const openChat = async (r: AppointmentRequest) => {
     try {
       const roomId = await findOrCreateOneOnOneChat({
-        clinicId,
         petOwnerId: r.petOwnerId,
         petOwnerName: r.petOwnerName,
         staffId: uid,
         staffName,
-        staffRole: 'receptionist',
+        staffRole: 'vet',
         petIds: r.petId ? [r.petId] : [],
-        topic: `Re: Appointment request for ${r.petName}`,
+        topic: `Marcação: ${r.petName}`,
       });
       await linkChatRoom(r.id, roomId).catch(() => {});
-      toast.success('Chat opened');
-      navigate('/chat');
+      toast.success('Conversa aberta');
+      navigate(chatRoomPath(roomId));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not open chat');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível abrir a conversa');
     }
   };
 
-  if (!connectedClinic) {
+  if (!isVet && !connectedClinic) {
     return (
       <div>
-        <PageHeader title="Appointment requests" />
+        <PageHeader title="Pedidos de marcação" />
         <EmptyState
           icon={<Building2 size={36} />}
-          title="No clinic"
-          description="Your account isn't linked to a clinic yet."
+          title="Sem clínica"
+          description="Esta conta ainda não está ligada a uma clínica."
         />
       </div>
     );
@@ -193,9 +217,9 @@ export function AppointmentQueuePage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Queue"
-        title="Appointment requests"
-        subtitle={`Requests for ${connectedClinic.name}.`}
+        eyebrow="Fila"
+        title="Pedidos de marcação"
+        subtitle={isVet ? 'Pedidos dos seus clientes.' : `Pedidos de ${connectedClinic?.name ?? 'a clínica'}.`}
       />
 
       <div className="mb-5 inline-flex rounded-(--radius-pill) border border-border/60 bg-card p-1">
@@ -211,7 +235,7 @@ export function AppointmentQueuePage() {
                 : 'text-muted-foreground hover:text-foreground')
             }
           >
-            {tk}
+            {tk === 'pending' ? 'Pendentes' : 'Tratados'}
             {tk === 'pending' && pending.length > 0 ? ` (${pending.length})` : ''}
           </button>
         ))}
@@ -220,11 +244,11 @@ export function AppointmentQueuePage() {
       {list.length === 0 ? (
         <EmptyState
           icon={<CalendarDays size={36} />}
-          title={tab === 'pending' ? 'No pending requests' : 'Nothing handled yet'}
+          title={tab === 'pending' ? 'Sem pedidos pendentes' : 'Ainda nada tratado'}
           description={
             tab === 'pending'
-              ? 'New appointment requests will appear here.'
-              : 'Confirmed and denied requests will appear here.'
+              ? 'Os pedidos novos aparecem aqui.'
+              : 'Os pedidos confirmados e recusados aparecem aqui.'
           }
         />
       ) : (
@@ -288,15 +312,16 @@ export function AppointmentQueuePage() {
                           setDenyTarget(r);
                         }}
                       >
-                        Deny
+                        Recusar
                       </Button>
                       <Button
                         onClick={() => {
                           setMessage('');
+                          setWhen(defaultConfirmTime(r.preferredDateStart));
                           setConfirmTarget(r);
                         }}
                       >
-                        Confirm
+                        Confirmar
                       </Button>
                     </div>
                   )}
@@ -311,57 +336,65 @@ export function AppointmentQueuePage() {
       <Dialog
         open={Boolean(confirmTarget)}
         onClose={() => (busy ? undefined : setConfirmTarget(null))}
-        title="Confirm request"
+        title="Confirmar pedido"
         description={
           confirmTarget
-            ? `Confirm the appointment request for ${confirmTarget.petName}. You can add an optional note for the owner.`
+            ? `Escolha a hora para ${confirmTarget.petName}. Fica no calendário do cliente.`
             : ''
         }
         footer={
           <>
             <Button variant="outline" disabled={busy} onClick={() => setConfirmTarget(null)}>
-              Cancel
+              Cancelar
             </Button>
             <Button loading={busy} onClick={() => void doConfirm()}>
-              Confirm
+              Confirmar
             </Button>
           </>
         }
       >
-        <Textarea
-          label="Note to owner (optional)"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="e.g., We booked you for Tuesday at 3pm…"
-        />
+        <div className="space-y-3">
+          <TextField
+            label="Data e hora"
+            type="datetime-local"
+            value={when}
+            onChange={(e) => setWhen(e.target.value)}
+          />
+          <Textarea
+            label="Nota para o cliente (opcional)"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="O que o cliente deve saber"
+          />
+        </div>
       </Dialog>
 
       {/* Deny dialog */}
       <Dialog
         open={Boolean(denyTarget)}
         onClose={() => (busy ? undefined : setDenyTarget(null))}
-        title="Deny request"
+        title="Recusar pedido"
         description={
           denyTarget
-            ? `Deny the appointment request for ${denyTarget.petName}. Please include a reason.`
+            ? `Recusar a marcação de ${denyTarget.petName}. Indique o motivo.`
             : ''
         }
         footer={
           <>
             <Button variant="outline" disabled={busy} onClick={() => setDenyTarget(null)}>
-              Cancel
+              Cancelar
             </Button>
             <Button variant="destructive" loading={busy} onClick={() => void doDeny()}>
-              Deny request
+              Recusar pedido
             </Button>
           </>
         }
       >
         <Textarea
-          label="Reason"
+          label="Motivo"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Let the owner know why, and suggest alternatives…"
+          placeholder="Explique o motivo e sugira outra altura…"
         />
       </Dialog>
     </div>

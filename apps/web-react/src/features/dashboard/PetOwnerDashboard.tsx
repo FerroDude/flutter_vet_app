@@ -16,6 +16,7 @@ import {
   type CalendarEvent,
 } from '@/lib/eventService';
 import { petOwnerRoomsQuery, mapRoom } from '@/lib/chatService';
+import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import {
   logDoseTaken,
   undoLastDose,
@@ -30,7 +31,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MedicationCard } from '@/features/medications/MedicationCard';
 import { toast } from 'sonner';
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: 'numeric', minute: '2-digit' });
 
 function isToday(d: Date): boolean {
   const n = new Date();
@@ -50,12 +51,16 @@ export function PetOwnerDashboard() {
 
   const roomsQ = useMemo(() => (uid ? petOwnerRoomsQuery(uid) : null), [uid]);
   const { data: rooms } = useCollection<ChatRoom>(roomsQ, mapRoom);
-  const unreadTotal = useMemo(
+  const unreadRooms = useMemo(
     () =>
       rooms
-        .filter((r) => r.isActive)
-        .reduce((sum, r) => sum + (r.unreadCounts[uid] ?? 0), 0),
+        .filter((r) => r.isActive && (r.unreadCounts[uid] ?? 0) > 0)
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
     [rooms, uid],
+  );
+  const unreadTotal = useMemo(
+    () => unreadRooms.reduce((sum, r) => sum + (r.unreadCounts[uid] ?? 0), 0),
+    [unreadRooms, uid],
   );
 
   const allMeds = useAllMedications(uid);
@@ -87,8 +92,8 @@ export function PetOwnerDashboard() {
 
   const firstName = (profile?.displayName ?? '').trim().split(' ')[0] ?? '';
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const dateLabel = new Intl.DateTimeFormat(undefined, {
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const dateLabel = new Intl.DateTimeFormat('pt-PT', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -97,9 +102,9 @@ export function PetOwnerDashboard() {
   const onLog = async (m: Medication) => {
     try {
       await logDoseTaken(uid, m.petId, m.id, new Date());
-      toast.success('Dose logged');
+      toast.success('Dose registada');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not log dose');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível registar a dose');
     }
   };
 
@@ -115,7 +120,7 @@ export function PetOwnerDashboard() {
       {unreadTotal > 0 && (
         <button
           type="button"
-          onClick={() => navigate('/clinic')}
+          onClick={() => navigate(unreadRooms[0] ? chatRoomPath(unreadRooms[0].id) : '/chat')}
           className="flex w-full items-center gap-3 rounded-(--radius-lg) border border-border bg-primary-light p-4 text-left transition-colors hover:bg-primary-light/70"
         >
           <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
@@ -126,10 +131,10 @@ export function PetOwnerDashboard() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-medium text-foreground">
-              {unreadTotal} unread {unreadTotal === 1 ? 'message' : 'messages'}
+              {unreadTotal === 1 ? '1 mensagem por ler' : `${unreadTotal} mensagens por ler`}
             </span>
             <span className="block text-sm text-muted-foreground">
-              From your clinic — tap to read.
+              Da sua veterinária. Toque para ler.
             </span>
           </span>
           <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
@@ -140,11 +145,11 @@ export function PetOwnerDashboard() {
       <section>
         <SectionHeader
           className="mb-4"
-          eyebrow="Your animals"
-          title="My pets"
+          eyebrow="Os seus animais"
+          title="Animais"
           action={
             <Button variant="ghost" onClick={() => navigate('/pets/new')}>
-              <Plus size={16} /> Add pet
+              <Plus size={16} /> Adicionar animal
             </Button>
           }
         />
@@ -152,9 +157,9 @@ export function PetOwnerDashboard() {
         {pets.length === 0 ? (
           <EmptyState
             icon={<PawPrint size={36} />}
-            title="No pets yet"
-            description="Add your first pet to get started."
-            action={<Button onClick={() => navigate('/pets/new')}>Add a pet</Button>}
+            title="Ainda sem animais"
+            description="Adicione o primeiro animal para começar."
+            action={<Button onClick={() => navigate('/pets/new')}>Adicionar animal</Button>}
           />
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -184,7 +189,7 @@ export function PetOwnerDashboard() {
       {/* Active medications */}
       {activeMeds.length > 0 && (
         <section>
-          <SectionHeader className="mb-4" eyebrow="Care plan" title="Active medications" />
+          <SectionHeader className="mb-4" eyebrow="Plano" title="Medicação ativa" />
           <div className="space-y-3">
             {activeMeds.slice(0, 3).map((m) => (
               <MedicationCard
@@ -200,7 +205,7 @@ export function PetOwnerDashboard() {
             ))}
             {activeMeds.length > 3 && (
               <p className="text-center text-sm text-muted-foreground">
-                +{activeMeds.length - 3} more across your pets
+                +{activeMeds.length - 3} noutros animais
               </p>
             )}
           </div>
@@ -209,11 +214,11 @@ export function PetOwnerDashboard() {
 
       {/* Today */}
       <section>
-        <SectionHeader className="mb-4" eyebrow="Schedule" title="Today" />
+        <SectionHeader className="mb-4" eyebrow="Agenda" title="Hoje" />
         {todayEvents.length === 0 ? (
           <Card className="flex items-center gap-3 p-4">
             <CalendarDays size={20} className="text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Nothing scheduled today</p>
+            <p className="text-sm text-muted-foreground">Nada marcado para hoje</p>
           </Card>
         ) : (
           <div className="space-y-2">
@@ -231,7 +236,7 @@ export function PetOwnerDashboard() {
                   className="ml-auto h-8 px-3 text-xs"
                   onClick={() => navigate('/calendar')}
                 >
-                  View
+                  Ver
                 </Button>
               </Card>
             ))}

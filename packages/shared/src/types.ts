@@ -2,9 +2,8 @@
 // (parsed) shapes used by the web app. Firestore <-> these are handled by
 // per-feature converters that use helpers in converters.ts.
 
+import { ClinicRole, UserType } from './enums';
 import type {
-  UserType,
-  ClinicRole,
   MessageType,
   MessageStatus,
   ChatRoomStatus,
@@ -23,6 +22,8 @@ export interface UserProfile {
   displayName: string;
   userType: UserType;
   connectedClinicId?: string | null;
+  /** Solo-practice vet this client belongs to. One client, one vet. */
+  vetId?: string | null;
   clinicRole?: ClinicRole | null;
   phone?: string | null;
   address?: string | null;
@@ -148,7 +149,8 @@ export interface ChatMessage {
 
 export interface ChatRoom {
   id: string;
-  clinicId: string;
+  /** Legacy clinic key. New rooms are addressed by vetId. */
+  clinicId?: string | null;
   petOwnerId: string;
   petOwnerName: string;
   vetId: string;
@@ -168,7 +170,10 @@ export interface ChatRoom {
 
 export interface AppointmentRequest {
   id: string;
-  clinicId: string;
+  /** Vet who receives this request. New writes use this, not clinicId. */
+  vetId: string;
+  /** Legacy clinic key. Old documents may still have it. New writes omit it. */
+  clinicId?: string | null;
   petOwnerId: string;
   petOwnerName: string;
   petId: string;
@@ -185,6 +190,10 @@ export interface AppointmentRequest {
   handledAt?: Date | null;
   responseMessage?: string | null;
   linkedChatRoomId?: string | null;
+  /** Client calendar event written when the vet confirms. */
+  calendarEventId?: string | null;
+  /** Concrete time the vet booked. */
+  bookedDateTime?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -213,8 +222,8 @@ export function isAppOwner(u: Pick<UserProfile, 'globalType' | 'userType'>): boo
 export function isClinicAdmin(u: Pick<UserProfile, 'clinicRole'>): boolean {
   return u.clinicRole === 0;
 }
-export function isVet(u: Pick<UserProfile, 'clinicRole'>): boolean {
-  return u.clinicRole === 1;
+export function isVet(u: Pick<UserProfile, 'clinicRole' | 'userType'>): boolean {
+  return u.userType === UserType.vet || u.clinicRole === ClinicRole.vet;
 }
 export function isReceptionist(u: Pick<UserProfile, 'clinicRole'>): boolean {
   return u.clinicRole === 2;

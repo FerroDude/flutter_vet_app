@@ -8,6 +8,7 @@
    Light theme. HSL channel triples consumed via hsl(var(--token)).
 ---------------------------------------------------------------------------- */
 :root {
+  color-scheme: light;
   --background: 160 16% 97%;
   --foreground: 160 28% 8%;
   --card: 0 0% 100%;
