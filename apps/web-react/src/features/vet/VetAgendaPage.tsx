@@ -168,14 +168,9 @@ export function VetAgendaPage() {
 
         <div className="space-y-6">
           <section>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-lg font-semibold text-foreground first-letter:uppercase">
-                {dayHeadFmt.format(day)}
-              </h2>
-              <Button variant="ghost" className="h-8 px-3 text-xs" onClick={openNew}>
-                <Plus size={14} /> Marcar neste dia
-              </Button>
-            </div>
+            <h2 className="mb-3 font-display text-lg font-semibold text-foreground first-letter:uppercase">
+              {dayHeadFmt.format(day)}
+            </h2>
             {selected.length === 0 ? (
               <EmptyState icon={<CalendarDays size={32} />} title="Sem consultas" description="Nada marcado neste dia." />
             ) : (

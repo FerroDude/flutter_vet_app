@@ -12,10 +12,14 @@ import {
   deletePet,
   petDoc,
   mapPet,
+  uploadPetPhoto,
+  removePetPhoto,
   type PetFields,
   type Pet,
 } from '@/lib/petService';
 import { useDoc } from '@/lib/useFirestore';
+import { errorMessage } from '@/lib/format';
+import { PetPhotoPicker } from './PetPhotoPicker';
 import { TextField } from '@/components/ui/TextField';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -69,6 +73,7 @@ export function PetForm() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -78,6 +83,8 @@ export function PetForm() {
   const [hydrated, setHydrated] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
   useEffect(() => {
     if (isEdit && existing && !hydrated) {
       reset({
@@ -112,17 +119,25 @@ export function PetForm() {
       emergencyContact: existing?.emergencyContact ?? '',
     };
     try {
-      if (isEdit) {
-        await updatePet(uid, petId!, fields);
-        toast.success('Animal atualizado');
-        navigate(`${petBase}/${petId}`);
-      } else {
-        const newId = await addPet(uid, fields);
-        toast.success('Animal adicionado');
-        navigate(`${petBase}/${newId}`);
+      const id = isEdit ? petId! : await addPet(uid, fields);
+      if (isEdit) await updatePet(uid, id, fields);
+
+      let photoError: string | null = null;
+      if (photoFile) {
+        try {
+          await uploadPetPhoto(uid, id, photoFile);
+        } catch (e) {
+          photoError = errorMessage(e);
+        }
+      } else if (removePhoto) {
+        await removePetPhoto(uid, id);
       }
+
+      toast.success(isEdit ? 'Animal atualizado' : 'Animal adicionado');
+      if (photoError) toast.error(`O animal foi guardado, mas a foto falhou: ${photoError}`);
+      navigate(`${petBase}/${id}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível guardar o animal');
+      toast.error(errorMessage(e));
     }
   };
 
@@ -153,6 +168,28 @@ export function PetForm() {
       </h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {!isVetView && (
+          <Card>
+            <CardBody className="space-y-4">
+              <p className="text-sm font-semibold text-foreground">Foto</p>
+              <PetPhotoPicker
+                photoUrl={removePhoto ? null : (existing?.photoUrl ?? null)}
+                file={photoFile}
+                name={watch('name') || existing?.name || ''}
+                disabled={isSubmitting}
+                onPick={(f) => {
+                  setPhotoFile(f);
+                  setRemovePhoto(false);
+                }}
+                onRemove={() => {
+                  setPhotoFile(null);
+                  if (existing?.photoUrl) setRemovePhoto(true);
+                }}
+              />
+            </CardBody>
+          </Card>
+        )}
+
         <Card>
           <CardBody className="space-y-4">
             <p className="text-sm font-semibold text-foreground">Dados</p>
