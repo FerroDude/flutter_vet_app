@@ -96,9 +96,11 @@ export function Dialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
+      {/* Clicks on the backdrop land here (it covers the wrapper), so it closes too. */}
       <div
         className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px] animate-overlay-in"
         aria-hidden
+        onMouseDown={onClose}
       />
       <div
         ref={panelRef}
