@@ -75,7 +75,8 @@ export function StaffChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] flex-col">
+    // Mobile: top bar + main top padding + bottom-nav padding. Desktop: main py-10.
+    <div className="flex h-[calc(100dvh-12.25rem)] min-h-[22rem] flex-col lg:h-[calc(100dvh-5rem)]">
       <PageHeader eyebrow="Mensagens" title="Chat" subtitle="Conversas com os seus clientes." />
 
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-(--radius-lg) border border-border bg-card">

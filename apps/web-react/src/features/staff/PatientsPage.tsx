@@ -150,8 +150,9 @@ export function PatientsPage() {
                     </span>
                     <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                       {p.email && (
-                        <span className="inline-flex items-center gap-1">
-                          <Mail size={12} /> {p.email}
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                          <Mail size={12} className="shrink-0" />
+                          <span className="truncate">{p.email}</span>
                         </span>
                       )}
                       {p.phone && (

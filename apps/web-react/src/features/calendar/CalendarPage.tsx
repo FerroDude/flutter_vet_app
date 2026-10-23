@@ -177,7 +177,7 @@ export function CalendarPage() {
         subtitle="Consultas, medicação e sintomas dos seus animais."
         actions={
           <Button onClick={() => setAddOpen(true)}>
-            <Plus size={18} /> Add
+            <Plus size={18} /> Adicionar
           </Button>
         }
       />
@@ -286,7 +286,7 @@ export function CalendarPage() {
                         const done = expected > 0 && taken >= expected;
                         return (
                           <Card key={m.id} className="flex items-center gap-3 p-3">
-                            <span className={cn('flex h-9 w-9 items-center justify-center rounded-(--radius-md)', done ? 'bg-success/15 text-success' : 'bg-primary-light text-primary')}>
+                            <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-(--radius-md)', done ? 'bg-success/15 text-success' : 'bg-primary-light text-primary')}>
                               {done ? <Check size={18} /> : <Pill size={18} />}
                             </span>
                             <div className="min-w-0 flex-1">
@@ -317,8 +317,8 @@ export function CalendarPage() {
                           event={e}
                           petName={e.petId ? petName.get(e.petId) : undefined}
                           onEdit={() => setEditingEvent(e)}
-                          onDelete={() => void deleteEvent(uid, e.id)}
-                          onToggle={() => void toggleComplete(uid, e)}
+                          onDelete={() => void withToast(deleteEvent(uid, e.id))}
+                          onToggle={() => void withToast(toggleComplete(uid, e))}
                         />
                       ))}
                     </Section>
@@ -447,7 +447,7 @@ function AppointmentsView({
                 event={e}
                 petName={e.petId ? petName.get(e.petId) : undefined}
                 onEdit={() => onEdit(e)}
-                onDelete={() => void deleteEvent(uid, e.id)}
+                onDelete={() => void withToast(deleteEvent(uid, e.id))}
                 onToggle={() => {}}
               />
             ))}
@@ -467,6 +467,7 @@ function MedicationsView({
   meds: Medication[];
   petName: Map<string, string>;
 }) {
+  const [editing, setEditing] = useState<Medication | null>(null);
   if (meds.length === 0) {
     return <EmptyState icon={<Pill size={36} />} title="Sem medicação" description="Adicione medicação na ficha do animal ou no botão Adicionar." />;
   }
@@ -478,10 +479,14 @@ function MedicationsView({
       med={m}
       petName={petName.get(m.petId)}
       onLogDose={() => void logDose(uid, m)}
-      onUndo={() => void undoLastDose(uid, m.petId, m.id)}
-      onEdit={() => {}}
-      onDelete={() => void deleteMedication(uid, m.petId, m.id)}
-      onSetStatus={(s: MedicationStatus) => void setMedicationStatus(uid, m.petId, m.id, s)}
+      onUndo={() => void withToast(undoLastDose(uid, m.petId, m.id))}
+      onEdit={() => setEditing(m)}
+      onDelete={() => {
+        if (window.confirm(`Apagar ${m.name}? Não dá para desfazer.`)) {
+          void withToast(deleteMedication(uid, m.petId, m.id));
+        }
+      }}
+      onSetStatus={(s: MedicationStatus) => void withToast(setMedicationStatus(uid, m.petId, m.id, s))}
     />
   );
   return (
@@ -490,8 +495,23 @@ function MedicationsView({
         <Section title="Ativa">{active.map(card)}</Section>
       )}
       {past.length > 0 && <Section title="Passada">{past.map(card)}</Section>}
+      <MedicationFormDialog
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        uid={uid}
+        petId={editing?.petId ?? ''}
+        existing={editing}
+      />
     </div>
   );
+}
+
+async function withToast(p: Promise<unknown>): Promise<void> {
+  try {
+    await p;
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Não foi possível concluir a ação');
+  }
 }
 
 function SymptomsView({
@@ -581,14 +601,14 @@ function EventRow({
       <div className="flex items-start gap-3">
         <span className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', color)} />
         <div className="min-w-0 flex-1">
-          <p className={cn('font-medium text-foreground', completed && 'line-through opacity-60')}>{event.title}</p>
+          <p className={cn('break-words font-medium text-foreground', completed && 'line-through opacity-60')}>{event.title}</p>
           <p className="text-xs text-muted-foreground">
             {timeFmt.format(event.dateTime)}
             {petName ? ` · ${petName}` : ''}
             {subtitle ? ` · ${subtitle}` : ''}
           </p>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {event.type !== EventType.appointment && (
             <button type="button" onClick={onToggle} className={cn('rounded-(--radius-sm) p-1.5 hover:bg-secondary', completed ? 'text-primary' : 'text-muted-foreground')} aria-label="Marcar como feito">
               <Check size={15} />
@@ -617,7 +637,7 @@ function SymptomRow({ uid, symptom, petName }: { uid: string; symptom: PetSympto
         <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-event-symptom" />
         <div className="min-w-0 flex-1">
           <p className="font-medium text-foreground">{SYMPTOM_LABELS[symptom.type]}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="break-words text-xs text-muted-foreground">
             {timeFmt.format(symptom.timestamp)}
             {petName ? ` · ${petName}` : ''}
             {symptom.note ? ` · ${symptom.note}` : ''}
@@ -625,8 +645,8 @@ function SymptomRow({ uid, symptom, petName }: { uid: string; symptom: PetSympto
         </div>
         <button
           type="button"
-          onClick={() => void deleteSymptom(uid, symptom.petId, symptom.id)}
-          className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
+          onClick={() => void withToast(deleteSymptom(uid, symptom.petId, symptom.id))}
+          className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
           aria-label="Apagar sintoma"
         >
           <Trash2 size={15} />
@@ -643,7 +663,7 @@ function AddChoice({ icon, label, onClick }: { icon: React.ReactNode; label: str
       onClick={onClick}
       className="flex items-center gap-3 rounded-(--radius-md) border border-border p-3 text-left transition-colors hover:bg-secondary"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
         {icon}
       </span>
       <span className="font-medium text-foreground">{label}</span>
@@ -661,7 +681,8 @@ function Segmented({
   options: { value: View; label: string; icon: typeof CalendarDays }[];
 }) {
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-(--radius-pill) border border-border/60 bg-card p-1">
+    // Scrolls sideways on narrow screens instead of wrapping into a broken pill.
+    <div className="flex max-w-full gap-1 overflow-x-auto rounded-(--radius-pill) border border-border/60 bg-card p-1 sm:inline-flex">
       {options.map((o) => {
         const Icon = o.icon;
         const active = o.value === value;
@@ -670,8 +691,9 @@ function Segmented({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
+            aria-pressed={active}
             className={cn(
-              'inline-flex items-center gap-2 rounded-(--radius-pill) px-3.5 py-1.5 text-sm font-medium transition-colors',
+              'inline-flex shrink-0 items-center gap-2 rounded-(--radius-pill) px-3.5 py-1.5 text-sm font-medium transition-colors',
               active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >

@@ -164,7 +164,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
         </>
       }
     >
-      <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+      <div className="space-y-4">
         <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
@@ -214,7 +214,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
           />
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-foreground">Duração</span>
-            <div className="flex items-center gap-2">
+            <div className="flex h-11 items-center gap-2">
               <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
