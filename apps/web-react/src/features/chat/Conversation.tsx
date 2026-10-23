@@ -356,7 +356,7 @@ export function Conversation({ roomId }: { roomId: string }) {
           }}
           placeholder={recorder.recording ? 'A gravar…' : 'Escreva uma mensagem…'}
           disabled={recorder.recording}
-          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-(--radius-lg) border border-input bg-card px-3.5 py-2.5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-(--radius-lg) border border-input bg-card px-3.5 py-2.5 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
         />
 
         {text.trim() ? (

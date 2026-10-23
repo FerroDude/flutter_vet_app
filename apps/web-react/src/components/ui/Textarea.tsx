@@ -24,7 +24,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={cn(
             'w-full rounded-(--radius-md) border bg-card px-3.5 py-2.5 text-sm text-foreground',
             'placeholder:text-muted-foreground/70 transition-colors resize-y',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+            'focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring',
             error ? 'border-destructive' : 'border-input',
             className,
           )}

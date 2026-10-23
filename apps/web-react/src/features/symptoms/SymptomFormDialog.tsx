@@ -78,7 +78,7 @@ export function SymptomFormDialog({ open, onClose, uid, petId, petName, defaultD
             type="datetime-local"
             value={when}
             onChange={(e) => setWhen(e.target.value)}
-            className="h-11 w-full rounded-(--radius-md) border border-input bg-card px-3.5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="h-11 w-full rounded-(--radius-md) border border-input bg-card px-3.5 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
           />
         </div>
         <Textarea

@@ -25,7 +25,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         className={cn(
           'h-11 w-full appearance-none rounded-(--radius-md) border bg-card px-3.5 text-sm text-foreground',
           'bg-[length:1rem] bg-[right_0.75rem_center] bg-no-repeat pr-10',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+          'focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring',
           error ? 'border-destructive' : 'border-input',
           className,
         )}
