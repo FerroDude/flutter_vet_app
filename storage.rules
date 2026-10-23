@@ -1,0 +1,21 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Chat attachments (unchanged from the rules that were live in the console).
+    match /chats/{chatId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Pet profile photos: pets/{ownerId}/{petId}/{file}. Only the pet's owner
+    // uploads or deletes; images only, max 5 MB. Signed-in users can read
+    // (the vet sees her clients' pets; <img> uses tokenised download URLs).
+    match /pets/{ownerId}/{petId}/{file} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == ownerId
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if request.auth != null && request.auth.uid == ownerId;
+    }
+  }
+}

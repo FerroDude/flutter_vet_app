@@ -29,7 +29,8 @@ import {
   parseDate,
   parseDateOptional,
 } from '@vetplus/shared';
-import { db } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from './firebase';
 import { deleteEventsForPet } from './eventService';
 
 export type PetGender = 'Male' | 'Female' | 'Unknown';
@@ -78,7 +79,7 @@ export function mapPet(id: string, data: DocumentData): Pet {
     dateOfBirth: parseDateOptional(data.dateOfBirth) ?? null,
     order: typeof data.order === 'number' ? data.order : 0,
     photoUrl:
-      (data.imageUrl as string | null) ?? (data.photoUrl as string | null) ?? null,
+      (data.photoUrl as string | null) ?? (data.imageUrl as string | null) ?? null,
   };
 }
 
@@ -115,6 +116,41 @@ export async function updatePet(
   fields: PetFields,
 ): Promise<void> {
   await updateDoc(petDoc(uid, petId), fieldsToDoc(fields));
+}
+
+const MAX_PHOTO_SIDE = 800;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/** Downscale + upload a pet photo to Storage, then point the pet doc at it. */
+export async function uploadPetPhoto(uid: string, petId: string, file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Escolha uma imagem.');
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Não foi possível processar a imagem.'))),
+      'image/jpeg',
+      0.85,
+    ),
+  );
+  if (blob.size >= MAX_PHOTO_BYTES) throw new Error('A imagem é demasiado grande.');
+
+  const storageRef = ref(storage, `pets/${uid}/${petId}/photo_${Date.now()}.jpg`);
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  const url = await getDownloadURL(storageRef);
+  await updateDoc(petDoc(uid, petId), { photoUrl: url, imageUrl: null, updatedAt: serverTimestamp() });
+  return url;
+}
+
+export async function removePetPhoto(uid: string, petId: string): Promise<void> {
+  await updateDoc(petDoc(uid, petId), { photoUrl: null, imageUrl: null, updatedAt: serverTimestamp() });
 }
 
 export async function deletePet(uid: string, petId: string): Promise<void> {
