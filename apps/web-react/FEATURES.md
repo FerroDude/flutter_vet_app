@@ -30,7 +30,7 @@ The UI is European Portuguese (`pt-PT`), written directly in the components.
 
 Menu: Painel · Animais · Agenda · Chat · Perfil.
 
-- **Painel**: greeting, unread messages, next appointment, pets, up to 3 active medications, today's entries.
+- **Painel**: greeting, unread messages, upcoming appointments (next 3), up to 3 active medications, today's entries. Pets live only in the Animais tab.
 - **Animais**: pet list and search; pet form (create/edit); pet page with record, medications (log/undo dose, pause, complete, delete), appointments and symptoms.
 - **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit; "Adicionar" adds a reminder, a medication or a symptom.
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).

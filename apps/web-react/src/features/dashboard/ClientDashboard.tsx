@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarDays, ChevronRight, MessageCircle, PawPrint, Plus } from 'lucide-react';
+import { CalendarDays, ChevronRight, MessageCircle } from 'lucide-react';
 import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
-import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
+import { petsQuery, mapPet, type Pet } from '@/lib/petService';
 import { eventsQuery, mapEvent, type CalendarEvent } from '@/lib/eventService';
 import { useRooms } from '@/lib/chatService';
 import { logDoseTaken, undoLastDose, setMedicationStatus } from '@/lib/medicationService';
@@ -15,8 +15,6 @@ import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { PetAvatar } from '@/components/ui/PetAvatar';
 import { MedicationCard } from '@/features/medications/MedicationCard';
 
 export function ClientDashboard() {
@@ -65,41 +63,6 @@ export function ClientDashboard() {
           onClick={() => navigate(rooms[0] ? chatRoomPath(rooms[0].id) : '/chat')}
         />
       )}
-
-      <section>
-        <SectionHeader
-          className="mb-4"
-          eyebrow="Os seus animais"
-          title="Animais"
-          action={
-            <Button variant="ghost" onClick={() => navigate('/pets/new')}>
-              <Plus size={16} /> Adicionar animal
-            </Button>
-          }
-        />
-        {pets.length === 0 ? (
-          <EmptyState
-            icon={<PawPrint size={36} />}
-            title="Ainda sem animais"
-            description="Adicione o primeiro animal para começar."
-            action={<Button onClick={() => navigate('/pets/new')}>Adicionar animal</Button>}
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {pets.map((pet) => (
-              <Link key={pet.id} to={`/pets/${pet.id}`} className="group">
-                <Card className="overflow-hidden transition-[transform,box-shadow] group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-md)">
-                  <PetAvatar pet={pet} size={72} className="mx-auto mt-4 flex" />
-                  <div className="p-3 text-center">
-                    <p className="truncate font-medium text-foreground">{pet.name}</p>
-                    <p className="text-xs text-muted-foreground">{petAgeLabel(pet.dateOfBirth)}</p>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
 
       {upcoming.length > 0 && (
         <section>
