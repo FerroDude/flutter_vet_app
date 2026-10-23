@@ -198,7 +198,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   onChange={(e) =>
                     setTimes((prev) => prev.map((p, j) => (j === i ? inputToTime(e.target.value) : p)))
                   }
-                  className="h-11 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="h-11 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
                 />
               ))}
             </div>
@@ -230,7 +230,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   min={1}
                   value={totalDays}
                   onChange={(e) => setTotalDays(e.target.value)}
-                  className="h-11 w-24 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="h-11 w-24 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
                   aria-label="Dias no total"
                 />
               )}
