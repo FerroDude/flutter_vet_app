@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -42,7 +42,7 @@ import {
   type CalendarEvent,
 } from '@/lib/eventService';
 import { useDoc, useCollection } from '@/lib/useFirestore';
-import { mapPrivateNotes, privateNotesDoc, savePrivateNotes, type PrivateNotes } from '@/lib/privateNotes';
+import { PrivateNotesCard } from './PrivateNotesCard';
 import { MedicationCard } from '@/features/medications/MedicationCard';
 import { MedicationFormDialog } from '@/features/medications/MedicationFormDialog';
 import { SymptomFormDialog } from '@/features/symptoms/SymptomFormDialog';
@@ -51,7 +51,6 @@ import { PageSpinner } from '@/components/Spinner';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { Textarea } from '@/components/ui/Textarea';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CalendarDays } from 'lucide-react';
 
@@ -92,17 +91,6 @@ export function PetDetailPage() {
     [uid, petId],
   );
   const { data: meds } = useCollection<Medication>(medQuery, mapMedication);
-
-  const notesRef = useMemo(
-    () => (isVetView && uid && petId ? privateNotesDoc(uid, petId) : null),
-    [isVetView, uid, petId],
-  );
-  const { data: privateNotes } = useDoc<PrivateNotes>(notesRef, mapPrivateNotes);
-  const [notesDraft, setNotesDraft] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
-  useEffect(() => {
-    if (privateNotes) setNotesDraft(privateNotes.text);
-  }, [privateNotes]);
 
   const eventQuery = useMemo(() => (uid ? eventsQuery(uid) : null), [uid]);
   const { data: allEvents } = useCollection<CalendarEvent>(eventQuery, mapEvent);
@@ -199,38 +187,7 @@ export function PetDetailPage() {
       </div>
 
       {isVetView && petId && (
-        <Card className="mb-6">
-          <CardBody className="space-y-3">
-            <p className="text-sm font-semibold text-foreground">Notas privadas</p>
-            <p className="text-xs text-muted-foreground">
-              Só a veterinária vê estas notas. O cliente não.
-            </p>
-            <Textarea
-              label="Notas"
-              value={notesDraft}
-              onChange={(e) => setNotesDraft(e.target.value)}
-            />
-            <div className="flex justify-end">
-              <Button
-                loading={savingNotes}
-                onClick={() => {
-                  setSavingNotes(true);
-                  void savePrivateNotes({
-                    clientId: uid,
-                    petId,
-                    text: notesDraft,
-                    vetId: firebaseUser?.uid ?? '',
-                  })
-                    .then(() => toast.success('Notas guardadas'))
-                    .catch((e) => toast.error(e instanceof Error ? e.message : 'Não foi possível guardar'))
-                    .finally(() => setSavingNotes(false));
-                }}
-              >
-                Guardar notas
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
+        <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />
       )}
 
       {/* Info */}

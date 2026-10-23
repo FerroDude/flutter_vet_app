@@ -89,6 +89,12 @@ service cloud.firestore {
       }
     }
 
+    // Vet agenda: collection-group read of the appointments she booked in
+    // her clients' calendars. Writes still go through users/{id}/events.
+    match /{path=**}/events/{eventId} {
+      allow read: if signedIn() && resource.data.bookedByVetId == request.auth.uid;
+    }
+
     match /chatRooms/{roomId} {
       function inRoom() {
         return signedIn() && (
