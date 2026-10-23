@@ -137,9 +137,10 @@ symptom       #e23670 (magenta pink)
 The app is light-only — there is no dark theme.
 
 Rules: WCAG AA — 4.5:1 normal text, 3:1 large. Never use color alone to convey
-state (pair with icon/label). Default CTAs use `--primary` (deep brand orange,
-~4.6:1 with white text); `--accent` is the site's lighter orange for tint fills
-and decorative touches.
+state (pair with icon/label). Default CTAs use `--primary` (the yoshivetcare.com
+button orange #FA5119, ~3.4:1 with white text — keep button labels medium weight
+and avoid small orange text on white); `--accent` is the site's lighter orange for
+tint fills and decorative touches.
 
 ---
 
