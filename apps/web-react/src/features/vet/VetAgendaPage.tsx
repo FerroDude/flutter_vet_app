@@ -15,7 +15,6 @@ import {
   dateTimeFmt,
   dayHeadFmt,
   dayKey,
-  dayShortFmt,
   errorMessage,
   preferredRange,
   startOfDay,
@@ -67,7 +66,6 @@ export function VetAgendaPage() {
   }, [appointments]);
 
   const selected = byDay.get(dayKey(day)) ?? [];
-  const upcoming = appointments.filter((a) => a.dateTime.getTime() >= Date.now()).slice(0, 8);
 
   const openNew = () => {
     setEditing(null);
@@ -197,29 +195,6 @@ export function VetAgendaPage() {
               </div>
             )}
           </section>
-
-          {upcoming.length > 0 && (
-            <section>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Próximas consultas
-              </h2>
-              <div className="space-y-2">
-                {upcoming.map((a) => (
-                  <AppointmentRow
-                    key={`${a.userId}/${a.id}`}
-                    a={a}
-                    showDay
-                    onClient={() => navigate(`/clients/${a.userId}`)}
-                    onEdit={() => {
-                      setEditing(a);
-                      setDialogOpen(true);
-                    }}
-                    onCancel={() => void cancel(a)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
         </div>
       </div>
 
@@ -292,13 +267,11 @@ function RequestCard({ request: r, children }: { request: AppointmentRequest; ch
 
 function AppointmentRow({
   a,
-  showDay,
   onClient,
   onEdit,
   onCancel,
 }: {
   a: AppointmentEvent;
-  showDay?: boolean;
   onClient: () => void;
   onEdit: () => void;
   onCancel: () => void;
@@ -310,7 +283,6 @@ function AppointmentRow({
           <p className="font-display text-lg font-bold tabular-nums leading-tight text-foreground">
             {timeFmt.format(a.dateTime)}
           </p>
-          {showDay && <p className="text-[11px] text-muted-foreground">{dayShortFmt.format(a.dateTime)}</p>}
         </div>
         <div className="min-w-0 flex-1">
           <p className="break-words font-medium text-foreground">{a.title}</p>

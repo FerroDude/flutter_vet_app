@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarDays, ChevronRight, MessageCircle, PawPrint, Plus, Stethoscope } from 'lucide-react';
+import { CalendarDays, ChevronRight, MessageCircle, PawPrint, Plus } from 'lucide-react';
 import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
@@ -30,7 +30,9 @@ export function ClientDashboard() {
   const eq = useMemo(() => (uid ? eventsQuery(uid) : null), [uid]);
   const { data: events } = useCollection<CalendarEvent>(eq, mapEvent);
   const todayEvents = events.filter((e) => e.type !== EventType.medication && sameDay(e.dateTime, new Date()));
-  const nextVisit = events.find((e) => e.type === EventType.appointment && e.dateTime.getTime() >= Date.now());
+  const upcoming = events
+    .filter((e) => e.type === EventType.appointment && e.dateTime.getTime() >= Date.now())
+    .slice(0, 3);
 
   const { rooms, unread } = useRooms('petOwnerId', uid);
   const meds = useAllMedications(uid);
@@ -54,25 +56,13 @@ export function ClientDashboard() {
         title={firstName ? `${greeting()}, ${firstName}` : greeting()}
       />
 
-      {(unread > 0 || nextVisit) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {unread > 0 && (
-            <Banner
-              icon={<MessageCircle size={20} />}
-              title={unread === 1 ? '1 mensagem por ler' : `${unread} mensagens por ler`}
-              subtitle="Da sua veterinária."
-              onClick={() => navigate(rooms[0] ? chatRoomPath(rooms[0].id) : '/chat')}
-            />
-          )}
-          {nextVisit && (
-            <Banner
-              icon={<Stethoscope size={20} />}
-              title={`Próxima consulta: ${dateTimeFmt.format(nextVisit.dateTime)}`}
-              subtitle={nextVisit.title}
-              onClick={() => navigate('/agenda')}
-            />
-          )}
-        </div>
+      {unread > 0 && (
+        <Banner
+          icon={<MessageCircle size={20} />}
+          title={unread === 1 ? '1 mensagem por ler' : `${unread} mensagens por ler`}
+          subtitle="Da sua veterinária."
+          onClick={() => navigate(rooms[0] ? chatRoomPath(rooms[0].id) : '/chat')}
+        />
       )}
 
       <section>
@@ -117,6 +107,43 @@ export function ClientDashboard() {
           </div>
         )}
       </section>
+
+      {upcoming.length > 0 && (
+        <section>
+          <SectionHeader
+            className="mb-4"
+            eyebrow="Agenda"
+            title="Próximas consultas"
+            action={
+              <Button variant="ghost" onClick={() => navigate('/agenda')}>
+                Ver agenda
+              </Button>
+            }
+          />
+          <div className="space-y-2">
+            {upcoming.map((e) => (
+              <Link key={e.id} to="/agenda" className="block">
+                <Card className="flex items-center gap-3 p-3 transition-colors hover:bg-secondary">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-event-appointment" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-foreground">{e.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[
+                        dateTimeFmt.format(e.dateTime),
+                        e.petId ? petName.get(e.petId) : null,
+                        e.type === EventType.appointment ? e.location : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {activeMeds.length > 0 && (
         <section>

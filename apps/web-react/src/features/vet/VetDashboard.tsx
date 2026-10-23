@@ -5,10 +5,11 @@ import { useClients } from '@/lib/useClients';
 import { useRooms } from '@/lib/chatService';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { useVetPendingRequests } from '@/lib/appointmentRequestService';
-import { dayHeadFmt, greeting, sameDay, timeFmt } from '@/lib/format';
+import { dayHeadFmt, dayShortFmt, greeting, sameDay, timeFmt } from '@/lib/format';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card, CardBody } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 export function VetDashboard() {
   const { firebaseUser, profile } = useAuth();
@@ -20,7 +21,13 @@ export function VetDashboard() {
   const { clients } = useClients(uid);
   const { rooms, unread } = useRooms('vetId', uid);
   const { appointments } = useVetAppointments(uid);
-  const today = appointments.filter((a) => sameDay(a.dateTime, new Date()));
+  const upcoming = appointments.filter((a) => a.dateTime.getTime() >= Date.now()).slice(0, 5);
+
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dayLabel = (d: Date) =>
+    sameDay(d, now) ? 'Hoje' : sameDay(d, tomorrow) ? 'Amanhã' : dayShortFmt.format(d);
   const firstUnread = rooms.find((r) => (r.unreadCounts[uid] ?? 0) > 0);
 
   return (
@@ -55,17 +62,26 @@ export function VetDashboard() {
       </div>
 
       <section>
-        <SectionHeader className="mb-4" eyebrow="Agenda" title="Consultas de hoje" />
-        {today.length === 0 ? (
+        <SectionHeader
+          className="mb-4"
+          eyebrow="Agenda"
+          title="Próximas consultas"
+          action={
+            <Button variant="ghost" onClick={() => navigate('/agenda')}>
+              Ver agenda
+            </Button>
+          }
+        />
+        {upcoming.length === 0 ? (
           <Card>
             <CardBody className="flex items-center gap-3 text-sm text-muted-foreground">
               <CheckCircle2 size={18} className="text-primary" />
-              Sem consultas marcadas para hoje.
+              Sem consultas marcadas.
             </CardBody>
           </Card>
         ) : (
           <div className="space-y-3">
-            {today.map((a) => (
+            {upcoming.map((a) => (
               <button
                 key={`${a.userId}/${a.id}`}
                 type="button"
@@ -83,7 +99,7 @@ export function VetDashboard() {
                         <span className="font-normal text-muted-foreground"> · {a.clientName || 'Cliente'}</span>
                       </p>
                       <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Clock size={13} /> {timeFmt.format(a.dateTime)}
+                        <Clock size={13} /> {dayLabel(a.dateTime)}, {timeFmt.format(a.dateTime)}
                         {a.location ? ` · ${a.location}` : ''}
                       </p>
                     </div>

@@ -1,4 +1,4 @@
-# Vet+ web — feature register
+# Yoshi Vet Care web — feature register
 
 What the React app in `apps/web-react` does. Shared types and medication math live in `packages/shared`.
 

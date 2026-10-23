@@ -1,9 +1,9 @@
-# Vet+ Web — Design System (DESIGN.md)
+# Yoshi Vet Care Web — Design System (DESIGN.md)
 
 This is the **canonical design spec** for `apps/web-react`. It overrides the
 defaults in the `interface-kit` skill. When building any screen or component,
-follow these tokens and rules. The visual language is taken from the Vet+ landing
-page (`FerroDude/vetPlusLanding`): warm, calm, clinical-but-human — deep teal,
+follow these tokens and rules. The visual language follows the Yoshi Vet Care
+website (yoshivetcare.com): warm, calm, clinical-but-human — a warm orange,
 off-white paper, a serif display face, soft rounded surfaces.
 
 ---
@@ -35,7 +35,7 @@ loses trust before the content is read.
   tracking), not 700 bold. Section labels use the `.eyebrow` pattern.
 - **Editorial rhythm.** Sections lead with an eyebrow → title (`SectionHeader`),
   so the page reads as deliberately composed, not auto-stacked.
-- **One confident hero color** (teal), orange accent used sparingly. No gradients.
+- **One confident hero color** (orange, from the Yoshi Vet Care site). No gradients.
 - **Layered shadows** (multi-offset, low opacity) for real depth; hairlines for
   separation. Crisper radius (lg = 20, md = 12), concentric.
 - **Specific microcopy.** Time-aware greeting + real date; say exactly what a
@@ -62,13 +62,13 @@ its card, the tracking on display type at 32px, `::selection`, hover gating on t
 ## 1. Aesthetic direction
 
 **Organic / refined clinical.** Calm, trustworthy, warm. Generous whitespace,
-a confident teal as the single hero color, a serif (`Fraunces`) for headings to
+a confident orange as the single hero color, a serif (`Fraunces`) for headings to
 add warmth and personality, a clean grotesque (`DM Sans`) for everything else.
 Soft layered shadows over hard borders. Pill-shaped primary actions.
 
 Commit to this. Do **not** introduce purple/blue gradients, neon, glassmorphism,
-or generic SaaS hero clichés. One hero color (teal), one warm accent (orange),
-used sparingly.
+or generic SaaS hero clichés. One hero color (orange, from the Yoshi Vet Care
+site), used confidently.
 
 ---
 
@@ -81,17 +81,16 @@ never hardcode hex in components.
 ### Source palette (hex)
 
 ```
-bg            #f8faf9   warm off-white (app background)
+bg            #faf7f4   warm off-white (app background)
 surface       #ffffff   cards, sheets, inputs
-text          #0f1a17   near-black green (primary text)
-text-muted    #4a5f58   secondary text
-primary       #0d7a6b   deep teal  ← hero
-primary-dark  #095c51   hover/pressed primary
-primary-light #e6f5f2   teal tint (selected/active backgrounds)
-accent        #f4a261   warm orange (use sparingly: highlights, never as default CTA)
-accent-dark   #d4894a
-border        #dce8e4   hairline dividers, input borders
-success       #10b981
+text          #201713   near-black brown (primary text)
+text-muted    #675851   secondary text
+primary       #ca4a1c   deep brand orange  ← hero
+ring          #e95925   brand orange (focus ring)
+primary-light #fbebe4   orange tint (selected/active backgrounds)
+accent        #ea9374   soft brand orange (yoshivetcare.com accent)
+border        #e7dfda   hairline dividers, input borders
+success       #46715d
 warning       #f59e0b
 error / destructive #ef4444
 info          #3b82f6
@@ -100,74 +99,47 @@ info          #3b82f6
 Event/category colors (parity with mobile semantics):
 ```
 appointment   #3b82f6 (info blue)
-medication     #0d7a6b (teal/primary)
-symptom        #f59e0b (warning amber)
+medication    #386a40 (deep green)
+symptom       #e23670 (magenta pink)
 ```
 
 ### Light theme — CSS variables (HSL, shadcn convention)
 
 ```css
 :root {
-  --background:           160 16% 97%;   /* #f8faf9 */
-  --foreground:           160 28% 8%;    /* #0f1a17 */
+  --background:           30 33% 97%;    /* #faf7f4 */
+  --foreground:           20 25% 10%;    /* #201713 */
   --card:                 0 0% 100%;
-  --card-foreground:      160 28% 8%;
+  --card-foreground:      20 25% 10%;
   --popover:              0 0% 100%;
-  --popover-foreground:   160 28% 8%;
-  --primary:              171 81% 26%;   /* #0d7a6b */
+  --popover-foreground:   20 25% 10%;
+  --primary:              16 76% 45%;    /* #ca4a1c */
   --primary-foreground:   0 0% 100%;
-  --primary-light:        168 52% 93%;   /* #e6f5f2 */
-  --secondary:            160 16% 94%;
-  --secondary-foreground: 160 28% 8%;
-  --muted:                160 16% 94%;
-  --muted-foreground:     162 14% 33%;   /* #4a5f58 */
-  --accent:               27 87% 67%;    /* #f4a261 */
-  --accent-foreground:    160 28% 8%;
+  --primary-light:        16 74% 94%;    /* #fbebe4 */
+  --secondary:            28 25% 94%;
+  --secondary-foreground: 20 25% 10%;
+  --muted:                28 25% 94%;
+  --muted-foreground:     20 12% 36%;    /* #675851 */
+  --accent:               16 74% 68%;    /* #ea9374 */
+  --accent-foreground:    20 25% 10%;
   --destructive:          0 84% 60%;     /* #ef4444 */
   --destructive-foreground: 0 0% 100%;
-  --success:              160 84% 39%;
+  --success:              152 60% 36%;
   --warning:              38 92% 50%;
   --info:                 217 91% 60%;
-  --border:               156 24% 89%;   /* #dce8e4 */
-  --input:                156 24% 89%;
-  --ring:                 171 81% 26%;   /* teal focus ring */
+  --border:               25 22% 88%;    /* #e7dfda */
+  --input:                25 22% 88%;
+  --ring:                 16 81% 53%;    /* #e95925 brand-orange focus ring */
   --radius: 0.875rem;                    /* 14px base (md) */
 }
 ```
 
-### Dark theme — desaturated tonal variants (NOT inverted)
-
-Backgrounds deep green-charcoal, not pure black. Text off-white, not pure white.
-Primary lifts slightly for contrast on dark. Test contrast separately.
-
-```css
-.dark {
-  --background:           165 24% 7%;    /* deep green-charcoal */
-  --foreground:           160 16% 93%;
-  --card:                 165 22% 10%;
-  --card-foreground:      160 16% 93%;
-  --popover:              165 22% 10%;
-  --popover-foreground:   160 16% 93%;
-  --primary:              168 60% 45%;   /* lifted teal */
-  --primary-foreground:   165 30% 6%;
-  --primary-light:        168 40% 16%;
-  --secondary:            165 18% 14%;
-  --secondary-foreground: 160 16% 93%;
-  --muted:                165 18% 14%;
-  --muted-foreground:     160 12% 65%;
-  --accent:               27 70% 60%;
-  --accent-foreground:    165 30% 6%;
-  --destructive:          0 72% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --border:               165 14% 20%;
-  --input:                165 14% 20%;
-  --ring:                 168 60% 45%;
-}
-```
+The app is light-only — there is no dark theme.
 
 Rules: WCAG AA — 4.5:1 normal text, 3:1 large. Never use color alone to convey
-state (pair with icon/label). Use `--accent` (orange) sparingly; default CTAs are
-teal `--primary`.
+state (pair with icon/label). Default CTAs use `--primary` (deep brand orange,
+~4.6:1 with white text); `--accent` is the site's lighter orange for tint fills
+and decorative touches.
 
 ---
 
@@ -270,9 +242,9 @@ Always honor `prefers-reduced-motion: reduce`.
 Built on **shadcn/ui (Radix + Tailwind + CVA)**, themed to the tokens above.
 
 **Button**
-- Variants: `primary` (teal fill, white text, pill, `--shadow` teal glow),
-  `secondary` (surface bg, border, pill; hover → teal border+text),
-  `accent` (orange — rare), `ghost`, `destructive`, `outline`.
+- Variants: `primary` (orange fill, white text, pill, `--shadow` warm glow),
+  `secondary` (surface bg, border, pill; hover → primary border+text),
+  `accent` (soft orange — rare), `ghost`, `destructive`, `outline`.
 - Sizes: sm `h-9 px-4`, md `h-11 px-6`, lg `h-12 px-7`.
 - Pill radius. Press scale 0.97. Visible focus ring (`--ring`). Loading state =
   spinner replacing label, dimensions preserved. Disabled = `opacity:.5;
@@ -281,7 +253,7 @@ Built on **shadcn/ui (Radix + Tailwind + CVA)**, themed to the tokens above.
 **Card** — `surface` bg, `--radius-lg`, `--shadow-md`, concentric inner radius.
 Hover (interactive cards only): `translateY(-2px)` + shadow step up.
 
-**Input / form** — `surface` bg, `--radius-sm`, `1px solid --input`, focus → teal
+**Input / form** — `surface` bg, `--radius-sm`, `1px solid --input`, focus → brand
 ring. **Always visible labels** (never placeholder-only). Errors near field with
 `aria-live="polite"`. React Hook Form + Zod. 16px input font (avoids iOS zoom).
 
@@ -290,14 +262,14 @@ ring. **Always visible labels** (never placeholder-only). Errors near field with
 `aria-labelledby`. Sheets/drawers slide with `--ease-spring`.
 
 **Navigation** — desktop: left sidebar (role-aware items) + top bar. Mobile:
-bottom tab bar or hamburger drawer. Active item uses `--primary-light` bg + teal
+bottom tab bar or hamburger drawer. Active item uses `--primary-light` bg + primary
 text/icon.
 
-**Badges / chips** — pill, `--primary-light` for neutral/teal, semantic tints for
+**Badges / chips** — pill, `--primary-light` for neutral/primary, semantic tints for
 status (pending/confirmed/denied, med status). Unread count badge uses
 `tabular-nums`.
 
-**Chat** — message bubbles: own messages teal-tinted right-aligned, others
+**Chat** — message bubbles: own messages primary-tinted right-aligned, others
 surface left-aligned; rounded with a single squared corner toward sender;
 read/delivered ticks; typing indicator (3-dot) driven by RTDB; virtualized list.
 

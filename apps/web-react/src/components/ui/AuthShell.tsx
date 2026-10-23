@@ -19,7 +19,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
       <div className="relative flex w-full max-w-md flex-col items-center">
         <Logo />
         <span className="mt-5 text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-primary">
-          Vet+
+          Yoshi Vet Care
         </span>
         <h1 className="mt-2 text-center font-display text-3xl font-bold text-foreground">
           {title}
