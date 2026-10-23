@@ -12,7 +12,6 @@ import {
 import {
   type AppointmentRequest,
   AppointmentRequestStatus,
-  TimePreference,
   type ChatRoom,
   ChatRoomStatus,
   type UserProfile,
@@ -20,19 +19,13 @@ import {
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { clientsQuery } from '@/lib/clientService';
+import { useVetAppointments } from '@/lib/useVetAppointments';
 import { mapPatient, isPatient } from '@/lib/clinicService';
 import { clinicRequestsQuery, vetRequestsQuery, mapAppointmentRequest } from '@/lib/appointmentRequestService';
 import { staffRoomsQuery, clinicRoomsQuery, mapRoom } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card, CardBody } from '@/components/ui/Card';
-
-const TIME_SHORT: Record<TimePreference, string> = {
-  [TimePreference.anyTime]: 'Qualquer hora',
-  [TimePreference.morning]: 'Manhã',
-  [TimePreference.afternoon]: 'Tarde',
-  [TimePreference.evening]: 'Noite',
-};
 
 const dayFmt = new Intl.DateTimeFormat('pt-PT', {
   weekday: 'long',
@@ -44,15 +37,6 @@ const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-d
 
 function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function withinToday(r: AppointmentRequest): boolean {
-  const now = new Date();
-  const start = new Date(r.preferredDateStart);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(r.preferredDateEnd);
-  end.setHours(23, 59, 59, 999);
-  return now >= start && now <= end;
 }
 
 export function StaffDashboard({ showRequests = false }: { showRequests?: boolean }) {
@@ -74,20 +58,12 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
     () => requests.filter((r) => r.status === AppointmentRequestStatus.pending).length,
     [requests],
   );
+  // Today's agenda comes from the booked calendar events (confirmed requests
+  // and appointments the vet added herself).
+  const { appointments } = useVetAppointments(uid);
   const todays = useMemo(
-    () =>
-      requests
-        .filter((r) => {
-          if (r.status !== AppointmentRequestStatus.confirmed) return false;
-          if (r.bookedDateTime) return isSameDay(r.bookedDateTime, new Date());
-          return withinToday(r);
-        })
-        .sort(
-          (a, b) =>
-            (a.bookedDateTime ?? a.preferredDateStart).getTime() -
-            (b.bookedDateTime ?? b.preferredDateStart).getTime(),
-        ),
-    [requests],
+    () => appointments.filter((a) => isSameDay(a.dateTime, new Date())),
+    [appointments],
   );
 
   const clientsQ = useMemo(() => (role === 'vet' && uid ? clientsQuery(uid) : null), [role, uid]);
@@ -168,29 +144,36 @@ export function StaffDashboard({ showRequests = false }: { showRequests?: boolea
           <Card>
             <CardBody className="flex items-center gap-3 text-sm text-muted-foreground">
               <CheckCircle2 size={18} className="text-primary" />
-              Sem consultas confirmadas para hoje.
+              Sem consultas marcadas para hoje.
             </CardBody>
           </Card>
         ) : (
           <div className="space-y-3">
-            {todays.map((r) => (
-              <Card key={r.id}>
-                <CardBody className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-primary">
-                    <PawPrint size={18} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-foreground">
-                      {r.petName}
-                      <span className="font-normal text-muted-foreground"> · {r.petOwnerName}</span>
-                    </p>
-                    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Clock size={13} />{' '}
-                      {r.bookedDateTime ? timeFmt.format(r.bookedDateTime) : TIME_SHORT[r.timePreference]}
-                    </p>
-                  </div>
-                </CardBody>
-              </Card>
+            {todays.map((a) => (
+              <button
+                key={`${a.userId}/${a.id}`}
+                type="button"
+                onClick={() => navigate('/agenda')}
+                className="block w-full text-left"
+              >
+                <Card className="transition-colors hover:bg-secondary">
+                  <CardBody className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-primary">
+                      <PawPrint size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">
+                        {a.petName || a.title}
+                        <span className="font-normal text-muted-foreground"> · {a.clientName || 'Cliente'}</span>
+                      </p>
+                      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Clock size={13} /> {timeFmt.format(a.dateTime)}
+                        {a.location ? ` · ${a.location}` : ''}
+                      </p>
+                    </div>
+                  </CardBody>
+                </Card>
+              </button>
             ))}
           </div>
         )}

@@ -7,7 +7,19 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  collectionGroup,
+  query,
+  where,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const rules = readFileSync(resolve(process.cwd(), '../../firestore.rules'), 'utf8');
 
@@ -74,6 +86,16 @@ describe('solo vet rules', () => {
     await assertSucceeds(getDoc(doc(vet, 'users/client/pets/luna/private/notes')));
   });
 
+  it('lets the vet add and list several private notes, hidden from the client', async () => {
+    const vet = env.authenticatedContext('vet').firestore();
+    const client = env.authenticatedContext('client').firestore();
+    const notes = collection(vet, 'users/client/pets/luna/private');
+    await assertSucceeds(addDoc(notes, { text: 'Primeira' }));
+    await assertSucceeds(addDoc(notes, { text: 'Segunda' }));
+    await assertSucceeds(getDocs(notes));
+    await assertFails(getDocs(collection(client, 'users/client/pets/luna/private')));
+  });
+
   it('stops the client changing vetId', async () => {
     const client = env.authenticatedContext('client').firestore();
     await assertFails(updateDoc(doc(client, 'users/client'), { vetId: 'other' }));
@@ -96,6 +118,33 @@ describe('solo vet rules', () => {
       }),
     );
     await assertFails(deleteDoc(doc(client, 'users/client/events/visita')));
+  });
+
+  it('lets the vet list her booked appointments across clients, and nobody else', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users/client/events/a1'), { bookedByVetId: 'vet', title: 'Consulta' });
+      await setDoc(doc(db, 'users/client/events/a2'), { bookedByVetId: 'other', title: 'Outra' });
+    });
+    const vet = env.authenticatedContext('vet').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    const mine = query(collectionGroup(vet, 'events'), where('bookedByVetId', '==', 'vet'));
+    await assertSucceeds(getDocs(mine));
+    await assertFails(getDocs(collectionGroup(vet, 'events')));
+    await assertFails(
+      getDocs(query(collectionGroup(other, 'events'), where('bookedByVetId', '==', 'vet'))),
+    );
+  });
+
+  it('lets the vet book an appointment in her client calendar', async () => {
+    const vet = env.authenticatedContext('vet').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    await assertSucceeds(
+      setDoc(doc(vet, 'users/client/events/novo'), { bookedByVetId: 'vet', userId: 'client' }),
+    );
+    await assertFails(
+      setDoc(doc(other, 'users/client/events/x'), { bookedByVetId: 'other', userId: 'client' }),
+    );
   });
 
   it('blocks self-created profiles and lets the vet create a client', async () => {

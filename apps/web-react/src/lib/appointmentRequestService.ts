@@ -170,6 +170,8 @@ export async function confirmRequest(args: {
     isConfirmed: true,
     appointmentRequestId: booked.appointmentRequestId,
     bookedByVetId: booked.bookedByVetId,
+    clientName: args.request.petOwnerName,
+    petName: args.request.petName,
   };
   // One batch: the client never sees an event while the request still looks pending.
   const batch = writeBatch(db);

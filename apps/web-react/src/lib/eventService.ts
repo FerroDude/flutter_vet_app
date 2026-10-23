@@ -10,8 +10,10 @@
 
 import {
   collection,
+  collectionGroup,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   getDoc,
@@ -50,6 +52,9 @@ export interface AppointmentEvent extends EventCommon {
   contactInfo?: string | null;
   appointmentRequestId?: string | null;
   bookedByVetId?: string | null;
+  /** Shown on the vet's agenda without reading the client profile. */
+  clientName?: string | null;
+  petName?: string | null;
 }
 
 export interface MedicationEvent extends EventCommon {
@@ -83,6 +88,53 @@ export const eventDoc = (uid: string, id: string) =>
 
 export function eventsQuery(uid: string) {
   return query(eventsCol(uid), orderBy('dateTime'));
+}
+
+/** Every appointment a vet booked, across all her clients' calendars.
+ *  Needs the collection-group index on events.bookedByVetId (firestore.indexes.json). */
+export function vetAppointmentsQuery(vetId: string) {
+  return query(collectionGroup(db, 'events'), where('bookedByVetId', '==', vetId));
+}
+
+/** Vet books (or edits) an appointment straight into a client's calendar. */
+export async function saveVetAppointment(args: {
+  id?: string | null;
+  clientId: string;
+  clientName: string;
+  petId: string | null;
+  petName: string | null;
+  vetId: string;
+  vetName: string;
+  title: string;
+  description: string;
+  location: string | null;
+  dateTime: Date;
+  createdAt?: Date | null;
+  appointmentRequestId?: string | null;
+}): Promise<string> {
+  const now = new Date();
+  const ref = args.id ? eventDoc(args.clientId, args.id) : doc(eventsCol(args.clientId));
+  const event: AppointmentEvent = {
+    id: ref.id,
+    type: EventType.appointment,
+    title: args.title,
+    description: args.description,
+    dateTime: args.dateTime,
+    petId: args.petId,
+    userId: args.clientId,
+    isRecurring: false,
+    createdAt: args.createdAt ?? now,
+    updatedAt: now,
+    vetName: args.vetName,
+    location: args.location,
+    isConfirmed: true,
+    appointmentRequestId: args.appointmentRequestId ?? null,
+    bookedByVetId: args.vetId,
+    clientName: args.clientName,
+    petName: args.petName,
+  };
+  await setDoc(ref, eventToJson(event), { merge: true });
+  return ref.id;
 }
 
 /* ------------------------------ (de)serialize ------------------------------ */
@@ -120,6 +172,8 @@ export function mapEvent(id: string, d: DocumentData): CalendarEvent {
         contactInfo: (d.contactInfo as string | null) ?? null,
         appointmentRequestId: (d.appointmentRequestId as string | null) ?? null,
         bookedByVetId: (d.bookedByVetId as string | null) ?? null,
+        clientName: (d.clientName as string | null) ?? null,
+        petName: (d.petName as string | null) ?? null,
       };
     case EventType.medication:
       return {
@@ -181,6 +235,8 @@ export function eventToJson(e: CalendarEvent): DocumentData {
         contactInfo: e.contactInfo ?? null,
         appointmentRequestId: e.appointmentRequestId ?? null,
         bookedByVetId: e.bookedByVetId ?? null,
+        clientName: e.clientName ?? null,
+        petName: e.petName ?? null,
       };
     case EventType.medication:
       return {

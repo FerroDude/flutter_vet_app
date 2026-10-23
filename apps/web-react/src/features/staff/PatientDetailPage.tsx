@@ -12,7 +12,11 @@ import {
   MessageSquare,
   Activity,
   Plus,
+  CalendarDays,
+  CalendarPlus,
 } from 'lucide-react';
+import { useVetAppointments } from '@/lib/useVetAppointments';
+import { VetAppointmentDialog } from './VetAppointmentDialog';
 import {
   type UserProfile,
   type PetSymptom,
@@ -57,6 +61,13 @@ export function PatientDetailPage() {
   const { data: pets } = useCollection<Pet>(petsQ, mapPet);
 
   const [starting, setStarting] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
+  const { appointments } = useVetAppointments(uid);
+  const clientUpcoming = useMemo(() => {
+    const now = Date.now();
+    return appointments.filter((a) => a.userId === ownerId && a.dateTime.getTime() >= now);
+  }, [appointments, ownerId]);
+  const [bookDay] = useState(() => new Date());
 
   const startChat = async () => {
     if (!owner) return;
@@ -108,8 +119,13 @@ export function PatientDetailPage() {
                     {owner.displayName || 'Sem nome'}
                   </p>
                 </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <Button loading={starting} onClick={() => void startChat()}>
                   <MessageSquare size={16} /> Mensagem
+                </Button>
+                <Button variant="outline" onClick={() => setBookOpen(true)}>
+                  <CalendarPlus size={16} /> Marcar consulta
                 </Button>
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -140,6 +156,27 @@ export function PatientDetailPage() {
             </CardBody>
           </Card>
 
+          {clientUpcoming.length > 0 && (
+            <div className="mb-6">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Próximas consultas
+              </h2>
+              <Card>
+                <ul className="divide-y divide-border">
+                  {clientUpcoming.map((a) => (
+                    <li key={a.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                      <CalendarDays size={15} className="shrink-0 text-primary" />
+                      <span className="shrink-0 font-medium tabular-nums text-foreground">
+                        {apptFmt.format(a.dateTime)}
+                      </span>
+                      <span className="min-w-0 truncate text-muted-foreground">{a.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+          )}
+
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Animais ({pets.length})
@@ -163,9 +200,28 @@ export function PatientDetailPage() {
           )}
         </>
       )}
+
+      <VetAppointmentDialog
+        open={bookOpen}
+        onClose={() => setBookOpen(false)}
+        vetId={uid}
+        vetName={staffName}
+        defaultDay={bookDay}
+        presetClientId={ownerId}
+        others={appointments}
+      />
     </div>
   );
 }
+
+const apptFmt = new Intl.DateTimeFormat('pt-PT', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
   const [open, setOpen] = useState(false);

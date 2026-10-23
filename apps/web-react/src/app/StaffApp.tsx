@@ -1,9 +1,17 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { LayoutDashboard, CalendarClock, MessageCircle, Users, User } from 'lucide-react';
+import {
+  LayoutDashboard,
+  CalendarClock,
+  CalendarDays,
+  MessageCircle,
+  Users,
+  User,
+} from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { AppLayout, type NavItem } from './AppLayout';
 import { StaffDashboard } from '@/features/staff/StaffDashboard';
 import { AppointmentQueuePage } from '@/features/staff/AppointmentQueuePage';
+import { VetAgendaPage } from '@/features/staff/VetAgendaPage';
 import { StaffChatPage } from '@/features/staff/StaffChatPage';
 import { PatientsPage } from '@/features/staff/PatientsPage';
 import { PatientDetailPage } from '@/features/staff/PatientDetailPage';
@@ -14,6 +22,7 @@ import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
+  { to: '/agenda', label: 'Agenda', icon: CalendarDays },
   { to: '/patients', label: 'Clientes', icon: Users },
   { to: '/requests', label: 'Pedidos', icon: CalendarClock },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
@@ -33,6 +42,7 @@ export function StaffApp() {
       <IncomingMessageToast />
       <Routes>
         <Route index element={<StaffDashboard showRequests />} />
+        <Route path="agenda" element={<VetAgendaPage />} />
         <Route path="requests" element={<AppointmentQueuePage />} />
         <Route path="patients" element={<PatientsPage />} />
         <Route path="patients/:ownerId/pets/new" element={<PetForm />} />
