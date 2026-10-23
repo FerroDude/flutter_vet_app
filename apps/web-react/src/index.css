@@ -12,12 +12,11 @@
   --card-foreground: 20 25% 10%;
   --popover: 0 0% 100%;
   --popover-foreground: 20 25% 10%;
-  /* Brand orange from yoshivetcare.com is #EA9374 (--accent) and #E95925
-     (--ring); --primary is a deeper shade of the same hue so white button
-     text meets WCAG AA (~4.6:1). */
-  --primary: 16 76% 45%;
+  /* Brand orange = the yoshivetcare.com button colour #FA5119 (rgb 250 81 25).
+     --accent is the site's softer peach #EA9374. */
+  --primary: 15 96% 54%;
   --primary-foreground: 0 0% 100%;
-  --primary-light: 16 74% 94%;
+  --primary-light: 15 96% 95%;
   --secondary: 28 25% 94%;
   --secondary-foreground: 20 25% 10%;
   --muted: 28 25% 94%;
@@ -31,7 +30,7 @@
   --info: 217 91% 60%;
   --border: 25 22% 88%;
   --input: 25 22% 88%;
-  --ring: 16 81% 53%;
+  --ring: 15 96% 54%;
 
   /* Event/category colors (parity with mobile semantics) */
   --event-appointment: 217 91% 60%;
