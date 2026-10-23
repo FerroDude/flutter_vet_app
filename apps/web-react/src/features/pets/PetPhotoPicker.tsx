@@ -1,36 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
 import { PawPrint } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { PhotoCropDialog } from './PhotoCropDialog';
 
 interface PetPhotoPickerProps {
   photoUrl: string | null;
-  file: File | null;
+  photo: Blob | null;
   name: string;
-  onPick: (f: File) => void;
+  onPick: (b: Blob) => void;
   onRemove: () => void;
   disabled?: boolean;
 }
 
-/** 96px photo preview + pick/remove controls for the pet form. */
-export function PetPhotoPicker({ photoUrl, file, name, onPick, onRemove, disabled }: PetPhotoPickerProps) {
+/** Round photo preview + pick/remove controls for the pet form. Picking a file
+ *  opens the crop dialog so the owner chooses the visible square. */
+export function PetPhotoPicker({ photoUrl, photo, name, onPick, onRemove, disabled }: PetPhotoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<File | null>(null);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!file) {
+    if (!photo) {
       setObjectUrl(null);
       return;
     }
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(photo);
     setObjectUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [file]);
+  }, [photo]);
 
   const src = objectUrl ?? photoUrl;
 
   return (
     <div className="flex items-center gap-4">
-      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-lg) bg-primary-light">
+      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-light">
         {src ? (
           <img src={src} alt={name} className="h-full w-full object-cover" />
         ) : name.trim() ? (
@@ -52,7 +55,7 @@ export function PetPhotoPicker({ photoUrl, file, name, onPick, onRemove, disable
             </Button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">JPG ou PNG. A foto é reduzida automaticamente.</p>
+        <p className="text-xs text-muted-foreground">Escolha a parte da foto que quer mostrar.</p>
       </div>
       <input
         ref={inputRef}
@@ -62,7 +65,15 @@ export function PetPhotoPicker({ photoUrl, file, name, onPick, onRemove, disable
         onChange={(e) => {
           const f = e.target.files?.[0];
           e.target.value = '';
-          if (f) onPick(f);
+          if (f) setPending(f);
+        }}
+      />
+      <PhotoCropDialog
+        file={pending}
+        onCancel={() => setPending(null)}
+        onConfirm={(blob) => {
+          setPending(null);
+          onPick(blob);
         }}
       />
     </div>

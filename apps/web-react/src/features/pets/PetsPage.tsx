@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PetAvatar } from '@/components/ui/PetAvatar';
 import { PageSpinner } from '@/components/Spinner';
 
 export function PetsPage() {
@@ -88,21 +89,9 @@ function PetCard({ pet }: { pet: Pet }) {
   const subtitle = pet.breed || pet.species;
   return (
     <Link to={`/pets/${pet.id}`} className="group block">
-      <Card className="overflow-hidden transition-[transform,box-shadow] group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-md)">
-        <div className="flex h-28 items-center justify-center bg-primary-light">
-          {pet.photoUrl ? (
-            <img
-              src={pet.photoUrl}
-              alt={pet.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="font-display text-5xl font-semibold leading-none text-primary/70">
-              {pet.name.charAt(0).toUpperCase() || '?'}
-            </span>
-          )}
-        </div>
-        <div className="p-4">
+      <Card className="flex items-center gap-4 p-4 transition-[transform,box-shadow] group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-md)">
+        <PetAvatar pet={pet} size={64} />
+        <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-semibold text-foreground">
             {pet.name}
           </p>

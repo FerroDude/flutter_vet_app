@@ -83,7 +83,7 @@ export function PetForm() {
   const [hydrated, setHydrated] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   useEffect(() => {
     if (isEdit && existing && !hydrated) {
@@ -123,9 +123,9 @@ export function PetForm() {
       if (isEdit) await updatePet(uid, id, fields);
 
       let photoError: string | null = null;
-      if (photoFile) {
+      if (photoBlob) {
         try {
-          await uploadPetPhoto(uid, id, photoFile);
+          await uploadPetPhoto(uid, id, photoBlob);
         } catch (e) {
           photoError = errorMessage(e);
         }
@@ -174,15 +174,15 @@ export function PetForm() {
               <p className="text-sm font-semibold text-foreground">Foto</p>
               <PetPhotoPicker
                 photoUrl={removePhoto ? null : (existing?.photoUrl ?? null)}
-                file={photoFile}
+                photo={photoBlob}
                 name={watch('name') || existing?.name || ''}
                 disabled={isSubmitting}
-                onPick={(f) => {
-                  setPhotoFile(f);
+                onPick={(b) => {
+                  setPhotoBlob(b);
                   setRemovePhoto(false);
                 }}
                 onRemove={() => {
-                  setPhotoFile(null);
+                  setPhotoBlob(null);
                   if (existing?.photoUrl) setRemovePhoto(true);
                 }}
               />

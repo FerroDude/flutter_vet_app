@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Activity, ArrowLeft, CalendarDays, PawPrint, Pencil, Pill, Plus, Trash2 } from 'lucide-react';
+import { PetAvatar } from '@/components/ui/PetAvatar';
 import { SYMPTOM_LABELS, EventType, type PetSymptom, type Medication } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useDoc, useCollection } from '@/lib/useFirestore';
@@ -106,13 +107,7 @@ export function PetDetailPage() {
       </button>
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-(--radius-lg) bg-primary-light">
-          {pet.photoUrl ? (
-            <img src={pet.photoUrl} alt={pet.name} className="h-full w-full object-cover" />
-          ) : (
-            <PawPrint size={36} className="text-primary" />
-          )}
-        </div>
+        <PetAvatar pet={pet} size={88} />
         <div className="min-w-0 flex-1">
           <h1 className="break-words font-display text-3xl font-bold text-foreground">{pet.name}</h1>
           <p className="text-muted-foreground">

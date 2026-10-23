@@ -118,32 +118,15 @@ export async function updatePet(
   await updateDoc(petDoc(uid, petId), fieldsToDoc(fields));
 }
 
-const MAX_PHOTO_SIDE = 800;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-/** Downscale + upload a pet photo to Storage, then point the pet doc at it. */
-export async function uploadPetPhoto(uid: string, petId: string, file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error('Escolha uma imagem.');
-
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_PHOTO_SIDE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-
-  const blob = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('Não foi possível processar a imagem.'))),
-      'image/jpeg',
-      0.85,
-    ),
-  );
-  if (blob.size >= MAX_PHOTO_BYTES) throw new Error('A imagem é demasiado grande.');
+/** Upload a (already cropped) pet photo blob to Storage, then point the doc at it. */
+export async function uploadPetPhoto(uid: string, petId: string, photo: Blob): Promise<string> {
+  if (!photo.type.startsWith('image/')) throw new Error('Escolha uma imagem.');
+  if (photo.size >= MAX_PHOTO_BYTES) throw new Error('A imagem é demasiado grande.');
 
   const storageRef = ref(storage, `pets/${uid}/${petId}/photo_${Date.now()}.jpg`);
-  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  await uploadBytes(storageRef, photo, { contentType: 'image/jpeg' });
   const url = await getDownloadURL(storageRef);
   await updateDoc(petDoc(uid, petId), { photoUrl: url, imageUrl: null, updatedAt: serverTimestamp() });
   return url;

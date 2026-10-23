@@ -7,7 +7,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  PawPrint,
   ChevronRight,
   MessageSquare,
   Plus,
@@ -26,6 +25,7 @@ import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { PetAvatar } from '@/components/ui/PetAvatar';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/Spinner';
@@ -203,13 +203,7 @@ function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
         onClick={() => navigate(`/clients/${ownerId}/pets/${pet.id}`)}
         className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-secondary"
       >
-        <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-light text-primary">
-          {pet.photoUrl ? (
-            <img src={pet.photoUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <PawPrint size={18} />
-          )}
-        </span>
+        <PetAvatar pet={pet} size={40} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-foreground">{pet.name}</span>
           <span className="block truncate text-xs text-muted-foreground">
