@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PetAvatar } from '@/components/ui/PetAvatar';
 import { MedicationCard } from '@/features/medications/MedicationCard';
 
 export function ClientDashboard() {
@@ -88,15 +89,7 @@ export function ClientDashboard() {
             {pets.map((pet) => (
               <Link key={pet.id} to={`/pets/${pet.id}`} className="group">
                 <Card className="overflow-hidden transition-[transform,box-shadow] group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-md)">
-                  <div className="flex h-24 items-center justify-center bg-primary-light">
-                    {pet.photoUrl ? (
-                      <img src={pet.photoUrl} alt={pet.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="font-display text-4xl font-semibold leading-none text-primary/70">
-                        {pet.name.charAt(0).toUpperCase() || '?'}
-                      </span>
-                    )}
-                  </div>
+                  <PetAvatar pet={pet} size={72} className="mx-auto mt-4 flex" />
                   <div className="p-3 text-center">
                     <p className="truncate font-medium text-foreground">{pet.name}</p>
                     <p className="text-xs text-muted-foreground">{petAgeLabel(pet.dateOfBirth)}</p>

@@ -1,6 +1,6 @@
-import { PawPrint } from 'lucide-react';
 import { type Pet } from '@/lib/petService';
 import { Dialog } from '@/components/ui/Dialog';
+import { PetAvatar } from '@/components/ui/PetAvatar';
 
 interface Props {
   open: boolean;
@@ -26,13 +26,7 @@ export function PetPickerDialog({ open, onClose, pets, title = 'Escolher animal'
               onClick={() => onPick(pet)}
               className="flex items-center gap-3 rounded-(--radius-md) border border-border p-3 text-left transition-colors hover:bg-secondary"
             >
-              <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary-light text-primary">
-                {pet.photoUrl ? (
-                  <img src={pet.photoUrl} alt={pet.name} className="h-full w-full object-cover" />
-                ) : (
-                  <PawPrint size={18} />
-                )}
-              </span>
+              <PetAvatar pet={pet} size={40} />
               <span className="min-w-0">
                 <span className="block truncate font-medium text-foreground">{pet.name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
