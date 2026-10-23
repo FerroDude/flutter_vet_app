@@ -54,21 +54,3 @@ export function toMillis(date: Date): number {
 export function toMillisOptional(date: Date | null | undefined): number | null {
   return date ? date.getTime() : null;
 }
-
-/**
- * Email -> temp-id token, matching the Dart transform used for invite/linking:
- * replace '@', '.', '+' with '_'. Used to build temp_admin_/temp_vet_/temp_receptionist_ ids.
- */
-export function emailToken(email: string): string {
-  return email.trim().toLowerCase().replace(/[@.+]/g, '_');
-}
-
-export function tempAdminId(email: string): string {
-  return `temp_admin_${emailToken(email)}`;
-}
-export function tempVetId(email: string): string {
-  return `temp_vet_${emailToken(email)}`;
-}
-export function tempReceptionistId(email: string): string {
-  return `temp_receptionist_${emailToken(email)}`;
-}

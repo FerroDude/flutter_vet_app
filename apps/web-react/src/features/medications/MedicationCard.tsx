@@ -1,5 +1,4 @@
 import { Pill, Check, Undo2, Pencil, MoreVertical, Trash2 } from 'lucide-react';
-import { useState } from 'react';
 import {
   type Medication,
   MedicationStatus,
@@ -13,6 +12,7 @@ import {
 } from '@vetplus/shared';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Menu } from '@/components/ui/Menu';
 import { cn } from '@/lib/cn';
 
 interface Props {
@@ -41,18 +41,13 @@ export function MedicationCard({
   onDelete,
   onSetStatus,
 }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const active = isActive(med);
   const p = progress(med);
   const canTake = active && !allDosesTakenToday(med);
   const remaining = daysRemaining(med);
-  const pick = (fn: () => void) => () => {
-    setMenuOpen(false);
-    fn();
-  };
 
   return (
-    <Card className={cn('relative p-4', !active && 'opacity-80', menuOpen && 'z-20')}>
+    <Card className={cn('p-4', !active && 'opacity-80')}>
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
           <Pill size={20} />
@@ -67,51 +62,18 @@ export function MedicationCard({
                 {petName ? ` · ${petName}` : ''}
               </p>
             </div>
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={() => setMenuOpen((o) => !o)}
-                className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
-                aria-label="Opções da medicação"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-              >
-                <MoreVertical size={16} />
-              </button>
-              {menuOpen && (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Fechar menu"
-                    className="fixed inset-0 z-20 cursor-default"
-                    onClick={() => setMenuOpen(false)}
-                  />
-                  <div
-                    role="menu"
-                    className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)"
-                  >
-                    <MenuItem onClick={pick(onEdit)} icon={<Pencil size={14} />}>
-                      Editar
-                    </MenuItem>
-                    {active ? (
-                      <MenuItem onClick={pick(() => onSetStatus(MedicationStatus.paused))}>
-                        Pausar
-                      </MenuItem>
-                    ) : (
-                      <MenuItem onClick={pick(() => onSetStatus(MedicationStatus.active))}>
-                        Retomar
-                      </MenuItem>
-                    )}
-                    <MenuItem onClick={pick(() => onSetStatus(MedicationStatus.completed))}>
-                      Marcar como concluída
-                    </MenuItem>
-                    <MenuItem onClick={pick(onDelete)} icon={<Trash2 size={14} />} danger>
-                      Apagar
-                    </MenuItem>
-                  </div>
-                </>
-              )}
-            </div>
+            <Menu
+              label="Opções da medicação"
+              trigger={<MoreVertical size={16} />}
+              items={[
+                { label: 'Editar', icon: <Pencil size={14} />, onClick: onEdit },
+                active
+                  ? { label: 'Pausar', onClick: () => onSetStatus(MedicationStatus.paused) }
+                  : { label: 'Retomar', onClick: () => onSetStatus(MedicationStatus.active) },
+                { label: 'Marcar como concluída', onClick: () => onSetStatus(MedicationStatus.completed) },
+                { label: 'Apagar', icon: <Trash2 size={14} />, danger: true, onClick: onDelete },
+              ]}
+            />
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -171,32 +133,5 @@ export function MedicationCard({
         </div>
       </div>
     </Card>
-  );
-}
-
-function MenuItem({
-  children,
-  onClick,
-  icon,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  icon?: React.ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary',
-        danger ? 'text-destructive' : 'text-foreground',
-      )}
-    >
-      {icon}
-      {children}
-    </button>
   );
 }

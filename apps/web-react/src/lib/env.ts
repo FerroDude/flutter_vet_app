@@ -8,7 +8,6 @@ interface FirebaseEnv {
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
-  vapidKey: string;
 }
 
 function read(key: string): string {
@@ -22,7 +21,6 @@ export const firebaseEnv: FirebaseEnv = {
   storageBucket: read('VITE_FIREBASE_STORAGE_BUCKET'),
   messagingSenderId: read('VITE_FIREBASE_MESSAGING_SENDER_ID'),
   appId: read('VITE_FIREBASE_APP_ID'),
-  vapidKey: read('VITE_FIREBASE_VAPID_KEY'),
 };
 
 export const isFirebaseConfigured = Boolean(

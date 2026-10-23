@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -11,47 +10,42 @@ import { AuthShell } from '@/components/ui/AuthShell';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 
-type View = 'login' | 'forgot';
+const email = z.string().min(1, 'Indique o email.').email('Email inválido.');
 
 export function AuthScreen() {
-  const [view, setView] = useState<View>('login');
-
-  if (view === 'forgot') return <ForgotForm onBack={() => setView('login')} />;
-  return <LoginForm onForgot={() => setView('forgot')} />;
+  const [view, setView] = useState<'login' | 'forgot'>('login');
+  return view === 'forgot' ? (
+    <ForgotForm onBack={() => setView('login')} />
+  ) : (
+    <LoginForm onForgot={() => setView('forgot')} />
+  );
 }
 
-/* ---------------------------------- Login ----------------------------------- */
+const loginSchema = z.object({
+  email,
+  password: z.string().min(1, 'Indique a palavra-passe.'),
+});
 
 function LoginForm({ onForgot }: { onForgot: () => void }) {
-  const { t } = useTranslation();
-  const schema = z.object({
-    email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
-    password: z.string().min(1, t('validation.passwordRequired')),
-  });
-  type Values = z.infer<typeof schema>;
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<Values>({ resolver: zodResolver(schema) });
+  } = useForm<z.infer<typeof loginSchema>>({ resolver: zodResolver(loginSchema) });
 
-  async function onSubmit(values: Values) {
+  const onSubmit = handleSubmit(async (v) => {
     try {
-      await signInWithEmailAndPassword(auth, values.email.trim(), values.password);
+      await signInWithEmailAndPassword(auth, v.email.trim(), v.password);
     } catch (e) {
-      toast.error(authErrorMessage(t, e));
+      toast.error(authErrorMessage(e));
     }
-  }
+  });
 
   return (
-    <AuthShell
-      title={t('auth.welcomeBack')}
-      subtitle={t('auth.loginSubtitle')}
-      footer={null}
-    >
-      <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+    <AuthShell title="Bem-vindo" subtitle="Entre na sua conta Vet+.">
+      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField
-          label={t('auth.email')}
+          label="Email"
           type="email"
           autoComplete="email"
           autoFocus
@@ -59,7 +53,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
           {...register('email')}
         />
         <TextField
-          label={t('auth.password')}
+          label="Palavra-passe"
           type="password"
           autoComplete="current-password"
           error={errors.password?.message}
@@ -67,68 +61,59 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         />
         <div className="-mt-1 text-right">
           <button type="button" onClick={onForgot} className="text-sm font-medium text-primary hover:underline">
-            {t('auth.forgotPassword')}
+            Esqueceu-se da palavra-passe?
           </button>
         </div>
         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
-          {t('auth.signIn')}
+          Entrar
         </Button>
       </form>
     </AuthShell>
   );
 }
 
-/* ---------------------------------- Forgot ---------------------------------- */
+const forgotSchema = z.object({ email });
 
 function ForgotForm({ onBack }: { onBack: () => void }) {
-  const { t } = useTranslation();
-  const [sent, setSent] = useState(false);
-  const schema = z.object({
-    email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
-  });
-  type Values = z.infer<typeof schema>;
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors, isSubmitting },
-  } = useForm<Values>({ resolver: zodResolver(schema) });
+  } = useForm<z.infer<typeof forgotSchema>>({ resolver: zodResolver(forgotSchema) });
 
-  async function send(email: string) {
-    await sendPasswordResetEmail(auth, email.trim());
-  }
-
-  async function onSubmit(values: Values) {
+  const send = async (to: string) => {
     try {
-      await send(values.email);
-      setSent(true);
+      await sendPasswordResetEmail(auth, to);
+      return true;
     } catch (e) {
-      toast.error(authErrorMessage(t, e));
+      toast.error(authErrorMessage(e));
+      return false;
     }
-  }
+  };
 
-  if (sent) {
+  const onSubmit = handleSubmit(async (v) => {
+    const to = v.email.trim();
+    if (await send(to)) setSentTo(to);
+  });
+
+  if (sentTo) {
     return (
-      <AuthShell title={t('auth.resetSentTitle')} subtitle={t('auth.resetSentBody')}>
+      <AuthShell title="Veja o email" subtitle="Enviámos um link para definir a palavra-passe.">
         <div className="flex flex-col gap-3">
           <div className="rounded-(--radius-md) bg-primary-light px-4 py-3 text-sm font-medium text-primary">
-            {getValues('email').trim()}
+            {sentTo}
           </div>
           <Button size="lg" fullWidth onClick={onBack}>
-            {t('auth.backToSignIn')}
+            Voltar a entrar
           </Button>
           <Button
             variant="ghost"
             onClick={async () => {
-              try {
-                await send(getValues('email'));
-                toast.success(t('auth.emailResent'));
-              } catch (e) {
-                toast.error(authErrorMessage(t, e));
-              }
+              if (await send(sentTo)) toast.success('Email enviado.');
             }}
           >
-            {t('auth.resend')}
+            Não chegou? Reenviar
           </Button>
         </div>
       </AuthShell>
@@ -137,17 +122,17 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
 
   return (
     <AuthShell
-      title={t('auth.resetTitle')}
-      subtitle={t('auth.resetSubtitle')}
+      title="Repor palavra-passe"
+      subtitle="Indique o email e enviamos um link para definir uma nova palavra-passe."
       footer={
         <button type="button" onClick={onBack} className="font-semibold text-primary hover:underline">
-          {t('auth.backToSignIn')}
+          Voltar a entrar
         </button>
       }
     >
-      <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField
-          label={t('auth.email')}
+          label="Email"
           type="email"
           autoComplete="email"
           autoFocus
@@ -155,7 +140,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
           {...register('email')}
         />
         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
-          {t('auth.sendResetLink')}
+          Enviar link
         </Button>
       </form>
     </AuthShell>

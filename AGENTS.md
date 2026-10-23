@@ -1,6 +1,13 @@
 # Project notes
 
-Main app: `apps/web-react` (solo-vet model: one vet, her clients). `apps/mobile-flutter` is dead code.
+Only app: `apps/web-react` (solo-vet model: one vet, her clients). Feature list: `apps/web-react/FEATURES.md`.
+The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile-flutter` branch.
+
+## Conventions
+- UI text is pt-PT, written inline (no i18n library).
+- Shared helpers: `lib/format.ts` (dates, labels, `errorMessage`), `components/ui/Confirm.tsx` (`useConfirm`),
+  `components/ui/Menu.tsx`, `components/ui/MonthGrid.tsx`. Use them instead of `window.confirm` or new formatters.
+- Data hooks: `useClients`, `useRooms`, `useRequests`, `useVetAppointments`.
 
 ## Verification
 - Typecheck: `npm run typecheck --workspace @vetplus/web`

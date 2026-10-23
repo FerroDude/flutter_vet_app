@@ -13,6 +13,7 @@ import {
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
+import { useConfirm } from '@/components/ui/Confirm';
 
 const noteFmt = new Intl.DateTimeFormat('pt-PT', {
   day: 'numeric',
@@ -46,6 +47,7 @@ export function PrivateNotesCard({
     [data],
   );
 
+  const confirm = useConfirm();
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -81,7 +83,13 @@ export function PrivateNotesCard({
   };
 
   const remove = async (note: PrivateNote) => {
-    if (!window.confirm('Apagar esta nota? Não dá para desfazer.')) return;
+    const ok = await confirm({
+      title: 'Apagar nota?',
+      description: 'Não dá para desfazer.',
+      confirmLabel: 'Apagar',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deletePrivateNote(clientId, petId, note.id);
     } catch (e) {

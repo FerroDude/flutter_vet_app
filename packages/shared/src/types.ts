@@ -36,32 +36,6 @@ export interface UserProfile {
   fcmToken?: string | null;
 }
 
-export interface Clinic {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  adminId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  isActive: boolean;
-  website?: string | null;
-  description?: string | null;
-  businessHours?: Record<string, unknown> | null;
-}
-
-export interface ClinicMember {
-  userId: string;
-  clinicId: string;
-  role: ClinicRole;
-  permissions: string[];
-  addedAt: Date;
-  addedBy: string;
-  isActive: boolean;
-  lastActive?: Date | null;
-}
-
 export interface Pet {
   id: string;
   ownerId: string;
@@ -215,21 +189,10 @@ export interface CalendarEventBase {
   updatedAt: Date;
 }
 
-// Role helpers (mirror UserProfile getters in Dart).
-export function isAppOwner(u: Pick<UserProfile, 'globalType' | 'userType'>): boolean {
-  return u.globalType === 'appOwner' || u.userType === 3;
-}
-export function isClinicAdmin(u: Pick<UserProfile, 'clinicRole'>): boolean {
-  return u.clinicRole === 0;
-}
+// Roles: the app only has vets and their clients (pet owners).
 export function isVet(u: Pick<UserProfile, 'clinicRole' | 'userType'>): boolean {
   return u.userType === UserType.vet || u.clinicRole === ClinicRole.vet;
 }
-export function isReceptionist(u: Pick<UserProfile, 'clinicRole'>): boolean {
-  return u.clinicRole === 2;
-}
-export function isPetOwner(
-  u: Pick<UserProfile, 'globalType' | 'userType' | 'clinicRole'>,
-): boolean {
-  return !isAppOwner(u) && !isVet(u) && !isClinicAdmin(u) && !isReceptionist(u);
+export function isPetOwner(u: Pick<UserProfile, 'clinicRole' | 'userType'>): boolean {
+  return u.userType === UserType.petOwner && !isVet(u);
 }

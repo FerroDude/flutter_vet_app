@@ -9,6 +9,22 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   end?: boolean;
+  /** Count shown on the item (e.g. pending requests). Hidden when 0. */
+  badge?: number;
+}
+
+function Badge({ n, className }: { n?: number; className?: string }) {
+  if (!n) return null;
+  return (
+    <span
+      className={cn(
+        'grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[11px] font-semibold text-destructive-foreground',
+        className,
+      )}
+    >
+      {n}
+    </span>
+  );
 }
 
 interface AppLayoutProps {
@@ -39,7 +55,7 @@ export function AppLayout({
         <div className="px-2">
           <Logo />
         </div>
-        <nav aria-label="Primary" className="mt-8 flex flex-1 flex-col gap-1">
+        <nav aria-label="Navegação principal" className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((item) => (
             <NavItemLink key={item.to} item={item} />
           ))}
@@ -70,7 +86,7 @@ export function AppLayout({
 
         {/* Mobile bottom nav */}
         <nav
-          aria-label="Primary"
+          aria-label="Navegação principal"
           className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden"
         >
           {nav.map((item) => (
@@ -99,6 +115,7 @@ function NavItemLink({ item }: { item: NavItem }) {
     >
       <Icon size={18} />
       {item.label}
+      <Badge n={item.badge} className="ml-auto" />
     </NavLink>
   );
 }
@@ -116,7 +133,10 @@ function MobileNavItem({ item }: { item: NavItem }) {
         )
       }
     >
-      <Icon size={20} />
+      <span className="relative">
+        <Icon size={20} />
+        <Badge n={item.badge} className="absolute -right-3 -top-2" />
+      </span>
       {item.label}
     </NavLink>
   );

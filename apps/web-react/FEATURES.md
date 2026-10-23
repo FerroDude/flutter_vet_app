@@ -1,83 +1,68 @@
 # Vet+ web — feature register
 
-Written from the React code in `apps/web-react` on 2026-10-17. This file lists what the web app actually does.
-
-The Flutter app under `apps/mobile-flutter` is deprecated. This file is the feature register for the web app.
-
-Visual rules live in `DESIGN.md`. Shared types, medication math, and the confirm-to-calendar helper live in `packages/shared`.
+What the React app in `apps/web-react` does. Shared types and medication math live in `packages/shared`.
 
 ## Product
 
-A solo vet and her clients. There is no clinic. A client stores `vetId` (the vet's Firebase uid). One client belongs to one vet. A second vet is another user with `userType` vet and her own clients.
+One vet and her clients. A client profile stores `vetId` (the vet's uid); one client belongs to one vet. There are no clinics, receptionists or app owners.
 
-The UI is European Portuguese (`pt-PT`). Auth copy is in `src/i18n/en.ts` and loaded as the `pt-PT` bundle. Other screens still mix catalog strings and Portuguese literals.
+The UI is European Portuguese (`pt-PT`), written directly in the components.
 
-The set-password email language is the Firebase Auth template in the console. The app does not set it.
+## Accounts
 
-## Stack
+- No sign-up in the app. Firestore rules refuse self-created profiles.
+- Vets are created with `npm run create-vet` (Admin SDK, see `scripts/create-vet.mjs`).
+- The vet adds a client (Clientes → Adicionar cliente). That creates the Auth user with a random password, writes the profile with `vetId`, sends the set-password email and opens their chat room.
+- Login screen: email + password, and "forgot password". No email-verification step.
 
-Vite, React 18, TypeScript, React Router, Tailwind CSS v4, Firebase Auth, Firestore, Storage, and Cloud Messaging.
-
-Tests: `npm test` runs Vitest in `packages/shared` and `apps/web-react`. Firestore rules tests are `npm run test:rules` and need the Firestore emulator (`firebase emulators:exec --only firestore`).
-
-## Who can sign in
-
-Public screens are login and forgot password. There is no open registration. The vet adds a client.
-
-`RootGate` after Firebase Auth loads:
+`RootGate`:
 
 | State | Screen |
 |---|---|
-| Firebase env missing | Placeholder asking for `.env.local` |
+| Firebase env missing | Setup message |
 | Signed out | `AuthScreen` |
-| Signed in, email not verified | `VerifyEmailScreen` |
-| Profile load error | Retry |
-| Vet with no display name | `DisplayNameScreen` |
-| Role `petOwner` | `PetOwnerApp` |
-| Role `vet` | `StaffApp` |
-| Anything else | Account is not set up |
+| No profile / unknown role / load error | "Sem acesso" with retry + sign out |
+| Vet without a display name | `DisplayNameScreen` |
+| Vet | `VetApp` |
+| Client | `ClientApp` |
 
-A vet is `userType === vet`, with or without a clinic role. Receptionist, clinic admin, and app owner no longer get a shell.
+## Client app (`ClientApp`)
 
-## Vet
+Menu: Painel · Animais · Agenda · Chat · Perfil.
 
-Nav: Painel, Clientes, Pedidos, Chat, Perfil.
+- **Painel**: greeting, unread messages, next appointment, pets, up to 3 active medications, today's entries.
+- **Animais**: pet list and search; pet form (create/edit); pet page with record, medications (log/undo dose, pause, complete, delete), appointments and symptoms.
+- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit; "Adicionar" adds a reminder, a medication or a symptom.
+- **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
+- **Perfil**: name, phone, address; the vet's contact details; sign out.
 
-- Dashboard: unread messages, pending requests, today's confirmed appointments.
-- Clients: users whose `vetId` is her uid. Add client by name and email. That creates the Auth user, writes the profile, sends the set-password email, and opens one active chat room.
-- Client detail shows phone and address, pets, and a link into the pet record. She can create and edit that client's pets, medications, and symptoms.
-- Private notes live at `users/{clientId}/pets/{petId}/private/notes`. Only the vet can read or write them. The client pet page does not load that document.
-- Requests: confirm asks for a date and time and writes or updates one event on the client's calendar (`appointmentRequestId`, `bookedByVetId`). Deny still asks for a reason.
-- Chat: her active rooms. No pending Accept step for new rooms.
-- Profile: she edits the name, phone, and address the client sees.
+Appointments the vet booked are read-only for the client.
 
-## Client
+## Vet app (`VetApp`)
 
-Nav: Painel, Animais, Calendário, Marcações, Chat, Perfil.
+Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 
-- Pets, medications, symptoms, and calendar stay. Both the client and the vet can edit pets, medications, and symptoms.
-- Chat opens the room created when the vet added them. Route `/chat`. `/clinic` redirects there.
-- Appointments require `vetId`. The request stores `vetId` and does not write `clinicId`.
-- A vet-booked calendar event stays visible. The client cannot edit or delete it in the UI. Rules also deny that delete.
-- Profile shows the vet's name, phone, and address for in-house visits. There is no clinic connect or disconnect.
+- **Painel**: pending requests, unread messages, client count, today's appointments.
+- **Agenda**: pending requests (confirm with a time → booked into the client's calendar in one batch; deny with a reason; open chat), month calendar with appointment counts, the selected day, upcoming appointments, and the handled-requests history. "Nova consulta" books an appointment for any client/pet (warns about clashes within 30 minutes); edit and cancel from the list.
+- **Clientes**: list and search; add client. Client page: contact details, chat, book appointment, upcoming appointments, pets (open a pet page or add a pet).
+- **Pet page (vet view)**: everything the client sees plus **private notes** (a list of notes only the vet can read) and booking appointments directly.
+- **Chat**: conversation list + open conversation.
+- **Perfil**: name, phone, address (clients see it for home visits); sign out.
 
-## Firestore the UI writes
+## Data (Firestore)
 
-| Path | Used for |
+| Path | What |
 |---|---|
-| `users/{uid}` | Profile. Clients have `vetId`. |
-| `users/{uid}/pets/{petId}` | Pets |
-| `users/{uid}/pets/{petId}/medications` | Medications and dose logs |
-| `users/{uid}/pets/{petId}/symptoms` | Symptoms |
-| `users/{uid}/pets/{petId}/private/notes` | Vet-only notes |
-| `users/{uid}/events` | Calendar, including vet-booked appointments |
-| `appointmentRequests` | Requests addressed by `vetId`, plus `calendarEventId` and `bookedDateTime` |
-| `chatRooms` and `chatRooms/{id}/messages` | Direct vet–client chat |
+| `users/{uid}` | Profile. `userType` 0 client / 1 vet, `vetId` on clients |
+| `users/{uid}/pets/{petId}` | Pet; `medications/`, `symptoms/` below it |
+| `users/{uid}/pets/{petId}/private/{noteId}` | Vet-only notes |
+| `users/{uid}/events/{eventId}` | Calendar entries. Vet bookings carry `bookedByVetId`, `clientName`, `petName` |
+| `appointmentRequests/{id}` | Client → vet requests (`vetId`, `status`, `bookedDateTime`) |
+| `chatRooms/{id}` + `messages/` | One room per client/vet pair |
 
-Security rules for this model are in the repo-root `firestore.rules`. They are not live until deployed to `vetplus-digital`. Old clinic documents are unused.
+The vet agenda is a collection-group query on `events` where `bookedByVetId == vet` (index in `firestore.indexes.json`).
 
-## Tests
+## Not in the app
 
-- `packages/shared`: medication math, `isVet` for a solo vet, and `bookAppointmentFromConfirm` (first confirm creates, second confirm updates the same event).
-- `apps/web-react`: auth screen has sign-in and password reset, and no registration form.
-- `npm run test:rules`: client pet access, private notes, `vetId` lock, vet address read, and client delete of a vet-booked event.
+- Push notifications: removed until server-side senders exist. The old Cloud Functions were clinic-based and live on the `archive/mobile-flutter` branch. In-app toasts for new chat messages still work.
+- Account deletion: not offered; the vet manages client accounts.

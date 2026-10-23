@@ -8,3 +8,6 @@ build/
 *.local
 .DS_Store
 *-debug.log
+
+# Archived Flutter app (see archive/mobile-flutter branch); local leftovers only
+apps/mobile-flutter/

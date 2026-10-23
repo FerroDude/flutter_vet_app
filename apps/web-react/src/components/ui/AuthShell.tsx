@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Logo } from './Logo';
 
 interface AuthShellProps {
@@ -11,7 +10,6 @@ interface AuthShellProps {
 
 /** Centered branded layout for unauthenticated / setup screens. */
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
-  const { t } = useTranslation();
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center px-5 py-12">
       <div
@@ -21,7 +19,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
       <div className="relative flex w-full max-w-md flex-col items-center">
         <Logo />
         <span className="mt-5 text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-primary">
-          {t('common.appName')}
+          Vet+
         </span>
         <h1 className="mt-2 text-center font-display text-3xl font-bold text-foreground">
           {title}

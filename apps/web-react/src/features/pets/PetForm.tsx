@@ -57,7 +57,7 @@ export function PetForm() {
   const { firebaseUser, role } = useAuth();
   const uid = ownerParam || firebaseUser?.uid || '';
   const isVetView = role === 'vet' && Boolean(ownerParam);
-  const petBase = isVetView ? `/patients/${ownerParam}/pets` : '/pets';
+  const petBase = isVetView ? `/clients/${ownerParam}/pets` : '/pets';
 
   const ref = useMemo(
     () => (isEdit && uid ? petDoc(uid, petId!) : null),

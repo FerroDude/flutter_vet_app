@@ -1,5 +1,4 @@
-// Chat data layer (pet owner side). Mirrors
-// apps/mobile-flutter/lib/services/chat_service.dart + media_service.dart.
+// Chat between a vet and one of her clients (one room per pair).
 //
 // Storage:
 //   chatRooms/{roomId}
@@ -34,7 +33,9 @@ import {
   parseDate,
   parseDateOptional,
 } from '@vetplus/shared';
+import { useMemo } from 'react';
 import { db, storage } from './firebase';
+import { useCollection } from './useFirestore';
 
 export const chatRoomsCol = () => collection(db, 'chatRooms');
 export const roomDoc = (id: string) => doc(db, 'chatRooms', id);
@@ -43,22 +44,23 @@ export const messagesCol = (roomId: string) =>
 export const messageDoc = (roomId: string, id: string) =>
   doc(db, 'chatRooms', roomId, 'messages', id);
 
-/** Pet owner's rooms. Single-field query; isActive filter + sort done client-side
- *  to avoid a composite index. */
-export function petOwnerRoomsQuery(uid: string) {
-  return query(chatRoomsCol(), where('petOwnerId', '==', uid));
+/** A user's rooms (`petOwnerId` for a client, `vetId` for a vet). Single-field
+ *  query; isActive filter + sort happen in useRooms to avoid a composite index. */
+export function roomsQuery(field: 'petOwnerId' | 'vetId', uid: string) {
+  return query(chatRoomsCol(), where(field, '==', uid));
 }
 
-/** Rooms assigned to a staff member (vet/receptionist sit in the vetId slot).
- *  Single-field query; filter isActive + sort client-side. */
-export function staffRoomsQuery(staffId: string) {
-  return query(chatRoomsCol(), where('vetId', '==', staffId));
-}
-
-/** All rooms for a clinic (admin / pending-request triage). Single-field query;
- *  filter isActive/status + sort client-side. */
-export function clinicRoomsQuery(clinicId: string) {
-  return query(chatRoomsCol(), where('clinicId', '==', clinicId));
+/** Active rooms, most recent first, plus this user's unread total. */
+export function useRooms(field: 'petOwnerId' | 'vetId', uid: string) {
+  const q = useMemo(() => (uid ? roomsQuery(field, uid) : null), [field, uid]);
+  const { data, loading } = useCollection(q, mapRoom);
+  return useMemo(() => {
+    const rooms = data
+      .filter((r) => r.isActive)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const unread = rooms.reduce((n, r) => n + (r.unreadCounts[uid] ?? 0), 0);
+    return { rooms, unread, loading };
+  }, [data, loading, uid]);
 }
 
 /** Newest `n` messages (desc); reverse in the UI for chronological display. */
@@ -149,131 +151,43 @@ function messageToJson(m: Omit<ChatMessage, 'id'>): DocumentData {
 
 /* --------------------------------- Rooms ----------------------------------- */
 
-export interface CreateChatRequestInput {
-  clinicId: string;
-  petOwnerId: string;
-  petOwnerName: string;
-  title: string;
-  description?: string | null;
-  petIds?: string[];
-}
-
-/** Pet owner creates a pending chat request (no vet assigned yet). */
-export async function createChatRequest(i: CreateChatRequestInput): Promise<string> {
-  const now = Date.now();
-  const data: DocumentData = {
-    clinicId: i.clinicId,
-    petOwnerId: i.petOwnerId,
-    petOwnerName: i.petOwnerName,
-    vetId: '',
-    vetName: '',
-    petIds: i.petIds ?? [],
-    lastMessage: null,
-    unreadCounts: {},
-    createdAt: now,
-    updatedAt: now,
-    isActive: true,
-    topic: i.title,
-    status: ChatRoomStatus.pending,
-    requestDescription: i.description ?? null,
-    initiatedBy: 'pet_owner',
-    staffRole: null,
-  };
-  const r = await addDoc(chatRoomsCol(), data);
-  return r.id;
-}
-
-/** Pet owner cancels a still-pending request (deletes the room). */
-export async function deleteChatRequest(roomId: string): Promise<void> {
-  await runTransaction(db, async (tx) => {
-    const r = roomDoc(roomId);
-    const snap = await tx.get(r);
-    if (!snap.exists()) throw new Error('Chat room no longer exists');
-    const status = (snap.data().status as number) ?? ChatRoomStatus.active;
-    if (status !== ChatRoomStatus.pending) {
-      throw new Error('Only pending chat requests can be deleted');
-    }
-    tx.delete(r);
-  });
-}
-
 export async function getRoom(roomId: string): Promise<ChatRoom | null> {
   const snap = await getDoc(roomDoc(roomId));
   return snap.exists() ? mapRoom(snap.id, snap.data()) : null;
 }
 
-/** Staff accepts a pending request → becomes the assigned vet, room goes active. */
-export async function acceptChatRequest(args: {
-  roomId: string;
-  staffId: string;
-  staffName: string;
-}): Promise<void> {
-  await runTransaction(db, async (tx) => {
-    const r = roomDoc(args.roomId);
-    const snap = await tx.get(r);
-    if (!snap.exists()) throw new Error('Chat room no longer exists');
-    const status = (snap.data().status as number) ?? ChatRoomStatus.active;
-    if (status !== ChatRoomStatus.pending) {
-      throw new Error('Chat request already accepted or closed');
-    }
-    tx.update(r, {
-      vetId: args.staffId,
-      vetName: args.staffName,
-      status: ChatRoomStatus.active,
-      updatedAt: serverTimestamp(),
-    });
-  });
-}
-
-/** Find the client↔vet room or create an active one. New rooms omit clinicId. */
+/** Find the client↔vet room or create it. */
 export async function findOrCreateOneOnOneChat(args: {
   petOwnerId: string;
   petOwnerName: string;
-  staffId: string;
-  staffName: string;
-  staffRole: string;
-  petIds?: string[];
-  topic?: string | null;
+  vetId: string;
+  vetName: string;
 }): Promise<string> {
   const existing = await getDocs(
-    query(
-      chatRoomsCol(),
-      where('petOwnerId', '==', args.petOwnerId),
-      where('vetId', '==', args.staffId),
-    ),
+    query(chatRoomsCol(), where('petOwnerId', '==', args.petOwnerId), where('vetId', '==', args.vetId)),
   );
   const active = existing.docs.find((d) => d.data().isActive !== false);
   if (active) return active.id;
 
   const now = Date.now();
-  const data: DocumentData = {
+  const r = await addDoc(chatRoomsCol(), {
     petOwnerId: args.petOwnerId,
     petOwnerName: args.petOwnerName,
-    vetId: args.staffId,
-    vetName: args.staffName,
-    petIds: args.petIds ?? [],
+    vetId: args.vetId,
+    vetName: args.vetName,
+    petIds: [],
     lastMessage: null,
     unreadCounts: {},
     createdAt: now,
     updatedAt: now,
     isActive: true,
-    topic: args.topic ?? null,
+    topic: null,
     status: ChatRoomStatus.active,
     requestDescription: null,
-    initiatedBy: args.staffRole,
-    staffRole: args.staffRole,
-  };
-  const r = await addDoc(chatRoomsCol(), data);
-  return r.id;
-}
-
-/** Soft-close a room for both participants (isActive:false, status:closed). */
-export async function closeChatRoom(roomId: string): Promise<void> {
-  await updateDoc(roomDoc(roomId), {
-    isActive: false,
-    status: ChatRoomStatus.closed,
-    updatedAt: serverTimestamp(),
+    initiatedBy: 'vet',
+    staffRole: 'vet',
   });
+  return r.id;
 }
 
 /* -------------------------------- Messages --------------------------------- */

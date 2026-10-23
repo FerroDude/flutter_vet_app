@@ -15,14 +15,8 @@ import {
   MoreHorizontal,
   X,
 } from 'lucide-react';
-import {
-  type ChatMessage,
-  type ChatRoom,
-  MessageType,
-  MessageStatus,
-  ChatRoomStatus,
-} from '@vetplus/shared';
-import { useAuth, type Role } from '@/auth/AuthProvider';
+import { type ChatMessage, type ChatRoom, MessageType, MessageStatus } from '@vetplus/shared';
+import { useAuth } from '@/auth/AuthProvider';
 import { useDoc, useCollection } from '@/lib/useFirestore';
 import {
   roomDoc,
@@ -44,7 +38,10 @@ import {
   REACTION_EMOJIS,
 } from '@/lib/chatService';
 import { cn } from '@/lib/cn';
+import { dayShortFmt, errorMessage, timeFmt } from '@/lib/format';
 import { Spinner } from '@/components/Spinner';
+import { Menu, type MenuItem } from '@/components/ui/Menu';
+import { useConfirm } from '@/components/ui/Confirm';
 import { setActiveChatRoom } from './incomingMessage';
 
 function typeLabel(type: MessageType): string {
@@ -62,8 +59,6 @@ function typeLabel(type: MessageType): string {
   }
 }
 
-const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-const dayFmt = new Intl.DateTimeFormat('pt-PT', { weekday: 'short', month: 'short', day: 'numeric' });
 
 function fmtDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -71,18 +66,11 @@ function fmtDuration(sec: number): string {
   return `${m}:${`${s}`.padStart(2, '0')}`;
 }
 
-const SENDER_ROLE: Record<Role, string> = {
-  petOwner: 'pet_owner',
-  vet: 'vet',
-  receptionist: 'receptionist',
-  clinicAdmin: 'admin',
-  unknown: 'pet_owner',
-};
-
 export function Conversation({ roomId }: { roomId: string }) {
   const { firebaseUser, profile, role } = useAuth();
   const uid = firebaseUser?.uid ?? '';
-  const senderRole = SENDER_ROLE[role];
+  const senderRole = role === 'vet' ? 'vet' : 'pet_owner';
+  const confirm = useConfirm();
 
   const rDoc = useMemo(() => roomDoc(roomId), [roomId]);
   const { data: room } = useDoc<ChatRoom>(rDoc, mapRoom);
@@ -95,7 +83,6 @@ export function Conversation({ roomId }: { roomId: string }) {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -117,7 +104,7 @@ export function Conversation({ roomId }: { roomId: string }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages.length]);
 
-  const senderName = profile?.displayName?.trim() || profile?.email || 'You';
+  const senderName = profile?.displayName?.trim() || profile?.email || 'Eu';
 
   const takeReplyMeta = () =>
     replyingTo ? buildReplyMetadata(replyingTo) : null;
@@ -140,7 +127,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível enviar a mensagem');
+      toast.error(errorMessage(e, 'Não foi possível enviar a mensagem'));
       setText(content);
     } finally {
       setSending(false);
@@ -169,7 +156,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível enviar o ficheiro');
+      toast.error(errorMessage(e, 'Não foi possível enviar o ficheiro'));
     } finally {
       setUploading(false);
     }
@@ -197,7 +184,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível enviar a mensagem de voz');
+      toast.error(errorMessage(e, 'Não foi possível enviar a mensagem de voz'));
     } finally {
       setUploading(false);
     }
@@ -205,12 +192,10 @@ export function Conversation({ roomId }: { roomId: string }) {
 
   const onReply = (m: ChatMessage) => {
     setReplyingTo(m);
-    setOpenMenuId(null);
     textareaRef.current?.focus();
   };
 
   const onCopy = async (m: ChatMessage) => {
-    setOpenMenuId(null);
     try {
       await navigator.clipboard.writeText(m.content);
       toast.success('Copiado');
@@ -220,22 +205,26 @@ export function Conversation({ roomId }: { roomId: string }) {
   };
 
   const onReact = async (m: ChatMessage, emoji: string) => {
-    setOpenMenuId(null);
     try {
       await toggleReaction(roomId, m.id, uid, senderName, emoji);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível reagir');
+      toast.error(errorMessage(e, 'Não foi possível reagir'));
     }
   };
 
   const onDelete = async (m: ChatMessage) => {
-    setOpenMenuId(null);
-    if (!window.confirm('Apagar esta mensagem? Não dá para desfazer.')) return;
+    const ok = await confirm({
+      title: 'Apagar mensagem?',
+      description: 'Não dá para desfazer.',
+      confirmLabel: 'Apagar',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteMessage(roomId, m.id);
       toast.success('Mensagem apagada');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível apagar a mensagem');
+      toast.error(errorMessage(e, 'Não foi possível apagar a mensagem'));
     }
   };
 
@@ -247,7 +236,6 @@ export function Conversation({ roomId }: { roomId: string }) {
     setTimeout(() => el.classList.remove('ring-2', 'ring-primary/50'), 1200);
   };
 
-  const isPending = room?.status === ChatRoomStatus.pending;
   const iAmVet = Boolean(room && uid === room.vetId);
   const otherName = iAmVet ? room?.petOwnerName?.trim() : room?.vetName?.trim();
 
@@ -260,7 +248,7 @@ export function Conversation({ roomId }: { roomId: string }) {
             {otherName || room?.topic || 'Conversa'}
           </p>
           <p className="truncate text-xs text-muted-foreground">
-            {isPending ? 'À espera que a veterinária aceite' : room?.topic || 'Conversa ativa'}
+            {iAmVet ? 'Cliente' : 'A sua veterinária'}
           </p>
         </div>
       </div>
@@ -268,7 +256,6 @@ export function Conversation({ roomId }: { roomId: string }) {
       {/* Messages */}
       <div
         ref={scrollRef}
-        data-chat-scroll
         className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 py-4"
       >
         {loading && messages.length === 0 ? (
@@ -288,17 +275,13 @@ export function Conversation({ roomId }: { roomId: string }) {
               <div key={m.id}>
                 {showDay && (
                   <div className="my-3 text-center text-xs text-muted-foreground">
-                    {dayFmt.format(m.timestamp)}
+                    {dayShortFmt.format(m.timestamp)}
                   </div>
                 )}
                 <MessageRow
                   message={m}
                   mine={m.senderId === uid}
                   uid={uid}
-                  menuOpen={openMenuId === m.id}
-                  onToggleMenu={() =>
-                    setOpenMenuId((cur) => (cur === m.id ? null : m.id))
-                  }
                   onReply={onReply}
                   onCopy={onCopy}
                   onReact={onReact}
@@ -310,13 +293,6 @@ export function Conversation({ roomId }: { roomId: string }) {
           })
         )}
       </div>
-
-      {/* Pending notice */}
-      {isPending && (
-        <div className="border-t border-border bg-secondary px-5 py-2 text-center text-xs text-muted-foreground">
-          O pedido está pendente. Pode escrever na mesma. A veterinária vê as mensagens quando aceitar.
-        </div>
-      )}
 
       {/* Reply preview */}
       {replyingTo && (
@@ -424,8 +400,6 @@ interface MessageRowProps {
   message: ChatMessage;
   mine: boolean;
   uid: string;
-  menuOpen: boolean;
-  onToggleMenu: () => void;
   onReply: (m: ChatMessage) => void;
   onCopy: (m: ChatMessage) => void;
   onReact: (m: ChatMessage, emoji: string) => void;
@@ -437,8 +411,6 @@ function MessageRow({
   message: m,
   mine,
   uid,
-  menuOpen,
-  onToggleMenu,
   onReply,
   onCopy,
   onReact,
@@ -461,8 +433,6 @@ function MessageRow({
     <MessageActions
       mine={mine}
       message={m}
-      open={menuOpen}
-      onToggleMenu={onToggleMenu}
       onReply={onReply}
       onCopy={onCopy}
       onReact={onReact}
@@ -560,8 +530,6 @@ function MessageRow({
 function MessageActions({
   mine,
   message: m,
-  open,
-  onToggleMenu,
   onReply,
   onCopy,
   onReact,
@@ -569,59 +537,39 @@ function MessageActions({
 }: {
   mine: boolean;
   message: ChatMessage;
-  open: boolean;
-  onToggleMenu: () => void;
   onReply: (m: ChatMessage) => void;
   onCopy: (m: ChatMessage) => void;
   onReact: (m: ChatMessage, emoji: string) => void;
   onDelete: (m: ChatMessage) => void;
 }) {
-  const canCopy = m.type === MessageType.text;
-  // Open below the button when there isn't room above inside the scroll area.
-  const [dropDown, setDropDown] = useState(false);
+  const items: MenuItem[] = [
+    { label: 'Responder', icon: <CornerUpLeft size={14} />, onClick: () => onReply(m) },
+    ...(m.type === MessageType.text
+      ? [{ label: 'Copiar', icon: <Copy size={14} />, onClick: () => onCopy(m) }]
+      : []),
+    ...(mine
+      ? [{ label: 'Apagar', icon: <Trash2 size={14} />, danger: true, onClick: () => onDelete(m) }]
+      : []),
+  ];
   return (
-    <div className="relative shrink-0 self-center">
-      <button
-        type="button"
-        aria-label="Ações da mensagem"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={(e) => {
-          const btn = e.currentTarget.getBoundingClientRect();
-          const area = e.currentTarget.closest('[data-chat-scroll]')?.getBoundingClientRect();
-          setDropDown(area ? btn.top - area.top < 200 : false);
-          onToggleMenu();
-        }}
-        className={cn(
-          'grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition-opacity hover:bg-secondary hover:text-foreground focus-visible:opacity-100',
-          open ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
-        )}
-      >
-        <MoreHorizontal size={16} />
-      </button>
-
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            className="fixed inset-0 z-30 cursor-default"
-            onClick={onToggleMenu}
-          />
-          <div
-            role="menu"
-            className={cn(
-              'absolute z-40 w-44 overflow-hidden rounded-(--radius-md) border border-border bg-card py-1 shadow-(--shadow-md)',
-              dropDown ? 'top-9' : 'bottom-9',
-              mine ? 'right-0' : 'left-0',
-            )}
-          >
+    <div className="self-center">
+      <Menu
+        label="Ações da mensagem"
+        trigger={<MoreHorizontal size={16} />}
+        align={mine ? 'right' : 'left'}
+        items={items}
+        triggerClassName="h-7 w-7 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+        header={(close) => (
+          <>
             <div className="flex justify-around px-1 pb-1">
               {REACTION_EMOJIS.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
-                  onClick={() => onReact(m, emoji)}
+                  onClick={() => {
+                    close();
+                    onReact(m, emoji);
+                  }}
                   className="grid h-8 w-8 place-items-center rounded-full text-base hover:bg-secondary"
                   aria-label={`Reagir ${emoji}`}
                 >
@@ -630,50 +578,10 @@ function MessageActions({
               ))}
             </div>
             <div className="my-1 h-px bg-border" />
-            <ActionItem icon={<CornerUpLeft size={14} />} onClick={() => onReply(m)}>
-              Responder
-            </ActionItem>
-            {canCopy && (
-              <ActionItem icon={<Copy size={14} />} onClick={() => onCopy(m)}>
-                Copiar
-              </ActionItem>
-            )}
-            {mine && (
-              <ActionItem icon={<Trash2 size={14} />} danger onClick={() => onDelete(m)}>
-                Apagar
-              </ActionItem>
-            )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      />
     </div>
-  );
-}
-
-function ActionItem({
-  children,
-  icon,
-  onClick,
-  danger,
-}: {
-  children: React.ReactNode;
-  icon: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-secondary',
-        danger ? 'text-destructive' : 'text-foreground',
-      )}
-    >
-      {icon}
-      {children}
-    </button>
   );
 }
 
