@@ -53,7 +53,7 @@ export function RootGate() {
 function Message({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <span className="text-[0.8125rem] font-semibold uppercase tracking-[0.06em] text-primary">Vet+</span>
+      <span className="text-[0.8125rem] font-semibold uppercase tracking-[0.06em] text-primary">Yoshi Vet Care</span>
       <h1 className="mt-2 font-display text-2xl font-bold text-foreground">{title}</h1>
       <div className="mt-2 text-sm text-muted-foreground">{children}</div>
     </div>

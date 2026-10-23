@@ -1,70 +1,44 @@
 @import 'tailwindcss';
 
-/* Dark mode driven by a `.dark` class on <html> */
-@custom-variant dark (&:where(.dark, .dark *));
-
 /* ----------------------------------------------------------------------------
    Design tokens (see apps/web-react/DESIGN.md — canonical source)
    Light theme. HSL channel triples consumed via hsl(var(--token)).
 ---------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
-  --background: 160 16% 97%;
-  --foreground: 160 28% 8%;
+  --background: 30 33% 97%;
+  --foreground: 20 25% 10%;
   --card: 0 0% 100%;
-  --card-foreground: 160 28% 8%;
+  --card-foreground: 20 25% 10%;
   --popover: 0 0% 100%;
-  --popover-foreground: 160 28% 8%;
-  --primary: 171 81% 26%;
+  --popover-foreground: 20 25% 10%;
+  /* Brand orange from yoshivetcare.com is #EA9374 (--accent) and #E95925
+     (--ring); --primary is a deeper shade of the same hue so white button
+     text meets WCAG AA (~4.6:1). */
+  --primary: 16 76% 45%;
   --primary-foreground: 0 0% 100%;
-  --primary-light: 168 52% 93%;
-  --secondary: 160 16% 94%;
-  --secondary-foreground: 160 28% 8%;
-  --muted: 160 16% 94%;
-  --muted-foreground: 162 14% 33%;
-  --accent: 27 87% 67%;
-  --accent-foreground: 160 28% 8%;
+  --primary-light: 16 74% 94%;
+  --secondary: 28 25% 94%;
+  --secondary-foreground: 20 25% 10%;
+  --muted: 28 25% 94%;
+  --muted-foreground: 20 12% 36%;
+  --accent: 16 74% 68%;
+  --accent-foreground: 20 25% 10%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --success: 160 84% 39%;
+  --success: 152 60% 36%;
   --warning: 38 92% 50%;
   --info: 217 91% 60%;
-  --border: 156 24% 89%;
-  --input: 156 24% 89%;
-  --ring: 171 81% 26%;
+  --border: 25 22% 88%;
+  --input: 25 22% 88%;
+  --ring: 16 81% 53%;
 
   /* Event/category colors (parity with mobile semantics) */
   --event-appointment: 217 91% 60%;
-  --event-medication: 171 81% 26%;
-  --event-symptom: 38 92% 50%;
+  --event-medication: 171 60% 32%;
+  --event-symptom: 340 75% 55%;
 
   --radius: 0.875rem;
-}
-
-.dark {
-  --background: 165 24% 7%;
-  --foreground: 160 16% 93%;
-  --card: 165 22% 10%;
-  --card-foreground: 160 16% 93%;
-  --popover: 165 22% 10%;
-  --popover-foreground: 160 16% 93%;
-  --primary: 168 60% 45%;
-  --primary-foreground: 165 30% 6%;
-  --primary-light: 168 40% 16%;
-  --secondary: 165 18% 14%;
-  --secondary-foreground: 160 16% 93%;
-  --muted: 165 18% 14%;
-  --muted-foreground: 160 12% 65%;
-  --accent: 27 70% 60%;
-  --accent-foreground: 165 30% 6%;
-  --destructive: 0 72% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --success: 160 70% 42%;
-  --warning: 38 85% 55%;
-  --info: 217 85% 65%;
-  --border: 165 14% 20%;
-  --input: 165 14% 20%;
-  --ring: 168 60% 45%;
 }
 
 /* ----------------------------------------------------------------------------
@@ -114,13 +88,13 @@
 
   /* Layered shadows: multiple offsets at low opacity mimic how light actually
      falls, instead of one diffuse blur (the generic "soft glow" AI default). */
-  --shadow-sm: 0 1px 1px rgba(15, 26, 23, 0.04), 0 2px 4px rgba(15, 26, 23, 0.04);
+  --shadow-sm: 0 1px 1px rgba(40, 24, 16, 0.04), 0 2px 4px rgba(40, 24, 16, 0.04);
   --shadow-md:
-    0 1px 2px rgba(15, 26, 23, 0.04), 0 5px 14px rgba(15, 26, 23, 0.05),
-    0 12px 28px rgba(15, 26, 23, 0.05);
+    0 1px 2px rgba(40, 24, 16, 0.04), 0 5px 14px rgba(40, 24, 16, 0.05),
+    0 12px 28px rgba(40, 24, 16, 0.05);
   --shadow-lg:
-    0 2px 4px rgba(15, 26, 23, 0.05), 0 12px 30px rgba(15, 26, 23, 0.07),
-    0 28px 58px rgba(15, 26, 23, 0.1);
+    0 2px 4px rgba(40, 24, 16, 0.05), 0 12px 30px rgba(40, 24, 16, 0.07),
+    0 28px 58px rgba(40, 24, 16, 0.1);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -218,7 +192,7 @@
    Editorial typographic patterns (signature look — see DESIGN.md §0)
 ---------------------------------------------------------------------------- */
 
-/* Section eyebrow: small uppercase tracked label in teal that sits above a
+/* Section eyebrow: small uppercase tracked label in the brand orange that sits above a
    heading. Borrowed from the landing page; gives sections a deliberate
    editorial rhythm instead of a flat stack of identical titles. */
 .eyebrow {

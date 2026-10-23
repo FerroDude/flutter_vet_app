@@ -42,7 +42,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
   });
 
   return (
-    <AuthShell title="Bem-vindo" subtitle="Entre na sua conta Vet+.">
+    <AuthShell title="Bem-vindo" subtitle="Entre na sua conta Yoshi Vet Care.">
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField
           label="Email"

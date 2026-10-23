@@ -5,7 +5,7 @@ interface LogoProps {
   className?: string;
 }
 
-/** Vet+ paw mark on a soft teal tile. */
+/** Yoshi Vet Care paw mark on a brand-orange tile. */
 export function Logo({ size = 56, className }: LogoProps) {
   return (
     <span

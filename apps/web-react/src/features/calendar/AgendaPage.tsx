@@ -107,15 +107,13 @@ export function AgendaPage() {
 
   const selected = byDay.get(dayKey(day)) ?? { events: [], symptoms: [] };
   const selectedMeds = activeMeds.filter((m) => isDoseScheduledOnDate(m, day));
-  const upcoming = events
-    .filter((e) => e.type === EventType.appointment && e.dateTime.getTime() >= Date.now())
-    .slice(0, 5);
 
-  // Pending requests, plus answers from the last 30 days the client may not have seen.
+  // Pending requests, plus denied ones from the last 30 days. Confirmed requests
+  // already appear as appointments in the calendar.
   const recentRequests = requests.filter(
     (r) =>
       r.status === AppointmentRequestStatus.pending ||
-      (r.status !== AppointmentRequestStatus.cancelled && Date.now() - r.updatedAt.getTime() < 30 * 86_400_000),
+      (r.status === AppointmentRequestStatus.denied && Date.now() - r.updatedAt.getTime() < 30 * 86_400_000),
   );
 
   const run = (p: Promise<unknown>, ok?: string) =>
@@ -251,35 +249,6 @@ export function AgendaPage() {
               </div>
             )}
           </section>
-
-          {upcoming.length > 0 && (
-            <section>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Próximas consultas
-              </h2>
-              <div className="space-y-2">
-                {upcoming.map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => {
-                      setMonth(new Date(e.dateTime.getFullYear(), e.dateTime.getMonth(), 1));
-                      setDay(startOfDay(e.dateTime));
-                    }}
-                    className="block w-full text-left"
-                  >
-                    <Row
-                      color="bg-event-appointment"
-                      title={e.title}
-                      meta={[dateTimeFmt.format(e.dateTime), e.petId ? petName.get(e.petId) : null]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    />
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
       </div>
 
