@@ -6,7 +6,7 @@ import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/s
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
-import { eventsQuery, mapEvent, type CalendarEvent } from '@/lib/eventService';
+import { eventsQuery, mapEvent, isCancelled, type CalendarEvent } from '@/lib/eventService';
 import { useRooms } from '@/lib/chatService';
 import { logDoseTaken, undoLastDose, setMedicationStatus } from '@/lib/medicationService';
 import { useAllMedications } from '@/lib/useAllMedications';
@@ -28,9 +28,11 @@ export function ClientDashboard() {
 
   const eq = useMemo(() => (uid ? eventsQuery(uid) : null), [uid]);
   const { data: events } = useCollection<CalendarEvent>(eq, mapEvent);
-  const todayEvents = events.filter((e) => e.type !== EventType.medication && sameDay(e.dateTime, new Date()));
+  const todayEvents = events.filter(
+    (e) => e.type !== EventType.medication && sameDay(e.dateTime, new Date()) && !isCancelled(e),
+  );
   const upcoming = events
-    .filter((e) => e.type === EventType.appointment && e.dateTime.getTime() >= Date.now())
+    .filter((e) => e.type === EventType.appointment && !isCancelled(e) && e.dateTime.getTime() >= Date.now())
     .slice(0, 3);
 
   const { rooms, unread } = useRooms('petOwnerId', uid);
@@ -78,7 +80,7 @@ export function ClientDashboard() {
           />
           <div className="space-y-2">
             {upcoming.map((e) => (
-              <Link key={e.id} to="/agenda" className="block">
+              <Link key={e.id} to={`/agenda/consultas/${e.id}`} className="block">
                 <Card className="flex items-center gap-3 p-3 transition-colors hover:bg-secondary">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-event-appointment" />
                   <span className="min-w-0 flex-1">
@@ -137,7 +139,11 @@ export function ClientDashboard() {
         ) : (
           <div className="space-y-2">
             {todayEvents.map((e) => (
-              <Link key={e.id} to="/agenda" className="block">
+              <Link
+                key={e.id}
+                to={e.type === EventType.appointment ? `/agenda/consultas/${e.id}` : '/agenda'}
+                className="block"
+              >
                 <Card className="flex items-center gap-3 p-3 transition-colors hover:bg-secondary">
                   <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
                     {timeFmt.format(e.dateTime)}

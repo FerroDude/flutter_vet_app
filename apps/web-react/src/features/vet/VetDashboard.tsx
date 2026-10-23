@@ -5,7 +5,7 @@ import { useClients } from '@/lib/useClients';
 import { useRooms } from '@/lib/chatService';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { useVetPendingRequests } from '@/lib/appointmentRequestService';
-import { dayHeadFmt, dayShortFmt, greeting, sameDay, timeFmt } from '@/lib/format';
+import { dateTimeFmt, dayHeadFmt, dayShortFmt, greeting, sameDay, timeFmt } from '@/lib/format';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -21,7 +21,13 @@ export function VetDashboard() {
   const { clients } = useClients(uid);
   const { rooms, unread } = useRooms('vetId', uid);
   const { appointments } = useVetAppointments(uid);
-  const upcoming = appointments.filter((a) => a.dateTime.getTime() >= Date.now()).slice(0, 5);
+  const upcoming = appointments
+    .filter((a) => !a.cancelledAt && a.dateTime.getTime() >= Date.now())
+    .slice(0, 5);
+  const recentCancels = appointments
+    .filter((a) => a.cancelledAt && Date.now() - a.cancelledAt.getTime() < 7 * 86_400_000)
+    .sort((a, b) => b.cancelledAt!.getTime() - a.cancelledAt!.getTime())
+    .slice(0, 5);
 
   const now = new Date();
   const tomorrow = new Date(now);
@@ -110,6 +116,41 @@ export function VetDashboard() {
           </div>
         )}
       </section>
+      {recentCancels.length > 0 && (
+        <section>
+          <SectionHeader className="mb-4" eyebrow="Agenda" title="Canceladas recentemente" />
+          <div className="space-y-3">
+            {recentCancels.map((a) => (
+              <button
+                key={`${a.userId}/${a.id}`}
+                type="button"
+                onClick={() => navigate('/agenda')}
+                className="block w-full text-left"
+              >
+                <Card className="transition-colors hover:bg-secondary">
+                  <CardBody className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light text-primary">
+                      <PawPrint size={18} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-foreground">
+                        {a.petName || a.title}
+                        <span className="font-normal text-muted-foreground"> · {a.clientName || 'Cliente'}</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground">{dateTimeFmt.format(a.dateTime)}</p>
+                      {a.cancelReason && (
+                        <p className="mt-0.5 truncate text-sm italic text-muted-foreground">
+                          “{a.cancelReason}”
+                        </p>
+                      )}
+                    </div>
+                  </CardBody>
+                </Card>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

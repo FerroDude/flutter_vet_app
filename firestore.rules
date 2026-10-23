@@ -82,9 +82,24 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
+        // The client may cancel a vet-booked appointment once, with a reason,
+        // touching only the cancellation fields. Nothing else of it is editable.
+        function clientCancels() {
+          return isOwner(userId)
+            && vetBooked(resource.data)
+            && resource.data.get('cancelledAt', null) == null
+            && onlyChanges(['cancelledAt', 'cancelledBy', 'cancelReason', 'updatedAt'])
+            && request.resource.data.cancelledBy == request.auth.uid
+            && request.resource.data.cancelReason is string
+            && request.resource.data.cancelReason.size() > 0;
+        }
+
         allow read: if isOwner(userId) || isClientsVet(userId);
         allow create: if isOwner(userId) || isClientsVet(userId);
-        allow update, delete: if isClientsVet(userId)
+        allow update: if isClientsVet(userId)
+          || (isOwner(userId) && !vetBooked(resource.data))
+          || clientCancels();
+        allow delete: if isClientsVet(userId)
           || (isOwner(userId) && !vetBooked(resource.data));
       }
     }

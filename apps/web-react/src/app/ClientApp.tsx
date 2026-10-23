@@ -7,6 +7,7 @@ import { PetsPage } from '@/features/pets/PetsPage';
 import { PetForm } from '@/features/pets/PetForm';
 import { PetDetailPage } from '@/features/pets/PetDetailPage';
 import { AgendaPage } from '@/features/calendar/AgendaPage';
+import { AppointmentPage } from '@/features/calendar/AppointmentPage';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { ProfileSettingsPage } from '@/features/profile/ProfileSettingsPage';
 import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
@@ -37,6 +38,7 @@ export function ClientApp() {
         <Route path="pets/:petId" element={<PetDetailPage />} />
         <Route path="pets/:petId/edit" element={<PetForm />} />
         <Route path="agenda" element={<AgendaPage />} />
+        <Route path="agenda/consultas/:eventId" element={<AppointmentPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="profile" element={<ProfileSettingsPage />} />
         {/* Old links */}

@@ -51,6 +51,10 @@ export interface AppointmentEvent extends EventCommon {
   /** Shown on the vet's agenda without reading the client profile. */
   clientName?: string | null;
   petName?: string | null;
+  /** Set when the client cancels a vet-booked appointment (once, with reason). */
+  cancelledAt?: Date | null;
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
 }
 
 export interface MedicationEvent extends EventCommon {
@@ -184,6 +188,9 @@ export function mapEvent(id: string, d: DocumentData): CalendarEvent {
         bookedByVetId: (d.bookedByVetId as string | null) ?? null,
         clientName: (d.clientName as string | null) ?? null,
         petName: (d.petName as string | null) ?? null,
+        cancelledAt: parseDateOptional(d.cancelledAt) ?? null,
+        cancelledBy: (d.cancelledBy as string | null) ?? null,
+        cancelReason: (d.cancelReason as string | null) ?? null,
       };
     case EventType.medication:
       return {
@@ -247,6 +254,9 @@ export function eventToJson(e: CalendarEvent): DocumentData {
         bookedByVetId: e.bookedByVetId ?? null,
         clientName: e.clientName ?? null,
         petName: e.petName ?? null,
+        cancelledAt: e.cancelledAt ? e.cancelledAt.getTime() : null,
+        cancelledBy: e.cancelledBy ?? null,
+        cancelReason: e.cancelReason ?? null,
       };
     case EventType.medication:
       return {
@@ -291,6 +301,29 @@ export async function updateEvent(uid: string, event: CalendarEvent): Promise<vo
 
 export async function deleteEvent(uid: string, id: string): Promise<void> {
   await deleteDoc(eventDoc(uid, id));
+}
+
+/** A vet-booked appointment the client cancelled. */
+export const isCancelled = (e: CalendarEvent): boolean =>
+  e.type === EventType.appointment && Boolean(e.cancelledAt);
+
+/**
+ * Client cancels a vet-booked appointment. The rules only allow this exact
+ * field set, once, on a vet-booked event — anything else is rejected.
+ */
+export async function cancelAppointmentAsClient(args: {
+  clientId: string;
+  eventId: string;
+  reason: string;
+}): Promise<void> {
+  const reason = args.reason.trim();
+  if (!reason) throw new Error('Indique o motivo do cancelamento.');
+  await updateDoc(eventDoc(args.clientId, args.eventId), {
+    cancelledAt: Date.now(),
+    cancelledBy: args.clientId,
+    cancelReason: reason,
+    updatedAt: Date.now(),
+  });
 }
 
 export async function setEventCompleted(

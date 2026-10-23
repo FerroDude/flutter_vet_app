@@ -166,6 +166,70 @@ describe('solo vet rules', () => {
   });
 });
 
+describe('client cancels a vet-booked appointment', () => {
+  const seed = (id: string) =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `users/client/events/${id}`), {
+        bookedByVetId: 'vet',
+        userId: 'client',
+        title: 'Consulta',
+        dateTime: 1,
+        cancelledAt: null,
+      }),
+    );
+
+  it('lets the client cancel once with a reason, then blocks a second cancel', async () => {
+    await seed('v1');
+    const client = env.authenticatedContext('client').firestore();
+    await assertSucceeds(
+      updateDoc(doc(client, 'users/client/events/v1'), {
+        cancelledAt: 2,
+        cancelledBy: 'client',
+        cancelReason: 'Doente',
+        updatedAt: 2,
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(client, 'users/client/events/v1'), {
+        cancelledAt: 3,
+        cancelledBy: 'client',
+        cancelReason: 'Mudei de ideias',
+        updatedAt: 3,
+      }),
+    );
+  });
+
+  it('rejects cancels without reason, with extra changes, or as someone else', async () => {
+    await seed('v2');
+    const client = env.authenticatedContext('client').firestore();
+    const ev = doc(client, 'users/client/events/v2');
+    await assertFails(
+      updateDoc(ev, { cancelledAt: 2, cancelledBy: 'client', cancelReason: '', updatedAt: 2 }),
+    );
+    await assertFails(
+      updateDoc(ev, {
+        cancelledAt: 2,
+        cancelledBy: 'client',
+        cancelReason: 'Doente',
+        updatedAt: 2,
+        dateTime: 9,
+      }),
+    );
+    await assertFails(
+      updateDoc(ev, { cancelledAt: 2, cancelledBy: 'other', cancelReason: 'Doente', updatedAt: 2 }),
+    );
+    await assertFails(deleteDoc(ev));
+  });
+
+  it('still lets the vet update the event', async () => {
+    await seed('v3');
+    const vet = env.authenticatedContext('vet').firestore();
+    await assertSucceeds(
+      updateDoc(doc(vet, 'users/client/events/v3'), { title: 'Consulta de seguimento', updatedAt: 2 }),
+    );
+  });
+});
+
 describe('chat rules', () => {
   beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
