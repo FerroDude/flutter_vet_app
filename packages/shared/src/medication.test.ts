@@ -208,15 +208,15 @@ describe('nextDose', () => {
 
   it('nextDoseDescription formatting', () => {
     const m = med({ totalDays: 7 });
-    expect(nextDoseDescription(m, new Date(2026, 0, 3, 7))).toBe('Next: Today at 8:00 AM');
-    expect(nextDoseDescription(m, new Date(2026, 0, 3, 9))).toBe('Next: Tomorrow');
+    expect(nextDoseDescription(m, new Date(2026, 0, 3, 7))).toBe('Próxima: hoje às 08:00');
+    expect(nextDoseDescription(m, new Date(2026, 0, 3, 9))).toBe('Próxima: amanhã');
   });
 });
 
 describe('display + extend', () => {
   it('frequencyDisplay', () => {
-    expect(frequencyDisplay(MedicationFrequency.twiceDaily)).toBe('Twice daily');
-    expect(frequencyDisplay(MedicationFrequency.asNeeded)).toBe('As needed');
+    expect(frequencyDisplay(MedicationFrequency.twiceDaily)).toBe('Duas vezes por dia');
+    expect(frequencyDisplay(MedicationFrequency.asNeeded)).toBe('Quando necessário');
   });
 
   it('canBeExtended', () => {
@@ -243,8 +243,8 @@ describe('display + extend', () => {
 describe('todayDoseStatus', () => {
   it('not started', () => {
     const m = med({ totalDays: 7, startDate: new Date(2026, 0, 5) });
-    expect(todayDoseStatus(m, new Date(2026, 0, 3))).toBe('Starts in 2 days');
-    expect(todayDoseStatus(m, new Date(2026, 0, 4))).toBe('Starts tomorrow');
+    expect(todayDoseStatus(m, new Date(2026, 0, 3))).toBe('Começa daqui a 2 dias');
+    expect(todayDoseStatus(m, new Date(2026, 0, 4))).toBe('Começa amanhã');
   });
 
   it('completed course', () => {
@@ -252,12 +252,12 @@ describe('todayDoseStatus', () => {
       totalDays: 1,
       doseHistory: [takenAt(new Date(2026, 0, 1, 8))],
     });
-    expect(todayDoseStatus(m, new Date(2026, 0, 5))).toBe('Course completed');
+    expect(todayDoseStatus(m, new Date(2026, 0, 5))).toBe('Tratamento concluído');
   });
 
   it('active progress line', () => {
     const m = med({ totalDays: 7, frequency: MedicationFrequency.twiceDaily, doseTimes: [{ hour: 8, minute: 0 }, { hour: 20, minute: 0 }], doseHistory: [takenAt(new Date(2026, 0, 1, 8))] });
     // now Jan 1 09:00: expected-to-date = 1, taken = 1 => not behind, 1 of 2 taken today
-    expect(todayDoseStatus(m, new Date(2026, 0, 1, 9))).toBe('1 of 2 taken today');
+    expect(todayDoseStatus(m, new Date(2026, 0, 1, 9))).toBe('1 de 2 tomadas hoje');
   });
 });

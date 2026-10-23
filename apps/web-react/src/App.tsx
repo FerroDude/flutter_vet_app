@@ -4,7 +4,7 @@ import { RootGate } from '@/app/RootGate';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         {/* Phase 2: state-driven gate (auth + role routing). Full URL route tree lands later. */}
         <Route path="/*" element={<RootGate />} />

@@ -99,7 +99,7 @@ export function mapRoom(id: string, d: DocumentData): ChatRoom {
   const lm = d.lastMessage as DocumentData | null | undefined;
   return {
     id,
-    clinicId: (d.clinicId as string) ?? '',
+    clinicId: (d.clinicId as string | null) ?? null,
     petOwnerId: (d.petOwnerId as string) ?? '',
     petOwnerName: (d.petOwnerName as string) ?? '',
     vetId: (d.vetId as string) ?? '',
@@ -225,10 +225,8 @@ export async function acceptChatRequest(args: {
   });
 }
 
-/** Find an existing active 1:1 room (clinic+petOwner+staff) or create one.
- *  Used by staff to initiate / open a chat (e.g. from an appointment request). */
+/** Find the client↔vet room or create an active one. New rooms omit clinicId. */
 export async function findOrCreateOneOnOneChat(args: {
-  clinicId: string;
   petOwnerId: string;
   petOwnerName: string;
   staffId: string;
@@ -240,7 +238,6 @@ export async function findOrCreateOneOnOneChat(args: {
   const existing = await getDocs(
     query(
       chatRoomsCol(),
-      where('clinicId', '==', args.clinicId),
       where('petOwnerId', '==', args.petOwnerId),
       where('vetId', '==', args.staffId),
     ),
@@ -250,7 +247,6 @@ export async function findOrCreateOneOnOneChat(args: {
 
   const now = Date.now();
   const data: DocumentData = {
-    clinicId: args.clinicId,
     petOwnerId: args.petOwnerId,
     petOwnerName: args.petOwnerName,
     vetId: args.staffId,
@@ -527,11 +523,11 @@ export function messageTypeForFile(file: File): MessageType {
 export function mediaPlaceholder(type: MessageType, fileName: string): string {
   switch (type) {
     case MessageType.image:
-      return '📷 Photo';
+      return '📷 Foto';
     case MessageType.video:
-      return '🎬 Video';
+      return '🎬 Vídeo';
     case MessageType.voice:
-      return '🎤 Voice message';
+      return '🎤 Mensagem de voz';
     default:
       return `📎 ${fileName}`;
   }

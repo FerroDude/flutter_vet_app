@@ -34,11 +34,11 @@ export function SymptomFormDialog({ open, onClose, uid, petId, petName, defaultD
     setSaving(true);
     try {
       await addSymptom(uid, petId, type, at, note);
-      toast.success('Symptom logged');
+      toast.success('Sintoma registado');
       setNote('');
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not log symptom');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível registar o sintoma');
     } finally {
       setSaving(false);
     }
@@ -48,21 +48,21 @@ export function SymptomFormDialog({ open, onClose, uid, petId, petName, defaultD
     <Dialog
       open={open}
       onClose={onClose}
-      title="Log a symptom"
-      description={petName ? `For ${petName}` : undefined}
+      title="Registar sintoma"
+      description={petName ? `De ${petName}` : undefined}
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            Cancelar
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            Save
+            Guardar
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <Select label="Symptom" value={type} onChange={(e) => setType(e.target.value as SymptomType)}>
+        <Select label="Sintoma" value={type} onChange={(e) => setType(e.target.value as SymptomType)}>
           {SYMPTOM_TYPES.map((s) => (
             <option key={s} value={s}>
               {SYMPTOM_LABELS[s]}
@@ -71,7 +71,7 @@ export function SymptomFormDialog({ open, onClose, uid, petId, petName, defaultD
         </Select>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="symptom-when" className="text-sm font-medium text-foreground">
-            When
+            Quando
           </label>
           <input
             id="symptom-when"
@@ -82,10 +82,10 @@ export function SymptomFormDialog({ open, onClose, uid, petId, petName, defaultD
           />
         </div>
         <Textarea
-          label="Note (optional)"
+          label="Nota (opcional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Anything worth noting…"
+          placeholder="Algo a registar…"
         />
       </div>
     </Dialog>

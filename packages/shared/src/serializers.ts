@@ -17,6 +17,7 @@ export function userProfileFromFirestore(id: string, data: Data): UserProfile {
     displayName: (data.displayName as string) ?? '',
     userType: (data.userType as number) ?? 0,
     connectedClinicId: (data.connectedClinicId as string | null) ?? null,
+    vetId: (data.vetId as string | null) ?? null,
     clinicRole:
       data.clinicRole === null || data.clinicRole === undefined
         ? null
@@ -40,6 +41,7 @@ export function userProfileToFirestore(p: UserProfile): Data {
     displayName: p.displayName,
     userType: p.userType,
     connectedClinicId: p.connectedClinicId ?? null,
+    vetId: p.vetId ?? null,
     clinicRole: p.clinicRole ?? null,
     phone: p.phone ?? null,
     address: p.address ?? null,

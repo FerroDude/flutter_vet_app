@@ -45,24 +45,25 @@ import {
 } from '@/lib/chatService';
 import { cn } from '@/lib/cn';
 import { Spinner } from '@/components/Spinner';
+import { setActiveChatRoom } from './incomingMessage';
 
 function typeLabel(type: MessageType): string {
   switch (type) {
     case MessageType.image:
-      return '📷 Photo';
+      return '📷 Foto';
     case MessageType.video:
-      return '🎬 Video';
+      return '🎬 Vídeo';
     case MessageType.voice:
-      return '🎤 Voice message';
+      return '🎤 Mensagem de voz';
     case MessageType.file:
-      return '📎 Attachment';
+      return '📎 Anexo';
     default:
       return '';
   }
 }
 
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const dayFmt = new Intl.DateTimeFormat('pt-PT', { weekday: 'short', month: 'short', day: 'numeric' });
 
 function fmtDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -75,7 +76,6 @@ const SENDER_ROLE: Record<Role, string> = {
   vet: 'vet',
   receptionist: 'receptionist',
   clinicAdmin: 'admin',
-  appOwner: 'admin',
   unknown: 'pet_owner',
 };
 
@@ -107,6 +107,11 @@ export function Conversation({ roomId }: { roomId: string }) {
     void markIncomingRead(roomId, uid).catch(() => {});
   }, [roomId, uid, messages.length]);
 
+  useEffect(() => {
+    setActiveChatRoom(roomId);
+    return () => setActiveChatRoom(null);
+  }, [roomId]);
+
   // Auto-scroll to newest.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
@@ -135,7 +140,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send message');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível enviar a mensagem');
       setText(content);
     } finally {
       setSending(false);
@@ -164,7 +169,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Upload failed');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível enviar o ficheiro');
     } finally {
       setUploading(false);
     }
@@ -192,7 +197,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send voice message');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível enviar a mensagem de voz');
     } finally {
       setUploading(false);
     }
@@ -208,9 +213,9 @@ export function Conversation({ roomId }: { roomId: string }) {
     setOpenMenuId(null);
     try {
       await navigator.clipboard.writeText(m.content);
-      toast.success('Copied to clipboard');
+      toast.success('Copiado');
     } catch {
-      toast.error('Could not copy');
+      toast.error('Não foi possível copiar');
     }
   };
 
@@ -219,18 +224,18 @@ export function Conversation({ roomId }: { roomId: string }) {
     try {
       await toggleReaction(roomId, m.id, uid, senderName, emoji);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not react');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível reagir');
     }
   };
 
   const onDelete = async (m: ChatMessage) => {
     setOpenMenuId(null);
-    if (!window.confirm('Delete this message? This cannot be undone.')) return;
+    if (!window.confirm('Apagar esta mensagem? Não dá para desfazer.')) return;
     try {
       await deleteMessage(roomId, m.id);
-      toast.success('Message deleted');
+      toast.success('Mensagem apagada');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not delete message');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível apagar a mensagem');
     }
   };
 
@@ -250,10 +255,10 @@ export function Conversation({ roomId }: { roomId: string }) {
       <div className="flex items-center gap-3 border-b border-border px-5 py-3">
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-bold text-foreground">
-            {room?.vetName?.trim() || room?.topic || 'Conversation'}
+            {room?.vetName?.trim() || room?.topic || 'Conversa'}
           </p>
           <p className="truncate text-xs text-muted-foreground">
-            {isPending ? 'Waiting for the clinic to accept' : room?.topic || 'Active conversation'}
+            {isPending ? 'À espera que a veterinária aceite' : room?.topic || 'Conversa ativa'}
           </p>
         </div>
       </div>
@@ -266,7 +271,7 @@ export function Conversation({ roomId }: { roomId: string }) {
           </div>
         ) : messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            No messages yet. Say hello.
+            Ainda sem mensagens.
           </p>
         ) : (
           messages.map((m, i) => {
@@ -303,7 +308,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       {/* Pending notice */}
       {isPending && (
         <div className="border-t border-border bg-secondary px-5 py-2 text-center text-xs text-muted-foreground">
-          Your request is pending. You can still write — the clinic will see it once they accept.
+          O pedido está pendente. Pode escrever na mesma. A veterinária vê as mensagens quando aceitar.
         </div>
       )}
 
@@ -313,8 +318,8 @@ export function Conversation({ roomId }: { roomId: string }) {
           <div className="w-1 self-stretch rounded-full bg-primary" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-primary">
-              Replying to{' '}
-              {replyingTo.senderId === uid ? 'yourself' : replyingTo.senderName}
+              A responder a{' '}
+              {replyingTo.senderId === uid ? 'si' : replyingTo.senderName}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {replyingTo.type === MessageType.text
@@ -324,7 +329,7 @@ export function Conversation({ roomId }: { roomId: string }) {
           </div>
           <button
             type="button"
-            aria-label="Cancel reply"
+            aria-label="Cancelar resposta"
             onClick={() => setReplyingTo(null)}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
@@ -348,7 +353,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         />
         <button
           type="button"
-          aria-label="Attach file"
+          aria-label="Anexar ficheiro"
           disabled={uploading || recorder.recording}
           onClick={() => fileInputRef.current?.click()}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary disabled:opacity-50"
@@ -367,7 +372,7 @@ export function Conversation({ roomId }: { roomId: string }) {
               void doSendText();
             }
           }}
-          placeholder={recorder.recording ? 'Recording…' : 'Type a message…'}
+          placeholder={recorder.recording ? 'A gravar…' : 'Escreva uma mensagem…'}
           disabled={recorder.recording}
           className="max-h-32 min-h-[44px] flex-1 resize-none rounded-(--radius-lg) border border-input bg-card px-3.5 py-2.5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         />
@@ -375,7 +380,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         {text.trim() ? (
           <button
             type="button"
-            aria-label="Send"
+            aria-label="Enviar"
             disabled={sending}
             onClick={() => void doSendText()}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
@@ -385,7 +390,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         ) : recorder.recording ? (
           <button
             type="button"
-            aria-label="Stop and send"
+            aria-label="Parar e enviar"
             onClick={() => void recorder.stop()}
             className="grid h-11 shrink-0 place-items-center gap-1 rounded-full bg-destructive px-3 text-destructive-foreground"
           >
@@ -396,7 +401,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         ) : (
           <button
             type="button"
-            aria-label="Record voice message"
+            aria-label="Gravar mensagem de voz"
             disabled={uploading}
             onClick={() => void recorder.start()}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary disabled:opacity-50"
@@ -438,7 +443,7 @@ function MessageRow({
     return (
       <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
         <div className="my-0.5 rounded-(--radius-lg) bg-secondary px-3.5 py-2 text-sm italic text-muted-foreground">
-          Message deleted
+          Mensagem apagada
         </div>
       </div>
     );
@@ -492,7 +497,7 @@ function MessageRow({
                   mine ? 'text-primary-foreground/90' : 'text-primary',
                 )}
               >
-                {reply.senderId === uid ? 'You' : reply.senderName}
+                {reply.senderId === uid ? 'Eu' : reply.senderName}
               </span>
               <span
                 className={cn(
@@ -570,7 +575,7 @@ function MessageActions({
     <div className="relative shrink-0 self-center">
       <button
         type="button"
-        aria-label="Message actions"
+        aria-label="Ações da mensagem"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={onToggleMenu}
@@ -586,7 +591,7 @@ function MessageActions({
         <>
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label="Fechar menu"
             className="fixed inset-0 z-30 cursor-default"
             onClick={onToggleMenu}
           />
@@ -604,7 +609,7 @@ function MessageActions({
                   type="button"
                   onClick={() => onReact(m, emoji)}
                   className="grid h-8 w-8 place-items-center rounded-full text-base hover:bg-secondary"
-                  aria-label={`React ${emoji}`}
+                  aria-label={`Reagir ${emoji}`}
                 >
                   {emoji}
                 </button>
@@ -612,16 +617,16 @@ function MessageActions({
             </div>
             <div className="my-1 h-px bg-border" />
             <ActionItem icon={<CornerUpLeft size={14} />} onClick={() => onReply(m)}>
-              Reply
+              Responder
             </ActionItem>
             {canCopy && (
               <ActionItem icon={<Copy size={14} />} onClick={() => onCopy(m)}>
-                Copy
+                Copiar
               </ActionItem>
             )}
             {mine && (
               <ActionItem icon={<Trash2 size={14} />} danger onClick={() => onDelete(m)}>
-                Delete
+                Apagar
               </ActionItem>
             )}
           </div>
@@ -665,7 +670,7 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
         <a href={m.mediaUrl} target="_blank" rel="noreferrer">
           <img
             src={m.mediaUrl}
-            alt="Shared image"
+            alt="Imagem partilhada"
             className="max-h-64 rounded-(--radius-md) object-cover"
           />
         </a>
@@ -693,7 +698,7 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
           className={`flex items-center gap-2 underline ${mine ? '' : 'text-primary'}`}
         >
           <FileText size={16} />
-          {m.fileName ?? 'Attachment'}
+          {m.fileName ?? 'Anexo'}
         </a>
       );
     default:
@@ -751,7 +756,7 @@ function useVoiceRecorder(onComplete: (blob: Blob, durationSec: number) => Promi
         setDuration(Math.round((Date.now() - startedAtRef.current) / 1000));
       }, 500);
     } catch {
-      toast.error('Microphone access denied');
+      toast.error('Acesso ao microfone recusado');
     }
   };
 

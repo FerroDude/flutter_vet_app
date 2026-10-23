@@ -89,7 +89,7 @@ export function EventFormDialog({
 
   const submit = async () => {
     if (!title.trim()) {
-      toast.error('Please enter a title');
+      toast.error('Indique um título');
       return;
     }
     const now = new Date();
@@ -136,14 +136,14 @@ export function EventFormDialog({
     try {
       if (isEdit && existing) {
         await updateEvent(uid, { ...event, id: existing.id } as CalendarEvent);
-        toast.success('Event updated');
+        toast.success('Consulta atualizada');
       } else {
         await createEvent(uid, event);
-        toast.success('Event added');
+        toast.success('Consulta adicionada');
       }
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not save event');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível guardar');
     } finally {
       setSaving(false);
     }
@@ -153,15 +153,15 @@ export function EventFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Edit event' : 'Add event'}
+      title={isEdit ? 'Editar consulta' : 'Adicionar consulta'}
       className="max-w-lg"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            Cancelar
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            {isEdit ? 'Save' : 'Add'}
+            {isEdit ? 'Guardar' : 'Adicionar'}
           </Button>
         </>
       }
@@ -170,20 +170,20 @@ export function EventFormDialog({
         {!isEdit && !lockToAppointment && (
           <div className="inline-flex rounded-(--radius-md) border border-border p-1">
             <TypeTab active={type === EventType.appointment} onClick={() => setType(EventType.appointment)}>
-              Appointment
+              Consulta
             </TypeTab>
             <TypeTab active={type === EventType.note} onClick={() => setType(EventType.note)}>
-              Note
+              Nota
             </TypeTab>
           </div>
         )}
 
-        <TextField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <TextField label="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="event-when" className="text-sm font-medium text-foreground">
-              Date &amp; time
+              Data e hora
             </label>
             <input
               id="event-when"
@@ -193,8 +193,8 @@ export function EventFormDialog({
               className="h-11 w-full rounded-(--radius-md) border border-input bg-card px-3.5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             />
           </div>
-          <Select label="Pet (optional)" value={petId} onChange={(e) => setPetId(e.target.value)}>
-            <option value="">No pet</option>
+          <Select label="Animal (opcional)" value={petId} onChange={(e) => setPetId(e.target.value)}>
+            <option value="">Sem animal</option>
             {pets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -205,24 +205,24 @@ export function EventFormDialog({
 
         {type === EventType.appointment ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
-            <TextField label="Vet name" value={vetName} onChange={(e) => setVetName(e.target.value)} />
+            <TextField label="Local" value={location} onChange={(e) => setLocation(e.target.value)} />
+            <TextField label="Veterinária" value={vetName} onChange={(e) => setVetName(e.target.value)} />
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Category" value={category} onChange={(e) => setCategory(e.target.value)} />
-            <Select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)}>
-              <option value="1">Lowest</option>
-              <option value="2">Low</option>
-              <option value="3">Medium</option>
-              <option value="4">High</option>
-              <option value="5">Highest</option>
+            <TextField label="Categoria" value={category} onChange={(e) => setCategory(e.target.value)} />
+            <Select label="Prioridade" value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <option value="1">Mínima</option>
+              <option value="2">Baixa</option>
+              <option value="3">Média</option>
+              <option value="4">Alta</option>
+              <option value="5">Máxima</option>
             </Select>
           </div>
         )}
 
         <Textarea
-          label="Description (optional)"
+          label="Descrição (opcional)"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />

@@ -12,11 +12,11 @@ interface Props {
 
 /** Pet selection step shared by the calendar add flows (mirrors the Flutter
  *  _showPetSelectionDialog). */
-export function PetPickerDialog({ open, onClose, pets, title = 'Select a pet', onPick }: Props) {
+export function PetPickerDialog({ open, onClose, pets, title = 'Escolher animal', onPick }: Props) {
   return (
     <Dialog open={open} onClose={onClose} title={title}>
       {pets.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Add a pet first.</p>
+        <p className="text-sm text-muted-foreground">Adicione um animal primeiro.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {pets.map((pet) => (
@@ -36,7 +36,7 @@ export function PetPickerDialog({ open, onClose, pets, title = 'Select a pet', o
               <span className="min-w-0">
                 <span className="block truncate font-medium text-foreground">{pet.name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Pet'}
+                  {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Animal'}
                 </span>
               </span>
             </button>

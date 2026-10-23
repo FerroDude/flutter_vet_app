@@ -1,24 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Building2,
   LogOut,
   Trash2,
-  Search,
   PawPrint,
   Pill,
   Activity,
   Bell,
+  Stethoscope,
 } from 'lucide-react';
-import { type Clinic } from '@vetplus/shared';
+import { type UserProfile } from '@vetplus/shared';
 import { useAuth, type Role } from '@/auth/AuthProvider';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
 import { useAllMedications } from '@/lib/useAllMedications';
 import { useAllSymptoms } from '@/lib/useAllSymptoms';
 import { useCollection } from '@/lib/useFirestore';
-import { searchClinics } from '@/lib/userService';
+import { getUserProfile } from '@/lib/userService';
 import { isPushSupported, pushPermission, enablePush, disablePush } from '@/lib/messaging';
-import { useTheme, type ThemeMode } from '@/lib/theme';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -26,15 +24,14 @@ import { TextField } from '@/components/ui/TextField';
 import { Dialog } from '@/components/ui/Dialog';
 
 const ROLE_LABEL: Record<Role, string> = {
-  petOwner: 'Pet Owner',
-  vet: 'Veterinarian',
-  clinicAdmin: 'Clinic Administrator',
-  receptionist: 'Receptionist',
-  appOwner: 'App Owner',
-  unknown: 'User',
+  petOwner: 'Cliente',
+  vet: 'Veterinária',
+  clinicAdmin: 'Administrador',
+  receptionist: 'Receção',
+  unknown: 'Utilizador',
 };
 
-const dateFmt = new Intl.DateTimeFormat(undefined, {
+const dateFmt = new Intl.DateTimeFormat('pt-PT', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
@@ -45,10 +42,7 @@ export function ProfileSettingsPage() {
     firebaseUser,
     profile,
     role,
-    connectedClinic,
     updateProfile,
-    connectToClinic,
-    disconnectFromClinic,
     deleteAccount,
     signOutUser,
   } = useAuth();
@@ -60,12 +54,11 @@ export function ProfileSettingsPage() {
   const meds = useAllMedications(uid);
   const symptoms = useAllSymptoms(uid);
 
-  const [theme, setTheme] = useTheme();
-
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [vet, setVet] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     setName(profile?.displayName ?? '');
@@ -73,13 +66,26 @@ export function ProfileSettingsPage() {
     setAddress(profile?.address ?? '');
   }, [profile]);
 
+  useEffect(() => {
+    const vetId = profile?.vetId;
+    if (!isOwner || !vetId) {
+      setVet(null);
+      return;
+    }
+    let active = true;
+    void getUserProfile(vetId).then((found) => {
+      if (active) setVet(found);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isOwner, profile?.vetId]);
+
   const dirty =
     name.trim() !== (profile?.displayName ?? '') ||
     phone.trim() !== (profile?.phone ?? '') ||
     address.trim() !== (profile?.address ?? '');
 
-  const [clinicDialogOpen, setClinicDialogOpen] = useState(false);
-  const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -101,18 +107,18 @@ export function ProfileSettingsPage() {
       if (pushEnabled) {
         await disablePush(uid);
         setPushEnabled(false);
-        toast.success('Notifications turned off');
+        toast.success('Notificações desligadas');
       } else {
         const token = await enablePush(uid);
         if (token) {
           setPushEnabled(true);
-          toast.success('Notifications enabled');
+          toast.success('Notificações ligadas');
         } else {
-          toast.error('Could not enable notifications. Check your browser permission.');
+          toast.error('Não foi possível ligar as notificações. Verifique a permissão do browser.');
         }
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not update notifications');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível atualizar as notificações');
     } finally {
       setPushBusy(false);
     }
@@ -129,31 +135,11 @@ export function ProfileSettingsPage() {
         phone: phone.trim(),
         address: address.trim(),
       });
-      toast.success('Profile updated');
+      toast.success('Perfil atualizado');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not update profile');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível atualizar o perfil');
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  const onConnect = async (clinic: Clinic) => {
-    try {
-      await connectToClinic(clinic.id);
-      toast.success(`Connected to ${clinic.name}`);
-      setClinicDialogOpen(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not connect');
-    }
-  };
-
-  const onDisconnect = async () => {
-    try {
-      await disconnectFromClinic();
-      toast.success('Disconnected from clinic');
-      setDisconnectOpen(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not disconnect');
     }
   };
 
@@ -161,16 +147,16 @@ export function ProfileSettingsPage() {
     setDeleting(true);
     try {
       await deleteAccount();
-      toast.success('Account deleted');
+      toast.success('Conta apagada');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not delete account');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível apagar a conta');
       setDeleting(false);
     }
   };
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader eyebrow="Account" title="Profile & settings" subtitle="Manage your account and preferences." />
+      <PageHeader eyebrow="Conta" title="Perfil" subtitle="Os seus dados e preferências." />
 
       {/* Identity + stats */}
       <Card className="mb-6">
@@ -184,56 +170,49 @@ export function ProfileSettingsPage() {
           </div>
           {isOwner && (
             <div className="flex gap-6">
-              <Stat icon={<PawPrint size={16} />} value={pets.length} label="Pets" />
-              <Stat icon={<Pill size={16} />} value={meds.length} label="Meds" />
-              <Stat icon={<Activity size={16} />} value={symptoms.length} label="Symptoms" />
+              <Stat icon={<PawPrint size={16} />} value={pets.length} label="Animais" />
+              <Stat icon={<Pill size={16} />} value={meds.length} label="Medicação" />
+              <Stat icon={<Activity size={16} />} value={symptoms.length} label="Sintomas" />
             </div>
           )}
         </CardBody>
       </Card>
 
       {/* Edit profile */}
-      <Section title="Profile">
+      <Section title="Dados">
         <Card>
           <CardBody className="space-y-4">
-            <TextField label="Display name" value={name} onChange={(e) => setName(e.target.value)} />
+            <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-              <TextField label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+              <TextField label="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <TextField label="Morada" value={address} onChange={(e) => setAddress(e.target.value)} />
             </div>
             <div className="flex justify-end">
               <Button disabled={!dirty} loading={savingProfile} onClick={() => void saveProfile()}>
-                Save changes
+                Guardar
               </Button>
             </div>
           </CardBody>
         </Card>
       </Section>
 
-      {/* Connected clinic (pet owners manage their own clinic link) */}
       {isOwner && (
-        <Section title="Clinic">
+        <Section title="Veterinária">
           <Card>
-            <CardBody className="flex flex-wrap items-center gap-4">
+            <CardBody className="flex flex-wrap items-start gap-4">
               <span className="flex h-10 w-10 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
-                <Building2 size={18} />
+                <Stethoscope size={18} />
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground">
-                  {connectedClinic?.name ?? 'No clinic connected'}
-                </p>
-                {connectedClinic?.address && (
-                  <p className="truncate text-sm text-muted-foreground">{connectedClinic.address}</p>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="font-medium text-foreground">{vet?.displayName || 'A sua veterinária'}</p>
+                {vet?.phone && <p className="text-sm text-muted-foreground">{vet.phone}</p>}
+                {vet?.address && (
+                  <p className="text-sm text-muted-foreground">{vet.address}</p>
                 )}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setClinicDialogOpen(true)}>
-                  {connectedClinic ? 'Change' : 'Connect'}
-                </Button>
-                {connectedClinic && (
-                  <Button variant="ghost" onClick={() => setDisconnectOpen(true)}>
-                    Disconnect
-                  </Button>
+                {!vet && (
+                  <p className="text-sm text-muted-foreground">
+                    A morada aparece aqui para as visitas ao domicílio.
+                  </p>
                 )}
               </div>
             </CardBody>
@@ -241,30 +220,8 @@ export function ProfileSettingsPage() {
         </Section>
       )}
 
-      {/* Preferences */}
-      <Section title="Appearance">
-        <Card>
-          <CardBody className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="font-medium text-foreground">Theme</p>
-              <p className="text-sm text-muted-foreground">Choose light, dark, or match your system.</p>
-            </div>
-            <select
-              aria-label="Theme"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as ThemeMode)}
-              className="h-11 w-40 rounded-(--radius-md) border border-input bg-card px-3.5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </CardBody>
-        </Card>
-      </Section>
-
       {/* Notifications */}
-      <Section title="Notifications">
+      <Section title="Notificações">
         <Card>
           <CardBody className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -272,15 +229,15 @@ export function ProfileSettingsPage() {
                 <Bell size={18} />
               </span>
               <div>
-                <p className="font-medium text-foreground">Push notifications</p>
+                <p className="font-medium text-foreground">Notificações</p>
                 <p className="text-sm text-muted-foreground">
                   {pushSupported === null
-                    ? 'Checking browser support…'
+                    ? 'A verificar o browser…'
                     : !pushSupported
-                      ? 'Not supported in this browser.'
+                      ? 'Este browser não suporta notificações.'
                       : pushPermission() === 'denied'
-                        ? 'Blocked in your browser settings — allow notifications to turn these on.'
-                        : 'Get alerts for new messages and appointment updates.'}
+                        ? 'Bloqueadas nas definições do browser. Autorize para as ligar.'
+                        : 'Avisos de mensagens novas e de marcações.'}
                 </p>
               </div>
             </div>
@@ -290,7 +247,7 @@ export function ProfileSettingsPage() {
                 loading={pushBusy}
                 onClick={() => void togglePush()}
               >
-                {pushEnabled ? 'Turn off' : 'Enable'}
+                {pushEnabled ? 'Desligar' : 'Ligar'}
               </Button>
             )}
           </CardBody>
@@ -298,13 +255,13 @@ export function ProfileSettingsPage() {
       </Section>
 
       {/* Account info */}
-      <Section title="Account">
+      <Section title="Conta">
         <Card>
           <CardBody className="space-y-3">
             <Row label="Email" value={profile?.email ?? '—'} />
-            <Row label="Account type" value={ROLE_LABEL[role]} />
+            <Row label="Tipo de conta" value={ROLE_LABEL[role]} />
             <Row
-              label="Member since"
+              label="Membro desde"
               value={profile?.createdAt ? dateFmt.format(profile.createdAt) : '—'}
             />
           </CardBody>
@@ -314,53 +271,25 @@ export function ProfileSettingsPage() {
       {/* Danger zone */}
       <div className="mt-8 flex flex-wrap gap-3">
         <Button variant="outline" onClick={() => void signOutUser()}>
-          <LogOut size={16} /> Sign out
+          <LogOut size={16} /> Terminar sessão
         </Button>
         <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-          <Trash2 size={16} /> Delete account
+          <Trash2 size={16} /> Apagar conta
         </Button>
       </div>
-
-      <ClinicConnectDialog
-        open={clinicDialogOpen}
-        onClose={() => setClinicDialogOpen(false)}
-        currentClinicId={connectedClinic?.id}
-        onPick={(c) => void onConnect(c)}
-      />
-
-      <Dialog
-        open={disconnectOpen}
-        onClose={() => setDisconnectOpen(false)}
-        title="Disconnect clinic"
-        description={
-          connectedClinic
-            ? `Disconnect from ${connectedClinic.name}? You can reconnect anytime.`
-            : ''
-        }
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setDisconnectOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={() => void onDisconnect()}>
-              Disconnect
-            </Button>
-          </>
-        }
-      />
 
       <Dialog
         open={deleteOpen}
         onClose={() => (deleting ? undefined : setDeleteOpen(false))}
-        title="Delete account"
-        description="This permanently deletes your profile and associated data. This cannot be undone."
+        title="Apagar conta"
+        description="Apaga o perfil e os dados associados. Não dá para desfazer."
         footer={
           <>
             <Button variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button variant="destructive" loading={deleting} onClick={() => void onDelete()}>
-              Delete account
+              Apagar conta
             </Button>
           </>
         }
@@ -403,83 +332,3 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ClinicConnectDialog({
-  open,
-  onClose,
-  currentClinicId,
-  onPick,
-}: {
-  open: boolean;
-  onClose: () => void;
-  currentClinicId?: string;
-  onPick: (clinic: Clinic) => void;
-}) {
-  const [q, setQ] = useState('');
-  const [results, setResults] = useState<Clinic[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    let active = true;
-    setLoading(true);
-    searchClinics(q)
-      .then((list) => {
-        if (active) setResults(list.filter((c) => c.id !== currentClinicId));
-      })
-      .catch(() => {
-        if (active) setResults([]);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [open, q, currentClinicId]);
-
-  return (
-    <Dialog open={open} onClose={onClose} title="Select a clinic">
-      <div className="space-y-3">
-        <div className="relative">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search clinics…"
-            className="h-11 w-full rounded-(--radius-md) border border-input bg-card pl-9 pr-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          />
-        </div>
-        <div className="max-h-72 space-y-2 overflow-y-auto">
-          {loading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Searching…</p>
-          ) : results.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No clinics found.</p>
-          ) : (
-            results.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onPick(c)}
-                className="flex w-full items-center gap-3 rounded-(--radius-md) border border-border p-3 text-left transition-colors hover:bg-secondary"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
-                  <Building2 size={16} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-foreground">{c.name}</span>
-                  {c.address && (
-                    <span className="block truncate text-xs text-muted-foreground">{c.address}</span>
-                  )}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    </Dialog>
-  );
-}

@@ -127,14 +127,14 @@ export async function deletePet(uid: string, petId: string): Promise<void> {
 
 /** Human-readable age from a birth date (mirrors dashboard_page getAge). */
 export function petAgeLabel(dob: Date | null): string {
-  if (!dob) return 'Age unknown';
+  if (!dob) return 'Idade desconhecida';
   const now = new Date();
   const days = Math.floor((now.getTime() - dob.getTime()) / 86_400_000);
   const years = Math.floor(days / 365);
   const months = Math.floor((days % 365) / 30);
-  if (years > 0) return `${years} ${years === 1 ? 'year' : 'years'}`;
-  if (months > 0) return `${months} ${months === 1 ? 'month' : 'months'}`;
-  return 'Less than a month';
+  if (years > 0) return `${years} ${years === 1 ? 'ano' : 'anos'}`;
+  if (months > 0) return `${months} ${months === 1 ? 'mês' : 'meses'}`;
+  return 'Menos de um mês';
 }
 
 /* --------------------------------- Symptoms --------------------------------- */

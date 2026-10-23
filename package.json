@@ -10,6 +10,12 @@
     "dev": "npm run dev --workspace apps/web-react",
     "build": "npm run build --workspace apps/web-react",
     "preview": "npm run preview --workspace apps/web-react",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "test:rules": "npm run test:rules --workspace @vetplus/web",
+    "create-vet": "node scripts/create-vet.mjs",
+    "deploy": "npm run deploy --workspace @vetplus/web"
+  },
+  "devDependencies": {
+    "firebase-admin": "~14.4.0"
   }
 }

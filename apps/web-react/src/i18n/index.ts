@@ -4,10 +4,10 @@ import { en } from './en';
 
 void i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: en },
+    'pt-PT': { translation: en },
   },
-  lng: 'en',
-  fallbackLng: 'en',
+  lng: 'pt-PT',
+  fallbackLng: 'pt-PT',
   interpolation: { escapeValue: false },
 });
 

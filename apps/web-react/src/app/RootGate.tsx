@@ -6,14 +6,11 @@ import { PageSpinner } from '@/components/Spinner';
 import { Placeholder } from '@/components/Placeholder';
 import { Button } from '@/components/ui/Button';
 import { isFirebaseConfigured } from '@/lib/env';
-import { isPetOwner } from '@vetplus/shared';
 import { AuthScreen } from '@/features/auth/AuthScreen';
 import { VerifyEmailScreen } from '@/features/auth/VerifyEmailScreen';
 import { DisplayNameScreen } from '@/features/auth/DisplayNameScreen';
-import { ClinicSelectionScreen } from '@/features/clinics/ClinicSelectionScreen';
 import { PetOwnerApp } from './PetOwnerApp';
 import { StaffApp } from './StaffApp';
-import { AppOwnerApp } from './AppOwnerApp';
 
 /**
  * Top-level routing gate. Mirrors the decision tree from the Flutter
@@ -21,10 +18,9 @@ import { AppOwnerApp } from './AppOwnerApp';
  *   not signed in            -> auth screens
  *   signed in, !verified     -> email verification
  *   profile loading / error  -> spinner / retry
- *   appOwner / clinicAdmin   -> dashboard
- *   vet / receptionist       -> display-name setup (if missing) -> home
- *   petOwner (no clinic)     -> clinic selection
- *   petOwner                 -> home
+ *   no profile               -> no-access error
+ *   vet                      -> display-name setup (if missing) -> home
+ *   petOwner (client)        -> home
  */
 export function RootGate() {
   const { t } = useTranslation();
@@ -37,6 +33,7 @@ export function RootGate() {
     profile,
     role,
     refreshProfile,
+    signOutUser,
   } = useAuth();
 
   const uid = firebaseUser?.uid;
@@ -50,8 +47,8 @@ export function RootGate() {
   if (!isFirebaseConfigured) {
     return (
       <Placeholder
-        title="Firebase not configured"
-        subtitle="Copy .env.example to .env.local and fill in the Web app config from the Firebase console (project: vetplus-digital), then restart the dev server."
+        title="Firebase não configurado"
+        subtitle="Copie .env.example para .env.local, preencha a config da app Web na consola Firebase (projeto: vetplus-digital) e reinicie o servidor."
       />
     );
   }
@@ -67,7 +64,12 @@ export function RootGate() {
           {t('errors.generic')}
         </h1>
         <p className="text-sm text-muted-foreground">{error}</p>
-        <Button onClick={() => void refreshProfile()}>{t('common.retry')}</Button>
+        <div className="flex gap-2">
+          <Button onClick={() => void refreshProfile()}>{t('common.retry')}</Button>
+          <Button variant="outline" onClick={() => void signOutUser()}>
+            Terminar sessão
+          </Button>
+        </div>
       </div>
     );
   }
@@ -76,36 +78,22 @@ export function RootGate() {
     return <PageSpinner />;
   }
 
-  // Staff must set a display name on first login.
-  if ((role === 'vet' || role === 'receptionist') && needsDisplayName(profile)) {
+  if (role === 'vet' && needsDisplayName(profile)) {
     return <DisplayNameScreen />;
-  }
-
-  // Pet owners pick a clinic (or skip) before reaching home.
-  if (
-    isPetOwner(profile) &&
-    !profile.connectedClinicId &&
-    !profile.hasSkippedClinicSelection
-  ) {
-    return <ClinicSelectionScreen />;
   }
 
   if (role === 'petOwner') {
     return <PetOwnerApp />;
   }
 
-  if (role === 'receptionist' || role === 'vet' || role === 'clinicAdmin') {
+  if (role === 'vet') {
     return <StaffApp />;
-  }
-
-  if (role === 'appOwner') {
-    return <AppOwnerApp />;
   }
 
   return (
     <Placeholder
-      title="Welcome"
-      subtitle="Your account isn't set up for a role yet. Contact support if this seems wrong."
+      title="Bem-vindo"
+      subtitle="Esta conta ainda não tem um papel definido. Contacte o suporte se isto parecer errado."
     />
   );
 }

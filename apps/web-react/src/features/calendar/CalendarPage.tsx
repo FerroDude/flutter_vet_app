@@ -54,11 +54,11 @@ import { PetPickerDialog } from '@/features/pets/PetPickerDialog';
 import { EventFormDialog } from './EventFormDialog';
 import { toast } from 'sonner';
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const dayHeadFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-const groupFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const monthFmt = new Intl.DateTimeFormat('pt-PT', { month: 'long', year: 'numeric' });
+const timeFmt = new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const dayHeadFmt = new Intl.DateTimeFormat('pt-PT', { weekday: 'long', month: 'long', day: 'numeric' });
+const groupFmt = new Intl.DateTimeFormat('pt-PT', { weekday: 'short', month: 'short', day: 'numeric' });
 
 type View = 'calendar' | 'appointments' | 'medications' | 'symptoms';
 type AddType = 'appointment' | 'medication' | 'symptom';
@@ -148,7 +148,7 @@ export function CalendarPage() {
   const startAdd = (t: AddType) => {
     setAddOpen(false);
     if (pets.length === 0) {
-      toast.message('Add a pet first');
+      toast.message('Adicione um animal primeiro');
       return;
     }
     if (t === 'appointment' && pets.length === 1 && pets[0]) {
@@ -163,18 +163,18 @@ export function CalendarPage() {
     const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours(), now.getMinutes());
     try {
       await logDoseTaken(uid, m.petId, m.id, at);
-      toast.success('Dose logged');
+      toast.success('Dose registada');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not log dose');
+      toast.error(e instanceof Error ? e.message : 'Não foi possível registar a dose');
     }
   };
 
   return (
     <div>
       <PageHeader
-        eyebrow="Schedule"
-        title="Calendar"
-        subtitle="Appointments, medications and symptoms for your pets."
+        eyebrow="Agenda"
+        title="Calendário"
+        subtitle="Consultas, medicação e sintomas dos seus animais."
         actions={
           <Button onClick={() => setAddOpen(true)}>
             <Plus size={18} /> Add
@@ -186,10 +186,10 @@ export function CalendarPage() {
         value={view}
         onChange={setView}
         options={[
-          { value: 'calendar', label: 'Calendar', icon: CalendarDays },
-          { value: 'appointments', label: 'Appointments', icon: Stethoscope },
-          { value: 'medications', label: 'Medications', icon: Pill },
-          { value: 'symptoms', label: 'Symptoms', icon: Activity },
+          { value: 'calendar', label: 'Calendário', icon: CalendarDays },
+          { value: 'appointments', label: 'Consultas', icon: Stethoscope },
+          { value: 'medications', label: 'Medicação', icon: Pill },
+          { value: 'symptoms', label: 'Sintomas', icon: Activity },
         ]}
       />
 
@@ -202,7 +202,7 @@ export function CalendarPage() {
                   {monthFmt.format(viewMonth)}
                 </h2>
                 <div className="flex items-center gap-1">
-                  <IconBtn onClick={() => shiftMonth(-1)} label="Previous month">
+                  <IconBtn onClick={() => shiftMonth(-1)} label="Mês anterior">
                     <ChevronLeft size={18} />
                   </IconBtn>
                   <button
@@ -214,9 +214,9 @@ export function CalendarPage() {
                     }}
                     className="rounded-(--radius-sm) px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary"
                   >
-                    Today
+                    Hoje
                   </button>
-                  <IconBtn onClick={() => shiftMonth(1)} label="Next month">
+                  <IconBtn onClick={() => shiftMonth(1)} label="Mês seguinte">
                     <ChevronRight size={18} />
                   </IconBtn>
                 </div>
@@ -275,11 +275,11 @@ export function CalendarPage() {
               </h2>
 
               {selectedMeds.length === 0 && selectedEvents.length === 0 && selectedSymptoms.length === 0 ? (
-                <EmptyState icon={<CalendarDays size={32} />} title="Nothing scheduled" description="Add something for this day." />
+                <EmptyState icon={<CalendarDays size={32} />} title="Nada marcado" description="Adicione algo a este dia." />
               ) : (
                 <div className="space-y-4">
                   {selectedMeds.length > 0 && (
-                    <Section title="Medications">
+                    <Section title="Medicação">
                       {selectedMeds.map((m) => {
                         const expected = dosesExpectedOnDate(m, selectedDay);
                         const taken = dosesTakenOnDate(m, selectedDay);
@@ -295,12 +295,12 @@ export function CalendarPage() {
                                 {petName.get(m.petId) ? ` · ${petName.get(m.petId)}` : ''}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
-                                {m.dosage} · {frequencyDisplay(m.frequency)} · {taken}/{expected} taken
+                                {m.dosage} · {frequencyDisplay(m.frequency)} · {taken}/{expected} tomadas
                               </p>
                             </div>
                             {!done && (
                               <Button variant="outline" className="h-8 px-3 text-xs" onClick={() => void logMedDose(m, selectedDay)}>
-                                <Check size={14} /> Log
+                                <Check size={14} /> Registar
                               </Button>
                             )}
                           </Card>
@@ -310,7 +310,7 @@ export function CalendarPage() {
                   )}
 
                   {selectedEvents.length > 0 && (
-                    <Section title="Events">
+                    <Section title="Eventos">
                       {selectedEvents.map((e) => (
                         <EventRow
                           key={e.id}
@@ -325,7 +325,7 @@ export function CalendarPage() {
                   )}
 
                   {selectedSymptoms.length > 0 && (
-                    <Section title="Symptoms">
+                    <Section title="Sintomas">
                       {selectedSymptoms.map((s) => (
                         <SymptomRow key={s.id} uid={uid} symptom={s} petName={petName.get(s.petId)} />
                       ))}
@@ -349,11 +349,11 @@ export function CalendarPage() {
       </div>
 
       {/* Add type chooser */}
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Add to calendar">
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Adicionar ao calendário">
         <div className="grid grid-cols-1 gap-2">
-          <AddChoice icon={<Stethoscope size={18} />} label="Appointment" onClick={() => startAdd('appointment')} />
-          <AddChoice icon={<Pill size={18} />} label="Medication" onClick={() => startAdd('medication')} />
-          <AddChoice icon={<Activity size={18} />} label="Symptom" onClick={() => startAdd('symptom')} />
+          <AddChoice icon={<Stethoscope size={18} />} label="Consulta" onClick={() => startAdd('appointment')} />
+          <AddChoice icon={<Pill size={18} />} label="Medicação" onClick={() => startAdd('medication')} />
+          <AddChoice icon={<Activity size={18} />} label="Sintoma" onClick={() => startAdd('symptom')} />
         </div>
       </Dialog>
 
@@ -430,7 +430,7 @@ function AppointmentsView({
     .filter((e) => e.type === EventType.appointment)
     .sort((a, b) => a.dateTime.getTime() - b.dateTime.getTime());
   if (appts.length === 0) {
-    return <EmptyState icon={<Stethoscope size={36} />} title="No appointments" />;
+    return <EmptyState icon={<Stethoscope size={36} />} title="Sem consultas" />;
   }
   const groups = groupByDay(appts, (e) => e.dateTime);
   return (
@@ -468,7 +468,7 @@ function MedicationsView({
   petName: Map<string, string>;
 }) {
   if (meds.length === 0) {
-    return <EmptyState icon={<Pill size={36} />} title="No medications" description="Add a medication from a pet or the Add button." />;
+    return <EmptyState icon={<Pill size={36} />} title="Sem medicação" description="Adicione medicação na ficha do animal ou no botão Adicionar." />;
   }
   const active = meds.filter(isActive);
   const past = meds.filter((m) => !isActive(m));
@@ -487,9 +487,9 @@ function MedicationsView({
   return (
     <div className="space-y-6">
       {active.length > 0 && (
-        <Section title="Active">{active.map(card)}</Section>
+        <Section title="Ativa">{active.map(card)}</Section>
       )}
-      {past.length > 0 && <Section title="Past">{past.map(card)}</Section>}
+      {past.length > 0 && <Section title="Passada">{past.map(card)}</Section>}
     </div>
   );
 }
@@ -504,7 +504,7 @@ function SymptomsView({
   petName: Map<string, string>;
 }) {
   if (symptoms.length === 0) {
-    return <EmptyState icon={<Activity size={36} />} title="No symptoms" />;
+    return <EmptyState icon={<Activity size={36} />} title="Sem sintomas" />;
   }
   const groups = groupByDay(symptoms, (s) => s.timestamp);
   return (
@@ -530,9 +530,9 @@ function SymptomsView({
 async function logDose(uid: string, m: Medication): Promise<void> {
   try {
     await logDoseTaken(uid, m.petId, m.id, new Date());
-    toast.success('Dose logged');
+    toast.success('Dose registada');
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : 'Could not log dose');
+    toast.error(e instanceof Error ? e.message : 'Não foi possível registar a dose');
   }
 }
 
@@ -590,16 +590,20 @@ function EventRow({
         </div>
         <div className="flex items-center gap-1">
           {event.type !== EventType.appointment && (
-            <button type="button" onClick={onToggle} className={cn('rounded-(--radius-sm) p-1.5 hover:bg-secondary', completed ? 'text-primary' : 'text-muted-foreground')} aria-label="Toggle done">
+            <button type="button" onClick={onToggle} className={cn('rounded-(--radius-sm) p-1.5 hover:bg-secondary', completed ? 'text-primary' : 'text-muted-foreground')} aria-label="Marcar como feito">
               <Check size={15} />
             </button>
           )}
-          <button type="button" onClick={onEdit} className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary" aria-label="Edit event">
-            <Pencil size={15} />
-          </button>
-          <button type="button" onClick={onDelete} className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive" aria-label="Delete event">
-            <Trash2 size={15} />
-          </button>
+          {!(event.type === EventType.appointment && event.bookedByVetId) && (
+            <>
+              <button type="button" onClick={onEdit} className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary" aria-label="Editar">
+                <Pencil size={15} />
+              </button>
+              <button type="button" onClick={onDelete} className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive" aria-label="Apagar">
+                <Trash2 size={15} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </Card>
@@ -623,7 +627,7 @@ function SymptomRow({ uid, symptom, petName }: { uid: string; symptom: PetSympto
           type="button"
           onClick={() => void deleteSymptom(uid, symptom.petId, symptom.id)}
           className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
-          aria-label="Delete symptom"
+          aria-label="Apagar sintoma"
         >
           <Trash2 size={15} />
         </button>

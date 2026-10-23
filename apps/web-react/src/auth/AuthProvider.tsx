@@ -12,9 +12,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   type UserProfile,
   type Clinic,
-  ClinicRole,
   UserType,
-  isAppOwner,
   isClinicAdmin,
   isVet,
   isReceptionist,
@@ -25,7 +23,6 @@ import * as svc from '@/lib/userService';
 import { resolveUserProfile } from './linking';
 
 export type Role =
-  | 'appOwner'
   | 'clinicAdmin'
   | 'vet'
   | 'receptionist'
@@ -64,9 +61,8 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 
 function resolveRole(profile: UserProfile | null): Role {
   if (!profile) return 'unknown';
-  if (isAppOwner(profile)) return 'appOwner';
-  if (isClinicAdmin(profile)) return 'clinicAdmin';
   if (isVet(profile)) return 'vet';
+  if (isClinicAdmin(profile)) return 'clinicAdmin';
   if (isReceptionist(profile)) return 'receptionist';
   if (isPetOwner(profile)) return 'petOwner';
   return 'unknown';
@@ -101,28 +97,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileLoading(true);
       setError(null);
       try {
-        let resolved = await resolveUserProfile(user);
-
-        // Clinic admins without a linked clinic: discover by ownership.
-        if (resolved && isClinicAdmin(resolved) && !resolved.connectedClinicId) {
-          const owned = await svc.findClinicByAdmin(resolved.id);
-          if (owned) {
-            resolved = {
-              ...resolved,
-              connectedClinicId: owned.id,
-              clinicRole: ClinicRole.admin,
-              updatedAt: new Date(),
-            };
-            await svc.updateUserProfile(resolved);
-          }
-        }
-
+        const resolved = await resolveUserProfile(user);
         if (seq !== loadSeq.current) return; // superseded by a newer load
+        if (!resolved) {
+          setError('Esta conta não tem acesso. Peça à sua veterinária para a adicionar.');
+          setProfile(null);
+          return;
+        }
         setProfile(resolved);
         await loadConnectedClinic(resolved?.connectedClinicId);
       } catch (e) {
         if (seq === loadSeq.current) {
-          setError(e instanceof Error ? e.message : 'Failed to load profile');
+          setError(e instanceof Error ? e.message : 'Não foi possível carregar o perfil');
           setProfile(null);
         }
       } finally {

@@ -416,16 +416,13 @@ export function nextDoseDescription(m: Medication, now: Date = new Date()): stri
   const daysUntil = diffDays(next, now);
 
   if (daysUntil === 0) {
-    const hour = next.getHours();
-    const minute = next.getMinutes();
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    const displayMinute = `${minute}`.padStart(2, '0');
-    return `Next: Today at ${displayHour}:${displayMinute} ${period}`;
+    const hour = `${next.getHours()}`.padStart(2, '0');
+    const minute = `${next.getMinutes()}`.padStart(2, '0');
+    return `Próxima: hoje às ${hour}:${minute}`;
   } else if (daysUntil === 1) {
-    return 'Next: Tomorrow';
+    return 'Próxima: amanhã';
   }
-  return `Next: In ${daysUntil} days`;
+  return `Próxima: daqui a ${daysUntil} dias`;
 }
 
 /* ------------------------------- display / edit ---------------------------- */
@@ -433,17 +430,17 @@ export function nextDoseDescription(m: Medication, now: Date = new Date()): stri
 export function frequencyDisplay(frequency: MedicationFrequency): string {
   switch (frequency) {
     case MedicationFrequency.once:
-      return 'One time';
+      return 'Uma vez';
     case MedicationFrequency.daily:
-      return 'Once daily';
+      return 'Uma vez por dia';
     case MedicationFrequency.twiceDaily:
-      return 'Twice daily';
+      return 'Duas vezes por dia';
     case MedicationFrequency.threeTimesDaily:
-      return '3 times daily';
+      return 'Três vezes por dia';
     case MedicationFrequency.weekly:
-      return 'Weekly';
+      return 'Semanal';
     case MedicationFrequency.asNeeded:
-      return 'As needed';
+      return 'Quando necessário';
   }
 }
 
@@ -473,31 +470,31 @@ export function extendBy(
 export function todayDoseStatus(m: Medication, now: Date = new Date()): string {
   if (!hasStarted(m, now)) {
     const days = daysUntilStart(m, now);
-    if (days === 1) return 'Starts tomorrow';
-    return `Starts in ${days} days`;
+    if (days === 1) return 'Começa amanhã';
+    return `Começa daqui a ${days} dias`;
   }
 
   if (hasEnded(m, now)) {
-    if (endedIncomplete(m, now)) return `Course ended • ${missedDoses(m, now)} missed`;
-    return 'Course completed';
+    if (endedIncomplete(m, now)) return `Tratamento terminou · ${missedDoses(m, now)} em falta`;
+    return 'Tratamento concluído';
   }
 
   if (m.frequency === MedicationFrequency.asNeeded) {
     const taken = dosesTakenToday(m, now);
-    return taken > 0 ? `${taken} dose${taken === 1 ? '' : 's'} taken today` : 'Take as needed';
+    return taken > 0 ? `${taken} ${taken === 1 ? 'dose tomada' : 'doses tomadas'} hoje` : 'Tomar quando necessário';
   }
   if (m.frequency === MedicationFrequency.once) {
-    return totalDosesTaken(m) >= 1 ? 'Completed' : 'Not yet taken';
+    return totalDosesTaken(m) >= 1 ? 'Concluída' : 'Ainda não tomada';
   }
   if (m.frequency === MedicationFrequency.weekly && dosesExpectedToday(m, now) === 0) {
-    return 'No dose today';
+    return 'Sem dose hoje';
   }
   if (allDosesTakenToday(m, now)) {
-    if (isBehindSchedule(m, now)) return `Done today • ${missedDoses(m, now)} missed overall`;
-    return 'All doses taken today';
+    if (isBehindSchedule(m, now)) return `Feito hoje · ${missedDoses(m, now)} em falta no total`;
+    return 'Doses de hoje tomadas';
   }
 
   const remaining = dosesExpectedToday(m, now) - dosesTakenToday(m, now);
-  if (isBehindSchedule(m, now)) return `${missedDoses(m, now)} missed • ${remaining} due today`;
-  return `${dosesTakenToday(m, now)} of ${dosesExpectedToday(m, now)} taken today`;
+  if (isBehindSchedule(m, now)) return `${missedDoses(m, now)} em falta · ${remaining} para hoje`;
+  return `${dosesTakenToday(m, now)} de ${dosesExpectedToday(m, now)} tomadas hoje`;
 }
