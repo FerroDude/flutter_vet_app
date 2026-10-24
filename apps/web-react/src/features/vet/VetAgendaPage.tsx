@@ -12,14 +12,19 @@ import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import {
   REQUEST_STATUS,
   TIME_PREFERENCE_LABEL,
+  TIME_WINDOW,
   dateTimeFmt,
   dayHeadFmt,
   dayKey,
+  dayShortFmt,
   errorMessage,
   preferredRange,
+  sameDay,
   startOfDay,
   timeFmt,
+  timePreferenceText,
 } from '@/lib/format';
+import { defaultRequestSlot, requestWindowError } from '@/lib/requestWindow';
 import { cn } from '@/lib/cn';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -350,7 +355,8 @@ function AnswerDialog({
 }) {
   const r = answering?.request;
   const isConfirm = answering?.mode === 'confirm';
-  const [when, setWhen] = useState('');
+  const [day, setDay] = useState('');
+  const [time, setTime] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [lastId, setLastId] = useState<string | null>(null);
@@ -361,19 +367,24 @@ function AnswerDialog({
     setLastId(key);
     setMessage('');
     if (r) {
-      const d = new Date(r.preferredDateStart);
-      if (d.getHours() === 0) d.setHours(9, 0, 0, 0);
-      setWhen(toLocalInput(d));
+      const s = toLocalInput(defaultRequestSlot(r));
+      setDay(s.slice(0, 10));
+      setTime(s.slice(11));
     }
   }
+
+  const timeWindow = r ? TIME_WINDOW[r.timePreference] : null;
+  const windowPassed = r ? startOfDay(r.preferredDateEnd).getTime() < startOfDay(new Date()).getTime() : false;
 
   const submit = async () => {
     if (!r) return;
     setBusy(true);
     try {
       if (isConfirm) {
-        const dateTime = new Date(when);
-        if (!when || Number.isNaN(dateTime.getTime())) throw new Error('Escolha a data e a hora.');
+        const dateTime = new Date(`${day}T${time || '00:00'}`);
+        if (!day || !time || Number.isNaN(dateTime.getTime())) throw new Error('Escolha a data e a hora.');
+        const werr = requestWindowError(r, dateTime);
+        if (werr) throw new Error(werr);
         await confirmRequest({ request: r, vetId, vetName, dateTime, message: message.trim() || null });
         toast.success('Pedido confirmado. Já está no calendário do cliente.');
       } else {
@@ -397,7 +408,7 @@ function AnswerDialog({
       description={
         r
           ? isConfirm
-            ? `Escolha a hora para ${r.petName}. Fica no calendário do cliente.`
+            ? `Escolha a hora para ${r.petName}.`
             : `Recusar a marcação de ${r.petName}. Indique o motivo.`
           : undefined
       }
@@ -406,15 +417,53 @@ function AnswerDialog({
           <Button variant="outline" disabled={busy} onClick={onClose}>
             Cancelar
           </Button>
-          <Button variant={isConfirm ? 'primary' : 'destructive'} loading={busy} onClick={() => void submit()}>
+          <Button
+            variant={isConfirm ? 'primary' : 'destructive'}
+            loading={busy}
+            disabled={isConfirm && windowPassed}
+            onClick={() => void submit()}
+          >
             {isConfirm ? 'Confirmar' : 'Recusar pedido'}
           </Button>
         </>
       }
     >
       <div className="space-y-3">
-        {isConfirm && (
-          <TextField label="Data e hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+        {isConfirm && r && (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Pedido:{' '}
+              {sameDay(r.preferredDateStart, r.preferredDateEnd)
+                ? dayShortFmt.format(r.preferredDateStart)
+                : `${dayShortFmt.format(r.preferredDateStart)} – ${dayShortFmt.format(r.preferredDateEnd)}`}{' '}
+              · {timePreferenceText(r.timePreference)}
+            </p>
+            {windowPassed ? (
+              <p className="text-sm text-muted-foreground">
+                O intervalo pedido já passou. Recuse e sugira outra data.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextField
+                  label="Dia"
+                  type="date"
+                  min={toLocalInput(r.preferredDateStart).slice(0, 10)}
+                  max={toLocalInput(r.preferredDateEnd).slice(0, 10)}
+                  value={day}
+                  onChange={(e) => setDay(e.target.value)}
+                />
+                <TextField
+                  label="Hora"
+                  type="time"
+                  step={900}
+                  min={timeWindow ? `${`${timeWindow[0]}`.padStart(2, '0')}:00` : undefined}
+                  max={timeWindow ? `${`${timeWindow[1]}`.padStart(2, '0')}:00` : undefined}
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </div>
+            )}
+          </>
         )}
         <Textarea
           label={isConfirm ? 'Nota para o cliente (opcional)' : 'Motivo'}

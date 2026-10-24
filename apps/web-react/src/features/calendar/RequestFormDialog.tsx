@@ -3,18 +3,19 @@ import { toast } from 'sonner';
 import { TimePreference } from '@vetplus/shared';
 import { type Pet } from '@/lib/petService';
 import { createRequest } from '@/lib/appointmentRequestService';
+import { timePreferenceText } from '@/lib/format';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 
-const TIME_PREFERENCES: { value: TimePreference; label: string }[] = [
-  { value: TimePreference.anyTime, label: 'Qualquer hora' },
-  { value: TimePreference.morning, label: 'Manhã (8h – 12h)' },
-  { value: TimePreference.afternoon, label: 'Tarde (12h – 17h)' },
-  { value: TimePreference.evening, label: 'Noite (17h – 20h)' },
-];
+const TIME_PREFERENCES = [
+  TimePreference.anyTime,
+  TimePreference.morning,
+  TimePreference.afternoon,
+  TimePreference.evening,
+].map((value) => ({ value, label: timePreferenceText(value) }));
 
 function toDateInput(d: Date): string {
   const pad = (n: number) => `${n}`.padStart(2, '0');

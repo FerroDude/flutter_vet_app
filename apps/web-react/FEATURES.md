@@ -32,7 +32,7 @@ Menu: Painel · Animais · Agenda · Chat · Perfil.
 
 - **Painel**: greeting, unread messages, upcoming appointments (next 3), up to 3 active medications, today's entries. Pets live only in the Animais tab.
 - **Animais**: pet list and search; pet form (create/edit); pet page with record, medications (log/undo dose, pause, complete, delete), appointments and symptoms.
-- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit; "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat.
+- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit (date interval + time of day); the vet confirms only inside that requested window. "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat.
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
 - **Perfil**: name, phone, address; the vet's contact details; sign out.
 
