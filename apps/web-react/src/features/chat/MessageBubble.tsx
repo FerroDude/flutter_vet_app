@@ -1,3 +1,4 @@
+import { useRef, type Ref } from 'react';
 import {
   Check,
   CheckCheck,
@@ -11,13 +12,14 @@ import {
 import { type ChatMessage, MessageType, MessageStatus } from '@vetplus/shared';
 import { cn } from '@/lib/cn';
 import { timeFmt } from '@/lib/format';
-import { Menu, type MenuItem } from '@/components/ui/Menu';
+import { Menu, type MenuHandle, type MenuItem } from '@/components/ui/Menu';
 import {
   parseReply,
   parseReactions,
   REACTION_EMOJIS,
 } from '@/lib/chatService';
 import { useSwipeReply } from './useSwipeReply';
+import { useLongPress } from './useLongPress';
 
 export function typeLabel(type: MessageType): string {
   switch (type) {
@@ -61,7 +63,37 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const reply = m.isDeleted ? null : parseReply(m);
   const reactions = m.isDeleted ? [] : parseReactions(m);
+  const menuRef = useRef<MenuHandle | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
   const swipe = useSwipeReply(() => onReply(m));
+  // Touch devices: long-press opens the ⋯ menu anchored on the bubble.
+  const longPress = useLongPress(() => {
+    const r = bubbleRef.current?.getBoundingClientRect();
+    if (r) menuRef.current?.openAt(r);
+  });
+  const hoverNone =
+    typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
+  const rowHandlers = m.isDeleted
+    ? {}
+    : {
+        onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+          swipe.handlers.onPointerDown(e);
+          longPress.onPointerDown(e);
+        },
+        onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+          swipe.handlers.onPointerMove(e);
+          longPress.onPointerMove(e);
+        },
+        onPointerUp: () => {
+          swipe.handlers.onPointerUp();
+          longPress.onPointerUp();
+        },
+        onPointerCancel: () => {
+          swipe.handlers.onPointerCancel();
+          longPress.onPointerCancel();
+        },
+      };
+  const actionsProps = { onReply, onCopy, onReact, onDelete, menuRef };
 
   const bubbleTone = m.isDeleted
     ? 'bg-secondary text-muted-foreground italic'
@@ -73,8 +105,11 @@ export function MessageBubble({
   const bubble = (
     <div
       id={`msg-${m.id}`}
+      ref={bubbleRef}
+      onContextMenu={hoverNone ? (e) => e.preventDefault() : undefined}
       className={cn(
         'relative rounded-[18px] text-sm transition-shadow',
+        hoverNone && 'select-none',
         isMediaType(m.type) && !m.isDeleted ? 'p-1' : 'px-3.5 py-2 leading-relaxed',
         bubbleTone,
         groupStart && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
@@ -161,7 +196,7 @@ export function MessageBubble({
         style={{ opacity: Math.min(swipe.offset / 60, 1) }}
       />
       <div
-        {...(m.isDeleted ? {} : swipe.handlers)}
+        {...rowHandlers}
         style={{
           transform: `translateX(${swipe.offset}px)`,
           transition: swipe.dragging ? 'none' : 'transform 200ms',
@@ -172,29 +207,11 @@ export function MessageBubble({
           reactions.length > 0 && 'mb-3',
         )}
       >
-        {mine && !m.isDeleted && (
-          <MessageActions
-            mine={mine}
-            message={m}
-            onReply={onReply}
-            onCopy={onCopy}
-            onReact={onReact}
-            onDelete={onDelete}
-          />
-        )}
+        {mine && !m.isDeleted && <MessageActions mine={mine} message={m} {...actionsProps} />}
         <div className={cn('flex max-w-[80%] flex-col sm:max-w-[75%] lg:max-w-[65%]', mine ? 'items-end' : 'items-start')}>
           {bubble}
         </div>
-        {!mine && !m.isDeleted && (
-          <MessageActions
-            mine={mine}
-            message={m}
-            onReply={onReply}
-            onCopy={onCopy}
-            onReact={onReact}
-            onDelete={onDelete}
-          />
-        )}
+        {!mine && !m.isDeleted && <MessageActions mine={mine} message={m} {...actionsProps} />}
       </div>
     </div>
   );
@@ -260,6 +277,7 @@ function MessageActions({
   onCopy,
   onReact,
   onDelete,
+  menuRef,
 }: {
   mine: boolean;
   message: ChatMessage;
@@ -267,6 +285,7 @@ function MessageActions({
   onCopy: (m: ChatMessage) => void;
   onReact: (m: ChatMessage, emoji: string) => void;
   onDelete: (m: ChatMessage) => void;
+  menuRef: Ref<MenuHandle>;
 }) {
   const items: MenuItem[] = [
     { label: 'Responder', icon: <CornerUpLeft size={14} />, onClick: () => onReply(m) },
@@ -278,21 +297,23 @@ function MessageActions({
       : []),
   ];
   return (
-    <div className="flex items-center gap-0.5 self-center">
+    // Hidden entirely on touch devices — long-press opens the same menu.
+    <div className="flex items-center gap-0.5 self-center [@media(hover:none)]:hidden">
       <button
         type="button"
         aria-label="Responder"
         onClick={() => onReply(m)}
-        className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100"
+        className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
       >
         <CornerUpLeft size={15} />
       </button>
       <Menu
+        ref={menuRef}
         label="Ações da mensagem"
         trigger={<MoreHorizontal size={16} />}
         align={mine ? 'right' : 'left'}
         items={items}
-        triggerClassName="h-7 w-7 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+        triggerClassName="h-7 w-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
         header={(close) => (
           <>
             <div className="flex justify-around px-1 pb-1">
