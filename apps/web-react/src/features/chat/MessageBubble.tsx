@@ -108,7 +108,7 @@ export function MessageBubble({
       ref={bubbleRef}
       onContextMenu={hoverNone ? (e) => e.preventDefault() : undefined}
       className={cn(
-        'relative rounded-[18px] text-sm transition-shadow',
+        'relative max-w-full min-w-0 rounded-[18px] text-sm transition-shadow',
         hoverNone && 'select-none',
         isMediaType(m.type) && !m.isDeleted ? 'p-1' : 'px-3.5 py-2 leading-relaxed',
         bubbleTone,
@@ -130,7 +130,7 @@ export function MessageBubble({
           type="button"
           onClick={() => onJumpToReply(reply.id)}
           className={cn(
-            'mb-1.5 flex w-full flex-col gap-0.5 rounded-(--radius-sm) border-l-2 px-2 py-1 text-left',
+            'mb-1.5 flex w-full min-w-0 flex-col gap-0.5 rounded-(--radius-sm) border-l-2 px-2 py-1 text-left',
             mine
               ? 'border-primary-foreground/60 bg-primary-foreground/15'
               : 'border-primary bg-foreground/5',
@@ -146,7 +146,7 @@ export function MessageBubble({
           </span>
           <span
             className={cn(
-              'truncate text-[11px]',
+              'line-clamp-2 text-[11px] break-words',
               mine ? 'text-primary-foreground/75' : 'text-muted-foreground',
             )}
           >
@@ -208,7 +208,7 @@ export function MessageBubble({
         )}
       >
         {mine && !m.isDeleted && <MessageActions mine={mine} message={m} {...actionsProps} />}
-        <div className={cn('flex max-w-[80%] flex-col sm:max-w-[75%] lg:max-w-[65%]', mine ? 'items-end' : 'items-start')}>
+        <div className={cn('flex min-w-0 max-w-[80%] flex-col sm:max-w-[75%] lg:max-w-[65%]', mine ? 'items-end' : 'items-start')}>
           {bubble}
         </div>
         {!mine && !m.isDeleted && <MessageActions mine={mine} message={m} {...actionsProps} />}
