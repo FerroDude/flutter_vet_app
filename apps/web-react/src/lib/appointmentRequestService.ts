@@ -24,6 +24,7 @@ import {
 import { db } from './firebase';
 import { useCollection } from './useFirestore';
 import { appointmentTitle, vetAppointmentWrite } from './eventService';
+import { requestWindowError } from './requestWindow';
 
 const requestsCol = () => collection(db, 'appointmentRequests');
 const requestDoc = (id: string) => doc(db, 'appointmentRequests', id);
@@ -120,6 +121,9 @@ export async function confirmRequest(args: {
   message?: string | null;
 }): Promise<void> {
   const r = args.request;
+  // UI-only guard: confirmations stay inside the client's requested window.
+  const windowError = requestWindowError(r, args.dateTime);
+  if (windowError) throw new Error(windowError);
   const event = vetAppointmentWrite({
     id: r.calendarEventId,
     clientId: r.petOwnerId,

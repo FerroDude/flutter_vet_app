@@ -43,6 +43,20 @@ export const TIME_PREFERENCE_LABEL: Record<TimePreference, string> = {
   [TimePreference.evening]: 'Noite',
 };
 
+/** Hour window [from, to) each time preference covers; null = any time. */
+export const TIME_WINDOW: Record<TimePreference, [number, number] | null> = {
+  [TimePreference.anyTime]: null,
+  [TimePreference.morning]: [8, 12],
+  [TimePreference.afternoon]: [12, 17],
+  [TimePreference.evening]: [17, 20],
+};
+
+/** "Qualquer hora" | "Manhã (8h – 12h)" | "Tarde (12h – 17h)" | "Noite (17h – 20h)" */
+export function timePreferenceText(p: TimePreference): string {
+  const w = TIME_WINDOW[p];
+  return w ? `${TIME_PREFERENCE_LABEL[p]} (${w[0]}h – ${w[1]}h)` : TIME_PREFERENCE_LABEL[p];
+}
+
 export const REQUEST_STATUS: Record<AppointmentRequestStatus, { label: string; classes: string }> = {
   [AppointmentRequestStatus.pending]: { label: 'Pendente', classes: 'bg-warning/15 text-warning' },
   [AppointmentRequestStatus.confirmed]: { label: 'Confirmado', classes: 'bg-primary-light text-primary' },
