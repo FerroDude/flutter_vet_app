@@ -6,6 +6,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { DateTimeField } from '@/components/ui/TimeField';
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => `${n}`.padStart(2, '0');
@@ -69,18 +70,7 @@ export function SymptomFormDialog({ open, onClose, uid, petId, petName, defaultD
             </option>
           ))}
         </Select>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="symptom-when" className="text-sm font-medium text-foreground">
-            Quando
-          </label>
-          <input
-            id="symptom-when"
-            type="datetime-local"
-            value={when}
-            onChange={(e) => setWhen(e.target.value)}
-            className="h-11 w-full rounded-(--radius-md) border border-input bg-card px-3.5 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
-          />
-        </div>
+        <DateTimeField label="Quando" value={when} onChange={setWhen} />
         <Textarea
           label="Nota (opcional)"
           value={note}

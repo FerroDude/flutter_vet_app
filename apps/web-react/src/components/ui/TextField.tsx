@@ -7,7 +7,7 @@ interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   hint?: string;
 }
 
-const inputBase =
+export const inputBase =
   'h-11 w-full rounded-(--radius-md) border bg-card px-3.5 text-sm text-foreground ' +
   'placeholder:text-muted-foreground/70 transition-colors ' +
   'focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring';

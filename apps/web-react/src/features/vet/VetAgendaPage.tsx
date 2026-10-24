@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TextField } from '@/components/ui/TextField';
+import { TimeField } from '@/components/ui/TimeField';
 import { Textarea } from '@/components/ui/Textarea';
 import { MonthGrid } from '@/components/ui/MonthGrid';
 import { useConfirm } from '@/components/ui/Confirm';
@@ -472,14 +473,13 @@ function AnswerDialog({
                   value={day}
                   onChange={(e) => setDay(e.target.value)}
                 />
-                <TextField
+                <TimeField
                   label="Hora"
-                  type="time"
-                  step={900}
-                  min={timeWindow ? `${`${timeWindow[0]}`.padStart(2, '0')}:00` : undefined}
-                  max={timeWindow ? `${`${timeWindow[1]}`.padStart(2, '0')}:00` : undefined}
+                  minuteStep={15}
+                  minHour={timeWindow?.[0] ?? 0}
+                  maxHour={timeWindow?.[1] ?? 23}
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  onChange={setTime}
                 />
               </div>
             )}
