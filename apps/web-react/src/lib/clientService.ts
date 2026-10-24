@@ -67,6 +67,7 @@ export async function addClientByEmail(args: {
     clinicRole: null,
     phone: null,
     address: null,
+    postalCode: null,
     hasSkippedClinicSelection: true,
     mustChangePassword: false,
     createdAt: now,

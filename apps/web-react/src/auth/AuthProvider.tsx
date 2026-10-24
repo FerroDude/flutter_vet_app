@@ -19,6 +19,7 @@ interface ProfileUpdate {
   displayName?: string;
   phone?: string | null;
   address?: string | null;
+  postalCode?: string | null;
 }
 
 interface AuthState {
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: fields.displayName ?? profile.displayName,
         phone: fields.phone !== undefined ? fields.phone : profile.phone,
         address: fields.address !== undefined ? fields.address : profile.address,
+        postalCode: fields.postalCode !== undefined ? fields.postalCode : profile.postalCode,
         updatedAt: new Date(),
       };
       await updateUserProfile(updated);
