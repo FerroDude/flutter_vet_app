@@ -205,17 +205,17 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <TextField
             label="Data de início"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <span className="text-sm font-medium text-foreground">Duração</span>
-            <div className="flex h-11 items-center gap-2">
-              <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex h-11 min-w-0 items-center gap-2">
+              <label className="inline-flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={ongoing}
@@ -230,11 +230,11 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   min={1}
                   value={totalDays}
                   onChange={(e) => setTotalDays(e.target.value)}
-                  className="h-11 w-24 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
+                  className="h-11 w-full min-w-0 max-w-24 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
                   aria-label="Dias no total"
                 />
               )}
-              {!ongoing && <span className="text-sm text-muted-foreground">dias</span>}
+              {!ongoing && <span className="shrink-0 text-sm text-muted-foreground">dias</span>}
             </div>
           </div>
         </div>
