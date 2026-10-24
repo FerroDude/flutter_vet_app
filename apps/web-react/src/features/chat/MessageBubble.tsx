@@ -75,7 +75,7 @@ export function MessageBubble({
       id={`msg-${m.id}`}
       className={cn(
         'relative rounded-[18px] text-sm transition-shadow',
-        isMediaType(m.type) && !m.isDeleted ? 'p-1' : 'px-2.5 py-1.5',
+        isMediaType(m.type) && !m.isDeleted ? 'p-1' : 'px-3.5 py-2 leading-relaxed',
         bubbleTone,
         groupStart && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
       )}
@@ -229,7 +229,7 @@ function BubbleBody({ m, mine }: { m: ChatMessage; mine: boolean }) {
         <span className="whitespace-pre-wrap break-words">{m.content}</span>
         {/* invisible spacer keeps the last line clear of the absolute meta */}
         <span aria-hidden className={cn('inline-block h-3 align-bottom', mine ? 'w-14' : 'w-10')} />
-        <Meta m={m} mine={mine} className="absolute right-2.5 bottom-1" />
+        <Meta m={m} mine={mine} className="absolute right-3.5 bottom-1.5" />
       </>
     );
   }

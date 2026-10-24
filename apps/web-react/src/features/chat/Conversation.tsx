@@ -317,7 +317,7 @@ export function Conversation({ roomId }: { roomId: string }) {
                     mine={m.senderId === uid}
                     uid={uid}
                     groupStart={!grouped}
-                    className={i === 0 && !showDay ? '' : grouped ? 'mt-0.5' : 'mt-3'}
+                    className={i === 0 && !showDay ? '' : grouped ? 'mt-1.5' : 'mt-4'}
                     onReply={onReply}
                     onCopy={onCopy}
                     onReact={onReact}
