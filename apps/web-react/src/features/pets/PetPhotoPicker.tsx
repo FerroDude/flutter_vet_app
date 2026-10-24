@@ -44,18 +44,15 @@ export function PetPhotoPicker({ photoUrl, photo, name, onPick, onRemove, disabl
           <PawPrint size={32} className="text-primary/70" />
         )}
       </div>
-      <div className="space-y-2">
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={disabled} onClick={() => inputRef.current?.click()}>
-            {src ? 'Mudar foto' : 'Escolher foto'}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" disabled={disabled} onClick={() => inputRef.current?.click()}>
+          {src ? 'Mudar foto' : 'Escolher foto'}
+        </Button>
+        {src && (
+          <Button type="button" variant="ghost" disabled={disabled} onClick={onRemove}>
+            Remover
           </Button>
-          {src && (
-            <Button type="button" variant="ghost" disabled={disabled} onClick={onRemove}>
-              Remover
-            </Button>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">Escolha a parte da foto que quer mostrar.</p>
+        )}
       </div>
       <input
         ref={inputRef}

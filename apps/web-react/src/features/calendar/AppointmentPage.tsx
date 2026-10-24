@@ -132,19 +132,12 @@ export function AppointmentPage() {
         </CardBody>
       </Card>
 
-      {canCancel ? (
+      {canCancel && (
         <div className="mt-6 border-t border-border pt-6">
           <Button variant="destructive" onClick={() => setCancelOpen(true)}>
             Cancelar consulta
           </Button>
         </div>
-      ) : (
-        !appt.bookedByVetId &&
-        !cancelled && (
-          <p className="mt-6 text-sm text-muted-foreground">
-            Esta entrada foi criada por si. Pode editá-la ou apagá-la na agenda.
-          </p>
-        )
       )}
 
       <Dialog

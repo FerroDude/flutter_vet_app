@@ -124,7 +124,7 @@ export function ClientsPage() {
         open={addOpen}
         onClose={() => (adding ? undefined : setAddOpen(false))}
         title="Adicionar cliente"
-        description="Recebe um email para definir a palavra-passe. Depois pode enviar mensagens e pedir marcações."
+        description="Recebe um email para definir a palavra-passe."
         footer={
           <>
             <Button variant="outline" disabled={adding} onClick={() => setAddOpen(false)}>
