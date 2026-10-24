@@ -118,8 +118,8 @@ export function Dots({ colors, selected }: { colors: string[]; selected: boolean
   if (colors.length === 0) return null;
   return (
     <span className="mt-0.5 flex h-1.5 gap-0.5">
-      {colors.map((c) => (
-        <span key={c} className={cn('h-1.5 w-1.5 rounded-full', selected ? 'bg-primary-foreground' : c)} />
+      {colors.slice(0, 4).map((c, i) => (
+        <span key={i} className={cn('h-1.5 w-1.5 rounded-full', selected ? 'bg-primary-foreground' : c)} />
       ))}
     </span>
   );

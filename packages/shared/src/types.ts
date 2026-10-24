@@ -27,6 +27,7 @@ export interface UserProfile {
   clinicRole?: ClinicRole | null;
   phone?: string | null;
   address?: string | null;
+  postalCode?: string | null;
   hasSkippedClinicSelection: boolean;
   mustChangePassword: boolean;
   createdAt: Date;

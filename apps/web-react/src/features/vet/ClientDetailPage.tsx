@@ -20,7 +20,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { db } from '@/lib/firebase';
 import { useDoc, useCollection } from '@/lib/useFirestore';
 import { clientLabel, mapClient } from '@/lib/clientService';
-import { dateTimeFmt, errorMessage } from '@/lib/format';
+import { dateTimeFmt, errorMessage, fullAddress } from '@/lib/format';
 import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
@@ -126,10 +126,10 @@ export function ClientDetailPage() {
                     <Phone size={15} className="shrink-0" /> {owner.phone}
                   </a>
                 )}
-                {owner.address && (
+                {fullAddress(owner) && (
                   <span className="flex min-w-0 items-start gap-2 text-muted-foreground">
                     <MapPin size={15} className="mt-0.5 shrink-0" />
-                    <span className="break-words">{owner.address}</span>
+                    <span className="break-words">{fullAddress(owner)}</span>
                   </span>
                 )}
               </div>

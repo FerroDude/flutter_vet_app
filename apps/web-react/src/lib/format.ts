@@ -30,6 +30,17 @@ export const dayKey = (d: Date): string => `${d.getFullYear()}-${d.getMonth()}-$
 export const sameDay = (a: Date, b: Date): boolean => dayKey(a) === dayKey(b);
 export const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+/** "Rua X 1, 1000-001 Lisboa" — joins non-empty address parts. */
+export function fullAddress(p: {
+  address?: string | null;
+  postalCode?: string | null;
+}): string {
+  return [p.address, p.postalCode]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 /** "Bom dia" / "Boa tarde" / "Boa noite" */
 export function greeting(now = new Date()): string {
   const h = now.getHours();

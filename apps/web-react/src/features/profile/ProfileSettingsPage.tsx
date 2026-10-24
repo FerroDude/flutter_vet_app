@@ -4,7 +4,7 @@ import { LogOut, Stethoscope } from 'lucide-react';
 import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { getUserProfile } from '@/lib/userService';
-import { errorMessage, longDateFmt } from '@/lib/format';
+import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +17,7 @@ export function ProfileSettingsPage() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [saving, setSaving] = useState(false);
   const [vet, setVet] = useState<UserProfile | null>(null);
 
@@ -24,6 +25,7 @@ export function ProfileSettingsPage() {
     setName(profile?.displayName ?? '');
     setPhone(profile?.phone ?? '');
     setAddress(profile?.address ?? '');
+    setPostalCode(profile?.postalCode ?? '');
   }, [profile]);
 
   // Clients see their vet's contact details (address for home visits).
@@ -40,14 +42,20 @@ export function ProfileSettingsPage() {
   const dirty =
     name.trim() !== (profile?.displayName ?? '') ||
     phone.trim() !== (profile?.phone ?? '') ||
-    address.trim() !== (profile?.address ?? '');
+    address.trim() !== (profile?.address ?? '') ||
+    postalCode.trim() !== (profile?.postalCode ?? '');
 
   const displayName = profile?.displayName?.trim() || profile?.email || 'Utilizador';
 
   const save = async () => {
     setSaving(true);
     try {
-      await updateProfile({ displayName: name.trim(), phone: phone.trim(), address: address.trim() });
+      await updateProfile({
+        displayName: name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        postalCode: postalCode.trim(),
+      });
       toast.success('Perfil atualizado');
     } catch (e) {
       toast.error(errorMessage(e, 'Não foi possível atualizar o perfil'));
@@ -80,11 +88,22 @@ export function ProfileSettingsPage() {
             <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField label="Telefone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
               <TextField
                 label="Morada"
+                autoComplete="street-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 hint={isClient ? undefined : 'Os clientes veem a morada para as visitas.'}
+              />
+              <TextField
+                label="Código postal"
+                placeholder="1000-001"
+                maxLength={12}
+                autoComplete="postal-code"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
               />
             </div>
             <div className="flex items-center justify-between gap-4">
@@ -113,7 +132,9 @@ export function ProfileSettingsPage() {
                     {vet.phone}
                   </a>
                 )}
-                {vet?.address && <p className="break-words text-sm text-muted-foreground">{vet.address}</p>}
+                {vet && fullAddress(vet) && (
+                  <p className="break-words text-sm text-muted-foreground">{fullAddress(vet)}</p>
+                )}
               </div>
             </CardBody>
           </Card>

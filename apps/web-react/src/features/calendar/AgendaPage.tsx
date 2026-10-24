@@ -151,12 +151,15 @@ export function AgendaPage() {
 
   const marks = (d: Date, isSel: boolean) => {
     const slot = byDay.get(dayKey(d));
+    const events = slot?.events ?? [];
     const colors = [
-      slot?.events.some((e) => e.type === EventType.appointment && !isCancelled(e)) && 'bg-event-appointment',
-      activeMeds.some((m) => isDoseScheduledOnDate(m, d)) && 'bg-event-medication',
-      slot?.symptoms.length && 'bg-event-symptom',
-      slot?.events.some((e) => e.type === EventType.note) && 'bg-accent',
-    ].filter(Boolean) as string[];
+      ...events
+        .filter((e) => e.type === EventType.appointment && !isCancelled(e))
+        .map(() => 'bg-event-appointment'),
+      ...(activeMeds.some((m) => isDoseScheduledOnDate(m, d)) ? ['bg-event-medication'] : []),
+      ...(slot?.symptoms.map(() => 'bg-event-symptom') ?? []),
+      ...events.filter((e) => e.type === EventType.note).map(() => 'bg-accent'),
+    ];
     return <Dots colors={colors} selected={isSel} />;
   };
 
