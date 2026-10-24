@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, MapPin, MessageSquare, PawPrint, Pencil, Plus, Trash2, User } from 'lucide-react';
-import { AppointmentRequestStatus, type AppointmentRequest } from '@vetplus/shared';
+import { AppointmentRequestStatus, MessageType, type AppointmentRequest } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { deleteEvent, type AppointmentEvent } from '@/lib/eventService';
 import { confirmRequest, denyRequest, useRequests } from '@/lib/appointmentRequestService';
-import { findOrCreateOneOnOneChat } from '@/lib/chatService';
+import { findOrCreateOneOnOneChat, sendMessage } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import {
   REQUEST_STATUS,
@@ -385,8 +385,28 @@ function AnswerDialog({
         if (!day || !time || Number.isNaN(dateTime.getTime())) throw new Error('Escolha a data e a hora.');
         const werr = requestWindowError(r, dateTime);
         if (werr) throw new Error(werr);
-        await confirmRequest({ request: r, vetId, vetName, dateTime, message: message.trim() || null });
-        toast.success('Pedido confirmado. Já está no calendário do cliente.');
+        const note = message.trim() || null;
+        await confirmRequest({ request: r, vetId, vetName, dateTime, message: note });
+        try {
+          const roomId = await findOrCreateOneOnOneChat({
+            petOwnerId: r.petOwnerId,
+            petOwnerName: r.petOwnerName,
+            vetId,
+            vetName,
+          });
+          await sendMessage({
+            roomId,
+            senderId: vetId,
+            senderName: vetName,
+            senderRole: 'vet',
+            content: `Consulta confirmada: ${dateTimeFmt.format(dateTime)} (${r.petName}).${note ? ` ${note}` : ''}`,
+            type: MessageType.text,
+            metadata: { kind: 'appointment_confirmed', requestId: r.id },
+          });
+          toast.success('Pedido confirmado. O cliente foi avisado.');
+        } catch {
+          toast.warning('Pedido confirmado, mas não foi possível avisar o cliente pelo chat.');
+        }
       } else {
         if (!message.trim()) throw new Error('Indique o motivo da recusa.');
         await denyRequest({ requestId: r.id, vetId, vetName, message: message.trim() });
