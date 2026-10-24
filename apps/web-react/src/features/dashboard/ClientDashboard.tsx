@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { MedicationCard } from '@/features/medications/MedicationCard';
+import { t } from '@/i18n';
 
 export function ClientDashboard() {
   const { firebaseUser, profile } = useAuth();
@@ -60,8 +61,8 @@ export function ClientDashboard() {
       {unread > 0 && (
         <Banner
           icon={<MessageCircle size={20} />}
-          title={unread === 1 ? '1 mensagem por ler' : `${unread} mensagens por ler`}
-          subtitle="Da sua veterinária."
+          title={t(unread === 1 ? 'dashboard.unread.one' : 'dashboard.unread.other', { count: unread })}
+          subtitle={t('dashboard.fromVet')}
           onClick={() => navigate(rooms[0] ? chatRoomPath(rooms[0].id) : '/chat')}
         />
       )}
@@ -70,11 +71,11 @@ export function ClientDashboard() {
         <section>
           <SectionHeader
             className="mb-4"
-            eyebrow="Agenda"
-            title="Próximas consultas"
+            eyebrow={t('common.agenda')}
+            title={t('dashboard.upcoming')}
             action={
               <Button variant="ghost" onClick={() => navigate('/agenda')}>
-                Ver agenda
+                {t('dashboard.viewAgenda')}
               </Button>
             }
           />
@@ -105,14 +106,14 @@ export function ClientDashboard() {
 
       {activeMeds.length > 0 && (
         <section>
-          <SectionHeader className="mb-4" eyebrow="Plano" title="Medicação ativa" />
+          <SectionHeader className="mb-4" eyebrow={t('dashboard.plan')} title={t('dashboard.activeMeds')} />
           <div className="space-y-3">
             {activeMeds.slice(0, 3).map((m) => (
               <MedicationCard
                 key={m.id}
                 med={m}
                 petName={petName.get(m.petId)}
-                onLogDose={() => void run(logDoseTaken(uid, m.petId, m.id, new Date()), 'Dose registada')}
+                onLogDose={() => void run(logDoseTaken(uid, m.petId, m.id, new Date()), t('agenda.doseLogged'))}
                 onUndo={() => void run(undoLastDose(uid, m.petId, m.id))}
                 onEdit={() => navigate(`/pets/${m.petId}`)}
                 onDelete={() => navigate(`/pets/${m.petId}`)}
@@ -121,8 +122,9 @@ export function ClientDashboard() {
             ))}
             {activeMeds.length > 3 && (
               <p className="text-center text-sm text-muted-foreground">
-                +{activeMeds.length - 3} {activeMeds.length - 3 === 1 ? 'outra medicação' : 'outras medicações'} nas
-                fichas dos animais
+                {t(activeMeds.length - 3 === 1 ? 'dashboard.moreMeds.one' : 'dashboard.moreMeds.other', {
+                  count: activeMeds.length - 3,
+                })}
               </p>
             )}
           </div>
@@ -130,11 +132,11 @@ export function ClientDashboard() {
       )}
 
       <section>
-        <SectionHeader className="mb-4" eyebrow="Agenda" title="Hoje" />
+        <SectionHeader className="mb-4" eyebrow={t('common.agenda')} title={t('common.today')} />
         {todayEvents.length === 0 ? (
           <Card className="flex items-center gap-3 p-4">
             <CalendarDays size={20} className="text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">Nada marcado para hoje.</p>
+            <p className="text-sm text-muted-foreground">{t('dashboard.nothingToday')}</p>
           </Card>
         ) : (
           <div className="space-y-2">

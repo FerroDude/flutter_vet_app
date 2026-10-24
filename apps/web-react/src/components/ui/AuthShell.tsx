@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { Logo } from './Logo';
+import { lang, setLang, t, type Lang } from '@/i18n';
 
 interface AuthShellProps {
   title: string;
@@ -12,6 +13,7 @@ interface AuthShellProps {
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center px-5 py-12">
+      <LangToggle />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-light to-transparent"
@@ -36,6 +38,31 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
 
         {footer && <div className="mt-6 text-center text-sm">{footer}</div>}
       </div>
+    </div>
+  );
+}
+
+/** Small PT | EN text toggle shown on unauthenticated screens. */
+function LangToggle() {
+  const option = (l: Lang, label: string) => (
+    <button
+      type="button"
+      onClick={() => l !== lang && setLang(l)}
+      className={
+        l === lang
+          ? 'font-semibold text-foreground'
+          : 'text-muted-foreground hover:text-foreground'
+      }
+      aria-pressed={l === lang}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="absolute right-4 top-4 flex items-center gap-1.5 text-sm" aria-label={t('auth.language')}>
+      {option('pt', 'PT')}
+      <span className="text-muted-foreground/50">|</span>
+      {option('en', 'EN')}
     </div>
   );
 }

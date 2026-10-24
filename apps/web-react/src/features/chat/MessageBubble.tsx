@@ -20,17 +20,18 @@ import {
 } from '@/lib/chatService';
 import { useSwipeReply } from './useSwipeReply';
 import { useLongPress } from './useLongPress';
+import { t } from '@/i18n';
 
 export function typeLabel(type: MessageType): string {
   switch (type) {
     case MessageType.image:
-      return '📷 Foto';
+      return t('chat.type.image');
     case MessageType.video:
-      return '🎬 Vídeo';
+      return t('chat.type.video');
     case MessageType.voice:
-      return '🎤 Mensagem de voz';
+      return t('chat.type.voice');
     case MessageType.file:
-      return '📎 Anexo';
+      return `📎 ${t('chat.attachment')}`;
     default:
       return '';
   }
@@ -142,7 +143,7 @@ export function MessageBubble({
               mine ? 'text-primary-foreground/90' : 'text-primary',
             )}
           >
-            {reply.senderId === uid ? 'Eu' : reply.senderName}
+            {reply.senderId === uid ? t('chat.you') : reply.senderName}
           </span>
           <span
             className={cn(
@@ -238,7 +239,7 @@ function Meta({ m, mine, className }: { m: ChatMessage; mine: boolean; className
 
 function BubbleBody({ m, mine }: { m: ChatMessage; mine: boolean }) {
   if (m.isDeleted) {
-    return <span>Mensagem apagada</span>;
+    return <span>{t('chat.deletedMsg')}</span>;
   }
   if (m.type === MessageType.text) {
     return (
@@ -288,12 +289,12 @@ function MessageActions({
   menuRef: Ref<MenuHandle>;
 }) {
   const items: MenuItem[] = [
-    { label: 'Responder', icon: <CornerUpLeft size={14} />, onClick: () => onReply(m) },
+    { label: t('chat.reply'), icon: <CornerUpLeft size={14} />, onClick: () => onReply(m) },
     ...(m.type === MessageType.text
-      ? [{ label: 'Copiar', icon: <Copy size={14} />, onClick: () => onCopy(m) }]
+      ? [{ label: t('chat.copy'), icon: <Copy size={14} />, onClick: () => onCopy(m) }]
       : []),
     ...(mine
-      ? [{ label: 'Apagar', icon: <Trash2 size={14} />, danger: true, onClick: () => onDelete(m) }]
+      ? [{ label: t('common.delete'), icon: <Trash2 size={14} />, danger: true, onClick: () => onDelete(m) }]
       : []),
   ];
   return (
@@ -301,7 +302,7 @@ function MessageActions({
     <div className="flex items-center gap-0.5 self-center [@media(hover:none)]:hidden">
       <button
         type="button"
-        aria-label="Responder"
+        aria-label={t('chat.reply')}
         onClick={() => onReply(m)}
         className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
       >
@@ -309,7 +310,7 @@ function MessageActions({
       </button>
       <Menu
         ref={menuRef}
-        label="Ações da mensagem"
+        label={t('chat.actions')}
         trigger={<MoreHorizontal size={16} />}
         align={mine ? 'right' : 'left'}
         items={items}
@@ -326,7 +327,7 @@ function MessageActions({
                     onReact(m, emoji);
                   }}
                   className="grid h-8 w-8 place-items-center rounded-full text-base hover:bg-secondary"
-                  aria-label={`Reagir ${emoji}`}
+                  aria-label={t('chat.reactWith', { emoji })}
                 >
                   {emoji}
                 </button>
@@ -347,7 +348,7 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
         <a href={m.mediaUrl} target="_blank" rel="noreferrer">
           <img
             src={m.mediaUrl}
-            alt="Imagem partilhada"
+            alt={t('chat.imageAlt')}
             className="max-h-64 max-w-full rounded-[14px] object-cover"
           />
         </a>
@@ -379,7 +380,7 @@ function MessageContent({ message: m, mine }: { message: ChatMessage; mine: bool
           className={`flex min-w-0 items-center gap-2 underline ${mine ? '' : 'text-primary'}`}
         >
           <FileText size={16} className="shrink-0" />
-          <span className="break-all">{m.fileName ?? 'Anexo'}</span>
+          <span className="break-all">{m.fileName ?? t('chat.attachment')}</span>
         </a>
       );
     default:

@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { LogOut, type LucideIcon } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { cn } from '@/lib/cn';
+import { t } from '@/i18n';
 
 export interface NavItem {
   to: string;
@@ -48,7 +49,7 @@ export function AppLayout({
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-(--radius-md) focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-(--shadow-md)"
       >
-        Saltar para o conteúdo
+        {t('nav.skip')}
       </a>
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 py-6 lg:flex">
@@ -56,7 +57,7 @@ export function AppLayout({
           <Logo size={36} />
           <span className="font-display text-lg font-semibold leading-tight text-foreground">Yoshi Vet Care</span>
         </div>
-        <nav aria-label="Navegação principal" className="mt-8 flex flex-1 flex-col gap-1">
+        <nav aria-label={t('nav.main')} className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((item) => (
             <NavItemLink key={item.to} item={item} />
           ))}
@@ -74,7 +75,7 @@ export function AppLayout({
           type="button"
           onClick={onSignOut}
           className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius-md) text-muted-foreground hover:bg-secondary"
-          aria-label="Terminar sessão"
+          aria-label={t('common.signOut')}
         >
           <LogOut size={18} />
         </button>
@@ -90,7 +91,7 @@ export function AppLayout({
 
         {/* Mobile bottom nav */}
         <nav
-          aria-label="Navegação principal"
+          aria-label={t('nav.main')}
           className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden"
         >
           {nav.map((item) => (
@@ -171,7 +172,7 @@ function UserCard({
         type="button"
         onClick={onSignOut}
         className="inline-flex h-8 w-8 items-center justify-center rounded-(--radius-sm) text-muted-foreground hover:bg-secondary hover:text-foreground"
-        aria-label="Terminar sessão"
+        aria-label={t('common.signOut')}
       >
         <LogOut size={16} />
       </button>

@@ -32,6 +32,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { deleteEventsForPet } from './eventService';
+import { t } from '@/i18n';
 
 export type PetGender = 'Male' | 'Female' | 'Unknown';
 
@@ -122,8 +123,8 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 /** Upload a (already cropped) pet photo blob to Storage, then point the doc at it. */
 export async function uploadPetPhoto(uid: string, petId: string, photo: Blob): Promise<string> {
-  if (!photo.type.startsWith('image/')) throw new Error('Escolha uma imagem.');
-  if (photo.size >= MAX_PHOTO_BYTES) throw new Error('A imagem é demasiado grande.');
+  if (!photo.type.startsWith('image/')) throw new Error(t('pets.pickImage'));
+  if (photo.size >= MAX_PHOTO_BYTES) throw new Error(t('pets.imageTooBig'));
 
   const storageRef = ref(storage, `pets/${uid}/${petId}/photo_${Date.now()}.jpg`);
   await uploadBytes(storageRef, photo, { contentType: 'image/jpeg' });
@@ -146,14 +147,14 @@ export async function deletePet(uid: string, petId: string): Promise<void> {
 
 /** Human-readable age from a birth date (mirrors dashboard_page getAge). */
 export function petAgeLabel(dob: Date | null): string {
-  if (!dob) return 'Idade desconhecida';
+  if (!dob) return t('pets.age.unknown');
   const now = new Date();
   const days = Math.floor((now.getTime() - dob.getTime()) / 86_400_000);
   const years = Math.floor(days / 365);
   const months = Math.floor((days % 365) / 30);
-  if (years > 0) return `${years} ${years === 1 ? 'ano' : 'anos'}`;
-  if (months > 0) return `${months} ${months === 1 ? 'mês' : 'meses'}`;
-  return 'Menos de um mês';
+  if (years > 0) return t(years === 1 ? 'pets.age.years.one' : 'pets.age.years.other', { count: years });
+  if (months > 0) return t(months === 1 ? 'pets.age.months.one' : 'pets.age.months.other', { count: months });
+  return t('pets.age.ltMonth');
 }
 
 /* --------------------------------- Symptoms --------------------------------- */

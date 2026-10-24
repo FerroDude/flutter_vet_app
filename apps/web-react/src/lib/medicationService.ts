@@ -27,6 +27,7 @@ import {
   parseDateOptional,
 } from '@vetplus/shared';
 import { db } from './firebase';
+import { t } from '@/i18n';
 
 export const medsCol = (uid: string, petId: string) =>
   collection(db, 'users', uid, 'pets', petId, 'medications');
@@ -218,7 +219,7 @@ export async function logDoseTaken(
 ): Promise<void> {
   const ref = medDoc(uid, petId, medId);
   const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error('Medication not found');
+  if (!snap.exists()) throw new Error(t('errors.medNotFound'));
   const med = mapMedication(snap.id, snap.data());
   const newLog: DoseLog = {
     id: crypto.randomUUID(),
@@ -240,7 +241,7 @@ export async function undoLastDose(
 ): Promise<boolean> {
   const ref = medDoc(uid, petId, medId);
   const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error('Medication not found');
+  if (!snap.exists()) throw new Error(t('errors.medNotFound'));
   const med = mapMedication(snap.id, snap.data());
 
   let mostRecentIndex = -1;

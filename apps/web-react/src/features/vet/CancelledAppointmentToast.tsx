@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { dateTimeFmt } from '@/lib/format';
 import { notifyOs } from '@/features/chat/incomingMessage';
+import { t } from '@/i18n';
 
 /** Always-on alert when a client cancels one of the vet's appointments.
  *  Baselines existing cancellations on load, then toasts each new one —
@@ -29,15 +30,15 @@ export function CancelledAppointmentToast() {
       const key = `${a.userId}/${a.id}`;
       if (seen.current.has(key)) continue;
       seen.current.add(key);
-      const description = `${a.clientName || 'Cliente'}${a.petName ? ` · ${a.petName}` : ''} · ${dateTimeFmt.format(a.dateTime)}${a.cancelReason ? ` — ${a.cancelReason}` : ''}`;
+      const description = `${a.clientName || t('common.client')}${a.petName ? ` · ${a.petName}` : ''} · ${dateTimeFmt.format(a.dateTime)}${a.cancelReason ? ` — ${a.cancelReason}` : ''}`;
       const open = () => navigate('/agenda');
-      toast('Consulta cancelada', {
+      toast(t('vet.cancelToast'), {
         id: `cancel-${key}`,
         description,
         duration: 15000,
-        action: { label: 'Ver agenda', onClick: open },
+        action: { label: t('vet.viewAgenda'), onClick: open },
       });
-      notifyOs('Consulta cancelada', description, open);
+      notifyOs(t('vet.cancelToast'), description, open);
     }
   }, [appointments, loading, uid, navigate]);
 

@@ -14,8 +14,9 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { useConfirm } from '@/components/ui/Confirm';
+import { t, locale } from '@/i18n';
 
-const noteFmt = new Intl.DateTimeFormat('pt-PT', {
+const noteFmt = new Intl.DateTimeFormat(locale, {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
@@ -25,7 +26,7 @@ const noteFmt = new Intl.DateTimeFormat('pt-PT', {
 });
 
 function errorText(e: unknown): string {
-  return e instanceof Error ? e.message : 'Não foi possível guardar';
+  return e instanceof Error ? e.message : t('errors.save');
 }
 
 export function PrivateNotesCard({
@@ -84,16 +85,16 @@ export function PrivateNotesCard({
 
   const remove = async (note: PrivateNote) => {
     const ok = await confirm({
-      title: 'Apagar nota?',
-      description: 'Não dá para desfazer.',
-      confirmLabel: 'Apagar',
+      title: t('notes.deleteTitle'),
+      description: t('chat.noUndo'),
+      confirmLabel: t('common.delete'),
       danger: true,
     });
     if (!ok) return;
     try {
       await deletePrivateNote(clientId, petId, note.id);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível apagar');
+      toast.error(e instanceof Error ? e.message : t('notes.deleteFailed'));
     }
   };
 
@@ -101,28 +102,28 @@ export function PrivateNotesCard({
     <Card className="mb-6">
       <CardBody className="space-y-4">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <Lock size={14} /> Notas privadas
+          <Lock size={14} /> {t('notes.private')}
         </p>
 
         <div className="space-y-2">
           <Textarea
-            label="Nova nota"
+            label={t('notes.new')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void add();
             }}
-            placeholder="Observação, diagnóstico, lembrete…"
+            placeholder={t('notes.placeholder')}
           />
           <div className="flex justify-end">
             <Button loading={adding} disabled={!draft.trim()} onClick={() => void add()}>
-              Adicionar nota
+              {t('notes.add')}
             </Button>
           </div>
         </div>
 
         {loading && notes.length === 0 ? null : notes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Ainda sem notas.</p>
+          <p className="text-sm text-muted-foreground">{t('notes.empty')}</p>
         ) : (
           <ul className="divide-y divide-border rounded-(--radius-md) border border-border">
             {notes.map((n) => (
@@ -130,21 +131,21 @@ export function PrivateNotesCard({
                 {editingId === n.id ? (
                   <div className="space-y-2">
                     <Textarea
-                      label="Editar nota"
+                      label={t('notes.edit')}
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       autoFocus
                     />
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" disabled={savingEdit} onClick={() => setEditingId(null)}>
-                        Cancelar
+                        {t('common.cancel')}
                       </Button>
                       <Button
                         loading={savingEdit}
                         disabled={!editText.trim()}
                         onClick={() => void saveEdit(n.id)}
                       >
-                        Guardar
+                        {t('common.save')}
                       </Button>
                     </div>
                   </div>
@@ -157,7 +158,7 @@ export function PrivateNotesCard({
                         {n.updatedAt &&
                         n.createdAt &&
                         n.updatedAt.getTime() - n.createdAt.getTime() > 60_000
-                          ? ` · editada ${noteFmt.format(n.updatedAt)}`
+                          ? ` · ${t('notes.edited', { date: noteFmt.format(n.updatedAt) })}`
                           : ''}
                       </p>
                     </div>
@@ -168,7 +169,7 @@ export function PrivateNotesCard({
                         setEditText(n.text);
                       }}
                       className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
-                      aria-label="Editar nota"
+                      aria-label={t('notes.edit')}
                     >
                       <Pencil size={15} />
                     </button>
@@ -176,7 +177,7 @@ export function PrivateNotesCard({
                       type="button"
                       onClick={() => void remove(n)}
                       className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
-                      aria-label="Apagar nota"
+                      aria-label={t('notes.delete')}
                     >
                       <Trash2 size={15} />
                     </button>

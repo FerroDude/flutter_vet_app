@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
+import { t } from '@/i18n';
 
 interface SpinnerProps {
   size?: number;
@@ -13,7 +14,7 @@ export function Spinner({ size = 20, className, durationSec = 0.7 }: SpinnerProp
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label={t('common.loading')}
       data-spinner=""
       style={{ width: size, height: size, animationDuration: `${durationSec}s` }}
       className={cn(

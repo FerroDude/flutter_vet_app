@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PawPrint } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PhotoCropDialog } from './PhotoCropDialog';
+import { t } from '@/i18n';
 
 interface PetPhotoPickerProps {
   photoUrl: string | null;
@@ -46,11 +47,11 @@ export function PetPhotoPicker({ photoUrl, photo, name, onPick, onRemove, disabl
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" disabled={disabled} onClick={() => inputRef.current?.click()}>
-          {src ? 'Mudar foto' : 'Escolher foto'}
+          {src ? t('pets.changePhoto') : t('pets.pickPhoto')}
         </Button>
         {src && (
           <Button type="button" variant="ghost" disabled={disabled} onClick={onRemove}>
-            Remover
+            {t('common.remove')}
           </Button>
         )}
       </div>

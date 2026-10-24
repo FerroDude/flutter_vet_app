@@ -1,17 +1,18 @@
-const MESSAGES: Record<string, string> = {
-  'auth/invalid-email': 'O email não é válido.',
-  'auth/user-disabled': 'Esta conta está desativada.',
-  'auth/user-not-found': 'Não existe conta com este email.',
-  'auth/wrong-password': 'Email ou palavra-passe incorretos.',
-  'auth/invalid-credential': 'Email ou palavra-passe incorretos.',
-  'auth/too-many-requests': 'Demasiadas tentativas. Tente mais tarde.',
-  'auth/operation-not-allowed': 'O início de sessão por email não está ativo.',
-};
+import { t, type TKey } from '@/i18n';
 
-export const GENERIC_ERROR = 'Algo correu mal. Tente de novo.';
+const KEY_FOR: Record<string, TKey> = {
+  'auth/invalid-email': 'auth.error.invalid-email',
+  'auth/user-disabled': 'auth.error.user-disabled',
+  'auth/user-not-found': 'auth.error.user-not-found',
+  'auth/wrong-password': 'auth.error.wrong-password',
+  'auth/invalid-credential': 'auth.error.invalid-credential',
+  'auth/too-many-requests': 'auth.error.too-many-requests',
+  'auth/operation-not-allowed': 'auth.error.operation-not-allowed',
+};
 
 /** Map a thrown Firebase Auth error to a user-facing message. */
 export function authErrorMessage(e: unknown): string {
   const code = e && typeof e === 'object' && 'code' in e ? String((e as { code: unknown }).code) : '';
-  return MESSAGES[code] ?? GENERIC_ERROR;
+  const key = KEY_FOR[code];
+  return key ? t(key) : t('errors.generic');
 }

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
+import { t } from '@/i18n';
 
 const TIME_PREFERENCES = [
   TimePreference.anyTime,
@@ -70,11 +71,11 @@ export function RequestFormDialog({
   const submit = async () => {
     const pet = pets.find((p) => p.id === petId);
     if (!pet) {
-      setError('Escolha um animal.');
+      setError(t('requests.pickPet'));
       return;
     }
     if (!reason.trim()) {
-      setError('Indique o motivo da consulta.');
+      setError(t('requests.reasonRequired'));
       return;
     }
     const startDate = start ? new Date(`${start}T00:00:00`) : addDays(1);
@@ -97,10 +98,10 @@ export function RequestFormDialog({
         reason: reason.trim(),
         notes: notes.trim() ? notes.trim() : null,
       });
-      toast.success('Pedido de marcação enviado');
+      toast.success(t('requests.sent'));
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Não foi possível enviar o pedido');
+      setError(e instanceof Error ? e.message : t('requests.sendFailed'));
     } finally {
       setSaving(false);
     }
@@ -110,23 +111,23 @@ export function RequestFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Pedir marcação"
+      title={t('requests.form.title')}
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            Enviar pedido
+            {t('requests.send')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         {pets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Adicione um animal antes de pedir uma marcação.</p>
+          <p className="text-sm text-muted-foreground">{t('requests.noPets')}</p>
         ) : (
-          <Select label="Animal" value={petId} onChange={(e) => setPetId(e.target.value)}>
+          <Select label={t('common.pet')} value={petId} onChange={(e) => setPetId(e.target.value)}>
             {pets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.species ? `${p.name} (${p.species})` : p.name}
@@ -137,13 +138,13 @@ export function RequestFormDialog({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label="De"
+            label={t('requests.from')}
             type="date"
             value={start}
             onChange={(e) => setStart(e.target.value)}
           />
           <TextField
-            label="Até"
+            label={t('requests.until')}
             type="date"
             min={start}
             value={end}
@@ -152,7 +153,7 @@ export function RequestFormDialog({
         </div>
 
         <Select
-          label="Altura do dia"
+          label={t('requests.timeOfDay')}
           value={timePref}
           onChange={(e) => setTimePref(Number(e.target.value) as TimePreference)}
         >
@@ -164,17 +165,17 @@ export function RequestFormDialog({
         </Select>
 
         <TextField
-          label="Motivo"
+          label={t('requests.reason')}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Consulta anual, vacina, pele…"
+          placeholder={t('requests.reasonPlaceholder')}
         />
 
         <Textarea
-          label="Notas (opcional)"
+          label={t('requests.notes')}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Mais informação para a veterinária…"
+          placeholder={t('requests.notesPlaceholder')}
         />
 
         {error && <p className="text-sm font-medium text-destructive">{error}</p>}

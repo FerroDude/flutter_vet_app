@@ -25,14 +25,15 @@ import { Spinner } from '@/components/Spinner';
 import { useConfirm } from '@/components/ui/Confirm';
 import { setActiveChatRoom } from './incomingMessage';
 import { MessageBubble, typeLabel } from './MessageBubble';
+import { t } from '@/i18n';
 
 const GROUP_GAP_MS = 5 * 60 * 1000;
 
 function dayChipLabel(d: Date): string {
   const today = startOfDay(new Date());
   const day = startOfDay(d);
-  if (sameDay(day, today)) return 'Hoje';
-  if (day.getTime() === today.getTime() - 86400000) return 'Ontem';
+  if (sameDay(day, today)) return t('common.today');
+  if (day.getTime() === today.getTime() - 86400000) return t('common.yesterday');
   return dayShortFmt.format(d);
 }
 
@@ -122,7 +123,7 @@ export function Conversation({ roomId }: { roomId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, loading, uid]);
 
-  const senderName = profile?.displayName?.trim() || profile?.email || 'Eu';
+  const senderName = profile?.displayName?.trim() || profile?.email || t('chat.you');
 
   const takeReplyMeta = () =>
     replyingTo ? buildReplyMetadata(replyingTo) : null;
@@ -145,7 +146,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível enviar a mensagem'));
+      toast.error(errorMessage(e, t('chat.sendFailed')));
       setText(content);
     } finally {
       setSending(false);
@@ -174,7 +175,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível enviar o ficheiro'));
+      toast.error(errorMessage(e, t('chat.fileFailed')));
     } finally {
       setUploading(false);
     }
@@ -202,7 +203,7 @@ export function Conversation({ roomId }: { roomId: string }) {
       });
       setReplyingTo(null);
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível enviar a mensagem de voz'));
+      toast.error(errorMessage(e, t('chat.voiceFailed')));
     } finally {
       setUploading(false);
     }
@@ -216,9 +217,9 @@ export function Conversation({ roomId }: { roomId: string }) {
   const onCopy = async (m: ChatMessage) => {
     try {
       await navigator.clipboard.writeText(m.content);
-      toast.success('Copiado');
+      toast.success(t('common.copied'));
     } catch {
-      toast.error('Não foi possível copiar');
+      toast.error(t('chat.copyFailed'));
     }
   };
 
@@ -226,23 +227,23 @@ export function Conversation({ roomId }: { roomId: string }) {
     try {
       await toggleReaction(roomId, m.id, uid, senderName, emoji);
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível reagir'));
+      toast.error(errorMessage(e, t('chat.reactFailed')));
     }
   };
 
   const onDelete = async (m: ChatMessage) => {
     const ok = await confirm({
-      title: 'Apagar mensagem?',
-      description: 'Não dá para desfazer.',
-      confirmLabel: 'Apagar',
+      title: t('chat.deleteTitle'),
+      description: t('chat.noUndo'),
+      confirmLabel: t('common.delete'),
       danger: true,
     });
     if (!ok) return;
     try {
       await deleteMessage(roomId, m.id);
-      toast.success('Mensagem apagada');
+      toast.success(t('chat.deleted'));
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível apagar a mensagem'));
+      toast.error(errorMessage(e, t('chat.deleteFailed')));
     }
   };
 
@@ -271,10 +272,10 @@ export function Conversation({ roomId }: { roomId: string }) {
       <div className="flex items-center gap-3 border-b border-border px-5 py-3">
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-bold text-foreground">
-            {otherName || room?.topic || 'Conversa'}
+            {otherName || room?.topic || t('chat.conversation')}
           </p>
           <p className="truncate text-xs text-muted-foreground">
-            {iAmVet ? 'Cliente' : 'A sua veterinária'}
+            {iAmVet ? t('common.client') : t('chat.yourVet')}
           </p>
         </div>
       </div>
@@ -292,7 +293,7 @@ export function Conversation({ roomId }: { roomId: string }) {
             </div>
           ) : messages.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Ainda sem mensagens.
+              {t('chat.noMessages')}.
             </p>
           ) : (
             messages.map((m, i) => {
@@ -332,7 +333,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         {showJump && (
           <button
             type="button"
-            aria-label="Ir para as mensagens mais recentes"
+            aria-label={t('chat.jumpToLatest')}
             onClick={() => scrollToBottom(true)}
             className="absolute right-5 bottom-3 grid h-10 w-10 place-items-center rounded-full bg-card text-muted-foreground shadow-(--shadow-md) hover:text-foreground"
           >
@@ -352,8 +353,9 @@ export function Conversation({ roomId }: { roomId: string }) {
           <div className="w-1 self-stretch rounded-full bg-primary" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold text-primary">
-              A responder a{' '}
-              {replyingTo.senderId === uid ? 'si' : replyingTo.senderName}
+              {t('chat.replyingTo', {
+                name: replyingTo.senderId === uid ? t('chat.self') : replyingTo.senderName,
+              })}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {replyingTo.type === MessageType.text
@@ -363,7 +365,7 @@ export function Conversation({ roomId }: { roomId: string }) {
           </div>
           <button
             type="button"
-            aria-label="Cancelar resposta"
+            aria-label={t('chat.cancelReply')}
             onClick={() => setReplyingTo(null)}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
@@ -387,7 +389,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         />
         <button
           type="button"
-          aria-label="Anexar ficheiro"
+          aria-label={t('chat.attach')}
           disabled={uploading || recorder.recording}
           onClick={() => fileInputRef.current?.click()}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary disabled:opacity-50"
@@ -406,7 +408,7 @@ export function Conversation({ roomId }: { roomId: string }) {
               void doSendText();
             }
           }}
-          placeholder={recorder.recording ? 'A gravar…' : 'Escreva uma mensagem…'}
+          placeholder={recorder.recording ? t('chat.recording') : t('chat.placeholder')}
           disabled={recorder.recording}
           className="min-h-[44px] flex-1 resize-none overflow-y-auto rounded-3xl border border-input bg-card px-4 py-2.5 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
         />
@@ -414,7 +416,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         {text.trim() ? (
           <button
             type="button"
-            aria-label="Enviar"
+            aria-label={t('chat.send')}
             disabled={sending}
             onClick={() => void doSendText()}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
@@ -424,7 +426,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         ) : recorder.recording ? (
           <button
             type="button"
-            aria-label="Parar e enviar"
+            aria-label={t('chat.stopSend')}
             onClick={() => void recorder.stop()}
             className="grid h-11 shrink-0 place-items-center gap-1 rounded-full bg-destructive px-3 text-destructive-foreground"
           >
@@ -435,7 +437,7 @@ export function Conversation({ roomId }: { roomId: string }) {
         ) : (
           <button
             type="button"
-            aria-label="Gravar mensagem de voz"
+            aria-label={t('chat.record')}
             disabled={uploading}
             onClick={() => void recorder.start()}
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary disabled:opacity-50"
@@ -491,7 +493,7 @@ function useVoiceRecorder(onComplete: (blob: Blob, durationSec: number) => Promi
         setDuration(Math.round((Date.now() - startedAtRef.current) / 1000));
       }, 500);
     } catch {
-      toast.error('Acesso ao microfone recusado');
+      toast.error(t('chat.micDenied'));
     }
   };
 

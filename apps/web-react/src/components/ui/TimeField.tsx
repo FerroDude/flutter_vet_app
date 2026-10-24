@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { cn } from '@/lib/cn';
 import { inputBase } from './TextField';
 import { fieldLabelClasses, selectChevronStyle, selectClasses } from './Select';
+import { t } from '@/i18n';
 
 const pad = (n: number) => `${n}`.padStart(2, '0');
 
@@ -64,7 +65,7 @@ export function TimeField({
     <div className={cn('flex items-center gap-1.5', className)}>
       <select
         id={label ? autoId : undefined}
-        aria-label={label ? undefined : 'Hora'}
+        aria-label={label ? undefined : t('time.hour')}
         value={hour}
         onChange={(e) => {
           const h = Number(e.target.value);
@@ -81,7 +82,7 @@ export function TimeField({
       </select>
       <span className="text-sm font-medium text-muted-foreground">:</span>
       <select
-        aria-label={label ? undefined : 'Minutos'}
+        aria-label={label ? undefined : t('time.minutes')}
         value={minute}
         onChange={(e) => emit(hour, Number(e.target.value))}
         className={cn(selectClasses, 'w-auto')}

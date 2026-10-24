@@ -4,7 +4,7 @@ Only app: `apps/web-react` (solo-vet model: one vet, her clients). Feature list:
 The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile-flutter` branch.
 
 ## Conventions
-- UI text is pt-PT, written inline (no i18n library).
+- UI text goes through `t()` from `src/i18n` (pt + en dictionaries in `src/i18n/pt.ts` / `en.ts`; en is type-checked for missing keys). Language is per device (localStorage) and switching reloads.
 - Shared helpers: `lib/format.ts` (dates, labels, `errorMessage`), `components/ui/Confirm.tsx` (`useConfirm`),
   `components/ui/Menu.tsx`, `components/ui/MonthGrid.tsx`. Use them instead of `window.confirm` or new formatters.
 - Data hooks: `useClients`, `useRooms`, `useRequests`, `useVetAppointments`.

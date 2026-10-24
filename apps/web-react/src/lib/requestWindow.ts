@@ -4,6 +4,7 @@
 
 import { type AppointmentRequest } from '@vetplus/shared';
 import { dayShortFmt, startOfDay, TIME_WINDOW } from './format';
+import { t } from '@/i18n';
 
 type Windowed = Pick<
   AppointmentRequest,
@@ -16,13 +17,16 @@ export function requestWindowError(r: Windowed, dateTime: Date): string | null {
   const start = startOfDay(r.preferredDateStart).getTime();
   const end = startOfDay(r.preferredDateEnd).getTime();
   if (day < start || day > end) {
-    return `Escolha um dia entre ${dayShortFmt.format(r.preferredDateStart)} e ${dayShortFmt.format(r.preferredDateEnd)}.`;
+    return t('requests.window.day', {
+      from: dayShortFmt.format(r.preferredDateStart),
+      to: dayShortFmt.format(r.preferredDateEnd),
+    });
   }
   const w = TIME_WINDOW[r.timePreference];
   if (w) {
     const mins = dateTime.getHours() * 60 + dateTime.getMinutes();
     if (mins < w[0] * 60 || mins > w[1] * 60) {
-      return `Escolha uma hora entre ${w[0]}h e ${w[1]}h.`;
+      return t('requests.window.time', { from: w[0], to: w[1] });
     }
   }
   return null;

@@ -18,10 +18,8 @@ import {
 import {
   AppointmentRequestStatus,
   EventType,
-  SYMPTOM_LABELS,
   dosesExpectedOnDate,
   dosesTakenOnDate,
-  frequencyDisplay,
   isActive,
   isDoseScheduledOnDate,
   type AppointmentRequest,
@@ -47,6 +45,8 @@ import {
   startOfDay,
   timeFmt,
 } from '@/lib/format';
+import { frequencyText, symptomLabel } from '@/lib/medText';
+import { t } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -121,31 +121,31 @@ export function AgendaPage() {
   const run = (p: Promise<unknown>, ok?: string) =>
     p.then(() => ok && toast.success(ok)).catch((e) => toast.error(errorMessage(e)));
 
-  const startAdd = (t: AddType) => {
+  const startAdd = (type: AddType) => {
     setAddOpen(false);
-    if (t === 'reminder') return setForm({ type: t });
-    if (pets.length === 0) return toast.message('Adicione um animal primeiro.');
-    if (pets.length === 1) return setForm({ type: t, petId: pets[0]!.id });
-    setPicking(t);
+    if (type === 'reminder') return setForm({ type });
+    if (pets.length === 0) return toast.message(t('agenda.addPetFirst'));
+    if (pets.length === 1) return setForm({ type, petId: pets[0]!.id });
+    setPicking(type);
   };
 
   const removeEvent = async (e: CalendarEvent) => {
-    if (await confirm({ title: 'Apagar?', description: `Apagar "${e.title}"?`, confirmLabel: 'Apagar', danger: true })) {
-      void run(deleteEvent(uid, e.id), 'Apagado');
+    if (await confirm({ title: t('agenda.deleteTitle'), description: t('agenda.deleteItem', { name: `"${e.title}"` }), confirmLabel: t('common.delete'), danger: true })) {
+      void run(deleteEvent(uid, e.id), t('agenda.deleted'));
     }
   };
 
   const cancel = async (r: AppointmentRequest) => {
     if (
       await confirm({
-        title: 'Cancelar pedido?',
-        description: `Cancelar o pedido de marcação de ${r.petName}?`,
-        confirmLabel: 'Cancelar pedido',
-        cancelLabel: 'Manter',
+        title: t('agenda.cancelRequest.title'),
+        description: t('agenda.cancelRequest.body', { pet: r.petName }),
+        confirmLabel: t('agenda.cancelRequest.confirm'),
+        cancelLabel: t('common.keep'),
         danger: true,
       })
     ) {
-      void run(cancelRequest(r.id), 'Pedido cancelado');
+      void run(cancelRequest(r.id), t('agenda.requestCancelled'));
     }
   };
 
@@ -168,17 +168,17 @@ export function AgendaPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Agenda"
-        title="Agenda"
-        subtitle="Consultas, medicação e sintomas dos seus animais."
+        eyebrow={t('nav.agenda')}
+        title={t('nav.agenda')}
+        subtitle={t('agenda.subtitle')}
         actions={
           <>
             <Button variant="outline" onClick={() => setAddOpen(true)}>
-              <Plus size={16} /> Adicionar
+              <Plus size={16} /> {t('agenda.add')}
             </Button>
             {vetId && (
               <Button onClick={() => setRequestOpen(true)}>
-                <CalendarClock size={16} /> Pedir marcação
+                <CalendarClock size={16} /> {t('agenda.request')}
               </Button>
             )}
           </>
@@ -188,7 +188,7 @@ export function AgendaPage() {
       {recentRequests.length > 0 && (
         <section className="mb-6">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pedidos de marcação
+            {t('agenda.requests')}
           </h2>
           <div className="space-y-2">
             {recentRequests.map((r) => (
@@ -207,7 +207,7 @@ export function AgendaPage() {
               {dayHeadFmt.format(day)}
             </h2>
             {nothing ? (
-              <EmptyState icon={<CalendarDays size={32} />} title="Nada marcado" description="Nada para este dia." />
+              <EmptyState icon={<CalendarDays size={32} />} title={t('agenda.nothing.title')} description={t('agenda.nothing.body')} />
             ) : (
               <div className="space-y-2">
                 {selectedMeds.map((m) => (
@@ -220,7 +220,7 @@ export function AgendaPage() {
                       const now = new Date();
                       const at = new Date(day);
                       at.setHours(now.getHours(), now.getMinutes());
-                      void run(logDoseTaken(uid, m.petId, m.id, at), 'Dose registada');
+                      void run(logDoseTaken(uid, m.petId, m.id, at), t('agenda.doseLogged'));
                     }}
                   />
                 ))}
@@ -247,10 +247,10 @@ export function AgendaPage() {
                   <Row
                     key={s.id}
                     color="bg-event-symptom"
-                    title={SYMPTOM_LABELS[s.type]}
+                    title={symptomLabel(s.type)}
                     meta={[timeFmt.format(s.timestamp), petName.get(s.petId), s.note].filter(Boolean).join(' · ')}
                     actions={
-                      <IconAction label="Apagar sintoma" danger onClick={() => void run(deleteSymptom(uid, s.petId, s.id))}>
+                      <IconAction label={t('agenda.deleteSymptom')} danger onClick={() => void run(deleteSymptom(uid, s.petId, s.id))}>
                         <Trash2 size={15} />
                       </IconAction>
                     }
@@ -262,11 +262,11 @@ export function AgendaPage() {
         </div>
       </div>
 
-      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title="Adicionar à agenda">
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} title={t('agenda.addToAgenda')}>
         <div className="grid gap-2">
-          <Choice icon={<BellPlus size={18} />} label="Lembrete" hint="Banho, desparasitação…" onClick={() => startAdd('reminder')} />
-          <Choice icon={<Pill size={18} />} label="Medicação" hint="Com doses e lembretes" onClick={() => startAdd('medication')} />
-          <Choice icon={<Activity size={18} />} label="Sintoma" hint="Para a veterinária ver" onClick={() => startAdd('symptom')} />
+          <Choice icon={<BellPlus size={18} />} label={t('agenda.add.reminder')} hint={t('agenda.add.reminderHint')} onClick={() => startAdd('reminder')} />
+          <Choice icon={<Pill size={18} />} label={t('agenda.add.medication')} hint={t('agenda.add.medicationHint')} onClick={() => startAdd('medication')} />
+          <Choice icon={<Activity size={18} />} label={t('agenda.add.symptom')} hint={t('agenda.add.symptomHint')} onClick={() => startAdd('symptom')} />
         </div>
       </Dialog>
 
@@ -333,7 +333,7 @@ function RequestRow({ request: r, onCancel }: { request: AppointmentRequest; onC
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {r.status === AppointmentRequestStatus.confirmed && r.bookedDateTime
-              ? `Marcado para ${dateTimeFmt.format(r.bookedDateTime)}`
+              ? t('agenda.bookedFor', { date: dateTimeFmt.format(r.bookedDateTime) })
               : `${preferredRange(r.preferredDateStart, r.preferredDateEnd)} · ${TIME_PREFERENCE_LABEL[r.timePreference]}`}
           </p>
           <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{r.reason}</p>
@@ -346,7 +346,7 @@ function RequestRow({ request: r, onCancel }: { request: AppointmentRequest; onC
         </div>
         {r.status === AppointmentRequestStatus.pending && (
           <Button variant="ghost" className="h-8 px-3 text-xs" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
         )}
       </div>
@@ -362,13 +362,13 @@ function MedRow({ med, day, petName, onLog }: { med: Medication; day: Date; petN
     <Row
       color="bg-event-medication"
       title={[med.name, petName].filter(Boolean).join(' · ')}
-      meta={`${med.dosage} · ${frequencyDisplay(med.frequency)} · ${taken}/${expected} tomadas`}
+      meta={`${med.dosage} · ${frequencyText(med.frequency)} · ${t('agenda.dosesTaken', { taken, expected })}`}
       actions={
         done ? (
-          <Check size={18} className="text-success" aria-label="Doses do dia tomadas" />
+          <Check size={18} className="text-success" aria-label={t('agenda.dosesDone')} />
         ) : (
           <Button variant="outline" className="h-8 px-3 text-xs" onClick={onLog}>
-            <Check size={14} /> Registar
+            <Check size={14} /> {t('agenda.logDose')}
           </Button>
         )
       }
@@ -399,36 +399,36 @@ function EventRow({
       color={appt ? 'bg-event-appointment' : 'bg-accent'}
       title={e.title}
       strike={completed || cancelled}
-      meta={[timeFmt.format(e.dateTime), petName, appt?.bookedByVetId && (appt.vetName || 'Veterinária')]
+      meta={[timeFmt.format(e.dateTime), petName, appt?.bookedByVetId && (appt.vetName || t('common.vet'))]
         .filter(Boolean)
         .join(' · ')}
       extra={
         cancelled ? (
-          <span className="font-medium text-destructive">Cancelada{appt?.cancelReason ? ` — ${appt.cancelReason}` : ''}</span>
+          <span className="font-medium text-destructive">{t('agenda.cancelled')}{appt?.cancelReason ? ` — ${appt.cancelReason}` : ''}</span>
         ) : appt?.location ? (
           <span className="inline-flex items-center gap-1">
             <MapPin size={12} /> {appt.location}
           </span>
         ) : appt?.bookedByVetId ? (
           <span className="inline-flex items-center gap-1">
-            <Stethoscope size={12} /> Marcada pela veterinária
+            <Stethoscope size={12} /> {t('agenda.bookedByVet')}
           </span>
         ) : null
       }
       actions={
         <span className="contents" onClick={(ev) => ev.stopPropagation()}>
           {onToggle && (
-            <IconAction label={completed ? 'Marcar por fazer' : 'Marcar como feito'} onClick={onToggle} active={completed}>
+            <IconAction label={completed ? t('agenda.markTodo') : t('agenda.markDone')} onClick={onToggle} active={completed}>
               <Check size={15} />
             </IconAction>
           )}
           {onEdit && (
-            <IconAction label="Editar" onClick={onEdit}>
+            <IconAction label={t('common.edit')} onClick={onEdit}>
               <Pencil size={15} />
             </IconAction>
           )}
           {onDelete && (
-            <IconAction label="Apagar" danger onClick={onDelete}>
+            <IconAction label={t('common.delete')} danger onClick={onDelete}>
               <Trash2 size={15} />
             </IconAction>
           )}

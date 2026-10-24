@@ -6,7 +6,7 @@ What the React app in `apps/web-react` does. Shared types and medication math li
 
 One vet and her clients. A client profile stores `vetId` (the vet's uid); one client belongs to one vet. There are no clinics, receptionists or app owners.
 
-The UI is European Portuguese (`pt-PT`), written directly in the components.
+The UI is available in European Portuguese (`pt-PT`) and English (`en`), chosen per device on the login screen (PT | EN) or in Profile → Language; switching reloads the app.
 
 ## Accounts
 

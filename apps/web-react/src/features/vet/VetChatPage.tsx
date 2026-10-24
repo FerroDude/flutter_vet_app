@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { Conversation } from '@/features/chat/Conversation';
 import { useSelectedChatRoom } from '@/features/chat/useSelectedChatRoom';
 import { CHAT_PAGE_HEIGHT } from '@/features/chat/chatLayout';
+import { t } from '@/i18n';
 
 /** Vet chat: list of client conversations + the open one. */
 export function VetChatPage() {
@@ -23,10 +24,10 @@ export function VetChatPage() {
             selectedId ? 'hidden' : 'block',
           )}
         >
-          <p className="px-4 pb-1 pt-4 font-display text-lg font-bold text-foreground">Conversas</p>
+          <p className="px-4 pb-1 pt-4 font-display text-lg font-bold text-foreground">{t('chat.rooms')}</p>
           {rooms.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
-              Sem conversas.
+              {t('chat.noRooms')}
             </p>
           ) : (
             <ul className="divide-y divide-border">
@@ -47,14 +48,14 @@ export function VetChatPage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className="truncate font-medium text-foreground">{r.petOwnerName || 'Cliente'}</span>
+                          <span className="truncate font-medium text-foreground">{r.petOwnerName || t('common.client')}</span>
                           <span className="shrink-0 text-[11px] text-muted-foreground">
                             {(sameDay(r.updatedAt, new Date()) ? timeFmt : shortDateFmt).format(r.updatedAt)}
                           </span>
                         </span>
                         <span className="flex items-center justify-between gap-2">
                           <span className="truncate text-xs text-muted-foreground">
-                            {r.lastMessage?.content || 'Ainda sem mensagens'}
+                            {r.lastMessage?.content || t('chat.noMessages')}
                           </span>
                           {unread > 0 && (
                             <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
@@ -79,7 +80,7 @@ export function VetChatPage() {
                 onClick={() => setSelectedId(null)}
                 className="flex items-center gap-1.5 border-b border-border px-4 py-2 text-sm text-muted-foreground md:hidden"
               >
-                <ArrowLeft size={16} /> Conversas
+                <ArrowLeft size={16} /> {t('chat.rooms')}
               </button>
               <div className="min-h-0 flex-1">
                 <Conversation roomId={selectedId} />
@@ -88,7 +89,7 @@ export function VetChatPage() {
           ) : (
             <div className="hidden h-full flex-col items-center justify-center gap-2 p-10 text-center text-sm text-muted-foreground md:flex">
               <Inbox size={32} className="text-muted-foreground/60" />
-              Escolha uma conversa.
+              {t('chat.pickRoom')}
             </div>
           )}
         </section>

@@ -25,6 +25,7 @@ import { db } from './firebase';
 import { useCollection } from './useFirestore';
 import { appointmentTitle, vetAppointmentWrite } from './eventService';
 import { requestWindowError } from './requestWindow';
+import { t } from '@/i18n';
 
 const requestsCol = () => collection(db, 'appointmentRequests');
 const requestDoc = (id: string) => doc(db, 'appointmentRequests', id);
@@ -176,9 +177,9 @@ export async function cancelRequest(requestId: string): Promise<void> {
   await runTransaction(db, async (tx) => {
     const ref = requestDoc(requestId);
     const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error('O pedido já não existe.');
+    if (!snap.exists()) throw new Error(t('requests.gone'));
     if ((snap.data().status ?? 0) !== AppointmentRequestStatus.pending) {
-      throw new Error('Só é possível cancelar pedidos pendentes.');
+      throw new Error(t('requests.onlyPending'));
     }
     tx.delete(ref);
   });

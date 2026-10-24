@@ -13,6 +13,7 @@ import {
   notifyOs,
 } from './incomingMessage';
 import { chatRoomPath } from './useSelectedChatRoom';
+import { t } from '@/i18n';
 
 /** Toast on the signed-in user when someone else sends a chat message. */
 export function IncomingMessageToast() {
@@ -52,7 +53,7 @@ export function IncomingMessageToast() {
         id: `msg-${room.id}`,
         description: body,
         duration: 12000,
-        action: { label: 'Abrir', onClick: open },
+        action: { label: t('common.view'), onClick: open },
       });
       notifyOs(title, body, open);
     }

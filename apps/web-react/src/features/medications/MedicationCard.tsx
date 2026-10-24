@@ -2,14 +2,13 @@ import { Pill, Check, Undo2, Pencil, MoreVertical, Trash2 } from 'lucide-react';
 import {
   type Medication,
   MedicationStatus,
-  frequencyDisplay,
-  todayDoseStatus,
-  nextDoseDescription,
   progress,
   isActive,
   allDosesTakenToday,
   daysRemaining,
 } from '@vetplus/shared';
+import { doseStatusText, frequencyText, nextDoseText } from '@/lib/medText';
+import { t, type TKey } from '@/i18n';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Menu } from '@/components/ui/Menu';
@@ -25,11 +24,11 @@ interface Props {
   onSetStatus: (s: MedicationStatus) => void;
 }
 
-const statusLabel: Record<MedicationStatus, string> = {
-  [MedicationStatus.active]: 'Ativa',
-  [MedicationStatus.paused]: 'Em pausa',
-  [MedicationStatus.completed]: 'Concluída',
-  [MedicationStatus.discontinued]: 'Interrompida',
+const statusKey: Record<MedicationStatus, TKey> = {
+  [MedicationStatus.active]: 'meds.status.active',
+  [MedicationStatus.paused]: 'meds.status.paused',
+  [MedicationStatus.completed]: 'meds.status.completed',
+  [MedicationStatus.discontinued]: 'meds.status.discontinued',
 };
 
 export function MedicationCard({
@@ -58,20 +57,20 @@ export function MedicationCard({
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">{med.name}</p>
               <p className="truncate text-sm text-muted-foreground">
-                {med.dosage} · {frequencyDisplay(med.frequency)}
+                {med.dosage} · {frequencyText(med.frequency)}
                 {petName ? ` · ${petName}` : ''}
               </p>
             </div>
             <Menu
-              label="Opções da medicação"
+              label={t('meds.options')}
               trigger={<MoreVertical size={16} />}
               items={[
-                { label: 'Editar', icon: <Pencil size={14} />, onClick: onEdit },
+                { label: t('common.edit'), icon: <Pencil size={14} />, onClick: onEdit },
                 active
-                  ? { label: 'Pausar', onClick: () => onSetStatus(MedicationStatus.paused) }
-                  : { label: 'Retomar', onClick: () => onSetStatus(MedicationStatus.active) },
-                { label: 'Marcar como concluída', onClick: () => onSetStatus(MedicationStatus.completed) },
-                { label: 'Apagar', icon: <Trash2 size={14} />, danger: true, onClick: onDelete },
+                  ? { label: t('meds.pause'), onClick: () => onSetStatus(MedicationStatus.paused) }
+                  : { label: t('meds.resume'), onClick: () => onSetStatus(MedicationStatus.active) },
+                { label: t('meds.markCompleted'), onClick: () => onSetStatus(MedicationStatus.completed) },
+                { label: t('common.delete'), icon: <Trash2 size={14} />, danger: true, onClick: onDelete },
               ]}
             />
           </div>
@@ -85,9 +84,9 @@ export function MedicationCard({
                   : 'bg-secondary text-muted-foreground',
               )}
             >
-              {statusLabel[med.status]}
+              {t(statusKey[med.status])}
             </span>
-            <span className="text-xs text-muted-foreground">{todayDoseStatus(med)}</span>
+            <span className="text-xs text-muted-foreground">{doseStatusText(med)}</span>
           </div>
 
           {p != null && (
@@ -101,7 +100,7 @@ export function MedicationCard({
               <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
                 <span>{Math.round(p * 100)}%</span>
                 {remaining != null && (
-                  <span>{remaining === 1 ? '1 dia' : `${remaining} dias`}</span>
+                  <span>{t(remaining === 1 ? 'meds.day.one' : 'meds.day.other', { count: remaining })}</span>
                 )}
               </div>
             </div>
@@ -116,17 +115,17 @@ export function MedicationCard({
                 onClick={onLogDose}
                 className="h-9 px-3 text-xs"
               >
-                <Check size={15} /> Registar dose
+                <Check size={15} /> {t('meds.logDose')}
               </Button>
               <button
                 type="button"
                 onClick={onUndo}
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
-                <Undo2 size={14} /> Anular
+                <Undo2 size={14} /> {t('common.undo')}
               </button>
               <span className="ml-auto text-[11px] text-muted-foreground">
-                {nextDoseDescription(med) ?? ''}
+                {nextDoseText(med) ?? ''}
               </span>
             </div>
           )}

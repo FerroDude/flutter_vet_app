@@ -22,6 +22,7 @@ import {
 } from 'firebase/firestore';
 import { EventType, parseDate, parseDateOptional } from '@vetplus/shared';
 import { db } from './firebase';
+import { t } from '@/i18n';
 
 interface EventCommon {
   id: string;
@@ -97,7 +98,7 @@ export function vetAppointmentsQuery(vetId: string) {
 }
 
 export const appointmentTitle = (petName?: string | null): string =>
-  petName?.trim() ? `Consulta — ${petName.trim()}` : 'Consulta';
+  petName?.trim() ? t('event.appointmentFor', { pet: petName.trim() }) : t('event.appointmentName');
 
 export interface VetAppointmentInput {
   /** Existing event id to update; omit to create. */
@@ -317,7 +318,7 @@ export async function cancelAppointmentAsClient(args: {
   reason: string;
 }): Promise<void> {
   const reason = args.reason.trim();
-  if (!reason) throw new Error('Indique o motivo do cancelamento.');
+  if (!reason) throw new Error(t('appointment.cancelReasonRequired'));
   await updateDoc(eventDoc(args.clientId, args.eventId), {
     cancelledAt: Date.now(),
     cancelledBy: args.clientId,

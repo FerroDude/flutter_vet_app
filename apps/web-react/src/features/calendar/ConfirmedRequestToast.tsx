@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useRequests } from '@/lib/appointmentRequestService';
 import { dateTimeFmt } from '@/lib/format';
 import { notifyOs } from '@/features/chat/incomingMessage';
+import { t } from '@/i18n';
 
 /** Always-on alert when the vet confirms one of the client's requests.
  *  Baselines already-confirmed requests on load, then toasts each new one —
@@ -33,13 +34,13 @@ export function ConfirmedRequestToast() {
           .join(' · ') + (r.responseMessage ? ` — ${r.responseMessage}` : '');
       const open = () =>
         navigate(r.calendarEventId ? `/agenda/consultas/${r.calendarEventId}` : '/agenda');
-      toast('Consulta confirmada', {
+      toast(t('requests.confirmToast'), {
         id: `confirm-${r.id}`,
         description,
         duration: 15000,
-        action: { label: 'Ver', onClick: open },
+        action: { label: t('common.view'), onClick: open },
       });
-      notifyOs('Consulta confirmada', description, open);
+      notifyOs(t('requests.confirmToast'), description, open);
     }
   }, [requests, loading, uid, navigate]);
 

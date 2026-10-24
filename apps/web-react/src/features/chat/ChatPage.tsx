@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Conversation } from './Conversation';
 import { CHAT_PAGE_HEIGHT } from './chatLayout';
+import { t } from '@/i18n';
 
 /** Client chat: one vet, one conversation — opened straight away. */
 export function ChatPage() {
@@ -15,11 +16,11 @@ export function ChatPage() {
   if (!loading && !room) {
     return (
       <div>
-        <PageHeader title="Chat" subtitle="Mensagens com a sua veterinária." />
+        <PageHeader title="Chat" subtitle={t('chat.withVet')} />
         <EmptyState
           icon={<MessageCircle size={36} />}
-          title="Ainda sem conversa"
-          description="A conversa aparece quando a veterinária o adicionar como cliente."
+          title={t('chat.empty.title')}
+          description={t('chat.empty.body')}
         />
       </div>
     );

@@ -10,6 +10,7 @@ import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { DateTimeField } from '@/components/ui/TimeField';
+import { t } from '@/i18n';
 
 export function toLocalInput(d: Date): string {
   const p = (n: number) => `${n}`.padStart(2, '0');
@@ -58,7 +59,7 @@ export function EventFormDialog({
 
   const submit = async () => {
     if (!title.trim()) {
-      toast.error('Indique um título.');
+      toast.error(t('event.titleRequired'));
       return;
     }
     const now = new Date();
@@ -86,10 +87,10 @@ export function EventFormDialog({
     try {
       if (existing) await updateEvent(uid, { ...event, id: existing.id } as CalendarEvent);
       else await createEvent(uid, event);
-      toast.success(existing ? 'Guardado' : 'Lembrete adicionado');
+      toast.success(existing ? t('event.saved') : t('event.reminderAdded'));
       onClose();
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível guardar'));
+      toast.error(errorMessage(e, t('errors.save')));
     } finally {
       setSaving(false);
     }
@@ -99,29 +100,29 @@ export function EventFormDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={existing ? (isAppointment ? 'Editar consulta' : 'Editar lembrete') : 'Novo lembrete'}
+      title={existing ? (isAppointment ? t('event.editAppointment') : t('event.editReminder')) : t('event.newReminder')}
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            {existing ? 'Guardar' : 'Adicionar'}
+            {existing ? t('common.save') : t('common.add')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <TextField
-          label="Título"
+          label={t('event.title')}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Banho, desparasitação, comprar ração…"
+          placeholder={t('event.titlePlaceholder')}
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <DateTimeField label="Data e hora" value={when} onChange={setWhen} />
-          <Select label="Animal (opcional)" value={petId} onChange={(e) => setPetId(e.target.value)}>
-            <option value="">Sem animal</option>
+          <DateTimeField label={t('appointment.dateTime')} value={when} onChange={setWhen} />
+          <Select label={t('event.pet')} value={petId} onChange={(e) => setPetId(e.target.value)}>
+            <option value="">{t('event.noPet')}</option>
             {pets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -130,9 +131,9 @@ export function EventFormDialog({
           </Select>
         </div>
         {isAppointment && (
-          <TextField label="Local" value={location} onChange={(e) => setLocation(e.target.value)} />
+          <TextField label={t('appointment.location')} value={location} onChange={(e) => setLocation(e.target.value)} />
         )}
-        <Textarea label="Notas (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Textarea label={t('event.notes')} value={description} onChange={(e) => setDescription(e.target.value)} />
       </div>
     </Dialog>
   );

@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { TextField } from '@/components/ui/TextField';
 import { DateTimeField } from '@/components/ui/TimeField';
 import { Textarea } from '@/components/ui/Textarea';
+import { t } from '@/i18n';
 
 function defaultStart(day: Date): Date {
   const d = new Date(day);
@@ -111,11 +112,11 @@ export function VetAppointmentDialog({
 
   const submit = async () => {
     if (!clientId) {
-      toast.error('Escolha o cliente.');
+      toast.error(t('vetAppt.pickClient'));
       return;
     }
     if (!dateTime || Number.isNaN(dateTime.getTime())) {
-      toast.error('Escolha a data e a hora.');
+      toast.error(t('vetAgenda.pickDateTime'));
       return;
     }
     setSaving(true);
@@ -123,21 +124,21 @@ export function VetAppointmentDialog({
       await saveVetAppointment({
         id: existing?.id ?? null,
         clientId,
-        clientName: client ? clientLabel(client) : existing?.clientName || 'Cliente',
+        clientName: client ? clientLabel(client) : existing?.clientName || t('common.client'),
         petId: petId || null,
         petName: pet?.name ?? (petId ? existing?.petName ?? null : null),
         vetId,
         vetName,
-        title: effectiveTitle.trim() || 'Consulta',
+        title: effectiveTitle.trim() || t('event.appointmentName'),
         description: description.trim(),
         location: location.trim() || null,
         dateTime,
         appointmentRequestId: existing?.appointmentRequestId ?? null,
       });
-      toast.success(isEdit ? 'Consulta atualizada' : 'Consulta marcada. O cliente já a vê no calendário.');
+      toast.success(isEdit ? t('vetAppt.updated') : t('vetAppt.booked'));
       onClose();
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível guardar a consulta'));
+      toast.error(errorMessage(e, t('vetAppt.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -147,16 +148,16 @@ export function VetAppointmentDialog({
     <Dialog
       open={open}
       onClose={() => (saving ? undefined : onClose())}
-      title={isEdit ? 'Editar consulta' : 'Nova consulta'}
-      description={isEdit ? undefined : 'Fica na agenda e no calendário do cliente.'}
+      title={isEdit ? t('vetAgenda.editAppt') : t('vetAppt.new')}
+      description={isEdit ? undefined : t('vetAppt.newDesc')}
       className="max-w-lg"
       footer={
         <>
           <Button variant="outline" disabled={saving} onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            {isEdit ? 'Guardar' : 'Marcar'}
+            {isEdit ? t('common.save') : t('vetAppt.book')}
           </Button>
         </>
       }
@@ -164,7 +165,7 @@ export function VetAppointmentDialog({
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
-            label="Cliente"
+            label={t('vetAppt.client')}
             value={clientId}
             disabled={isEdit}
             onChange={(e) => {
@@ -172,9 +173,9 @@ export function VetAppointmentDialog({
               setPetId('');
             }}
           >
-            <option value="">Escolher…</option>
+            <option value="">{t('vetAppt.choose')}</option>
             {isEdit && !client && existing && (
-              <option value={existing.userId}>{existing.clientName || 'Cliente'}</option>
+              <option value={existing.userId}>{existing.clientName || t('common.client')}</option>
             )}
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -183,12 +184,12 @@ export function VetAppointmentDialog({
             ))}
           </Select>
           <Select
-            label="Animal"
+            label={t('common.pet')}
             value={petId}
             disabled={!clientId}
             onChange={(e) => setPetId(e.target.value)}
           >
-            <option value="">{clientId && pets.length === 0 ? 'Sem animais' : 'Sem animal'}</option>
+            <option value="">{clientId && pets.length === 0 ? t('vetAppt.noPets') : t('event.noPet')}</option>
             {pets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.species ? `${p.name} (${p.species})` : p.name}
@@ -198,18 +199,18 @@ export function VetAppointmentDialog({
         </div>
 
         <DateTimeField
-          label="Data e hora"
+          label={t('appointment.dateTime')}
           value={when}
           onChange={setWhen}
           hint={
             clash
-              ? `Atenção: já tem ${clash.clientName || 'uma consulta'} perto desta hora.`
+              ? t('vetAppt.clash', { name: clash.clientName || t('vetAppt.clashFallback') })
               : undefined
           }
         />
 
         <TextField
-          label="Título"
+          label={t('event.title')}
           value={effectiveTitle}
           onChange={(e) => {
             setTitleTouched(true);
@@ -218,17 +219,17 @@ export function VetAppointmentDialog({
         />
 
         <TextField
-          label="Local (opcional)"
+          label={t('vetAppt.location')}
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="Domicílio, consultório…"
+          placeholder={t('vetAppt.locationPlaceholder')}
         />
 
         <Textarea
-          label="Notas para o cliente (opcional)"
+          label={t('vetAppt.notes')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Motivo, preparação, o que trazer…"
+          placeholder={t('vetAppt.notesPlaceholder')}
         />
       </div>
     </Dialog>
