@@ -1,21 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  Send,
-  Paperclip,
-  Mic,
-  Square,
-  Check,
-  CheckCheck,
-  FileText,
-  Clock,
-  CornerUpLeft,
-  Copy,
-  Trash2,
-  MoreHorizontal,
-  X,
-} from 'lucide-react';
-import { type ChatMessage, type ChatRoom, MessageType, MessageStatus } from '@vetplus/shared';
+import { Send, Paperclip, Mic, Square, ChevronDown, X } from 'lucide-react';
+import { type ChatMessage, type ChatRoom, MessageType } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useDoc, useCollection } from '@/lib/useFirestore';
 import {
@@ -33,30 +19,21 @@ import {
   deleteMessage,
   toggleReaction,
   buildReplyMetadata,
-  parseReply,
-  parseReactions,
-  REACTION_EMOJIS,
 } from '@/lib/chatService';
-import { cn } from '@/lib/cn';
-import { dayShortFmt, errorMessage, timeFmt } from '@/lib/format';
+import { dayShortFmt, errorMessage, sameDay, startOfDay } from '@/lib/format';
 import { Spinner } from '@/components/Spinner';
-import { Menu, type MenuItem } from '@/components/ui/Menu';
 import { useConfirm } from '@/components/ui/Confirm';
 import { setActiveChatRoom } from './incomingMessage';
+import { MessageBubble, typeLabel } from './MessageBubble';
 
-function typeLabel(type: MessageType): string {
-  switch (type) {
-    case MessageType.image:
-      return '📷 Foto';
-    case MessageType.video:
-      return '🎬 Vídeo';
-    case MessageType.voice:
-      return '🎤 Mensagem de voz';
-    case MessageType.file:
-      return '📎 Anexo';
-    default:
-      return '';
-  }
+const GROUP_GAP_MS = 5 * 60 * 1000;
+
+function dayChipLabel(d: Date): string {
+  const today = startOfDay(new Date());
+  const day = startOfDay(d);
+  if (sameDay(day, today)) return 'Hoje';
+  if (day.getTime() === today.getTime() - 86400000) return 'Ontem';
+  return dayShortFmt.format(d);
 }
 
 
@@ -99,10 +76,51 @@ export function Conversation({ roomId }: { roomId: string }) {
     return () => setActiveChatRoom(null);
   }, [roomId]);
 
+  // Scroll tracking: stick to bottom only when already near it (or own message).
+  const [showJump, setShowJump] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const nearBottom = useRef(true);
+  const firstScrollDone = useRef(false);
+  const prevLen = useRef(0);
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    nearBottom.current = dist <= 120;
+    setShowJump(dist > 200);
+    if (dist <= 120) setPendingCount(0);
+  };
+
+  const scrollToBottom = (smooth = false) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  };
+
   // Auto-scroll to newest.
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length]);
+    const len = messages.length;
+    if (!firstScrollDone.current) {
+      if (len > 0 || !loading) {
+        firstScrollDone.current = true;
+        prevLen.current = len;
+        scrollToBottom();
+      }
+      return;
+    }
+    if (len > prevLen.current) {
+      const newest = messages[len - 1];
+      if (nearBottom.current || newest?.senderId === uid) {
+        scrollToBottom();
+        setPendingCount(0);
+      } else {
+        setPendingCount((c) => c + (len - prevLen.current));
+      }
+    }
+    prevLen.current = len;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, loading, uid]);
 
   const senderName = profile?.displayName?.trim() || profile?.email || 'Eu';
 
@@ -236,6 +254,14 @@ export function Conversation({ roomId }: { roomId: string }) {
     setTimeout(() => el.classList.remove('ring-2', 'ring-primary/50'), 1200);
   };
 
+  // Auto-grow composer (max ~max-h-32).
+  useEffect(() => {
+    const t = textareaRef.current;
+    if (!t) return;
+    t.style.height = 'auto';
+    t.style.height = `${Math.min(t.scrollHeight, 128)}px`;
+  }, [text]);
+
   const iAmVet = Boolean(room && uid === room.vetId);
   const otherName = iAmVet ? room?.petOwnerName?.trim() : room?.vetName?.trim();
 
@@ -254,43 +280,69 @@ export function Conversation({ roomId }: { roomId: string }) {
       </div>
 
       {/* Messages */}
-      <div
-        ref={scrollRef}
-        className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 py-4"
-      >
-        {loading && messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <Spinner size={28} />
-          </div>
-        ) : messages.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            Ainda sem mensagens.
-          </p>
-        ) : (
-          messages.map((m, i) => {
-            const prev = messages[i - 1];
-            const showDay =
-              !prev || prev.timestamp.toDateString() !== m.timestamp.toDateString();
-            return (
-              <div key={m.id}>
-                {showDay && (
-                  <div className="my-3 text-center text-xs text-muted-foreground">
-                    {dayShortFmt.format(m.timestamp)}
-                  </div>
-                )}
-                <MessageRow
-                  message={m}
-                  mine={m.senderId === uid}
-                  uid={uid}
-                  onReply={onReply}
-                  onCopy={onCopy}
-                  onReact={onReact}
-                  onDelete={onDelete}
-                  onJumpToReply={scrollToMessage}
-                />
-              </div>
-            );
-          })
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="h-full overflow-y-auto bg-secondary/40 px-5 py-4"
+        >
+          {loading && messages.length === 0 ? (
+            <div className="flex h-full items-center justify-center">
+              <Spinner size={28} />
+            </div>
+          ) : messages.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Ainda sem mensagens.
+            </p>
+          ) : (
+            messages.map((m, i) => {
+              const prev = messages[i - 1];
+              const showDay = !prev || !sameDay(prev.timestamp, m.timestamp);
+              const grouped =
+                Boolean(prev) &&
+                !showDay &&
+                prev!.senderId === m.senderId &&
+                m.timestamp.getTime() - prev!.timestamp.getTime() <= GROUP_GAP_MS;
+              return (
+                <div key={m.id}>
+                  {showDay && (
+                    <div className="sticky top-1 z-10 my-3 flex justify-center">
+                      <span className="rounded-full bg-card px-3 py-1 text-xs text-muted-foreground shadow-(--shadow-sm)">
+                        {dayChipLabel(m.timestamp)}
+                      </span>
+                    </div>
+                  )}
+                  <MessageBubble
+                    message={m}
+                    mine={m.senderId === uid}
+                    uid={uid}
+                    groupStart={!grouped}
+                    className={i === 0 && !showDay ? '' : grouped ? 'mt-0.5' : 'mt-3'}
+                    onReply={onReply}
+                    onCopy={onCopy}
+                    onReact={onReact}
+                    onDelete={onDelete}
+                    onJumpToReply={scrollToMessage}
+                  />
+                </div>
+              );
+            })
+          )}
+        </div>
+        {showJump && (
+          <button
+            type="button"
+            aria-label="Ir para as mensagens mais recentes"
+            onClick={() => scrollToBottom(true)}
+            className="absolute right-5 bottom-3 grid h-10 w-10 place-items-center rounded-full bg-card text-muted-foreground shadow-(--shadow-md) hover:text-foreground"
+          >
+            <ChevronDown size={20} />
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                {pendingCount}
+              </span>
+            )}
+          </button>
         )}
       </div>
 
@@ -356,7 +408,7 @@ export function Conversation({ roomId }: { roomId: string }) {
           }}
           placeholder={recorder.recording ? 'A gravar…' : 'Escreva uma mensagem…'}
           disabled={recorder.recording}
-          className="max-h-32 min-h-[44px] flex-1 resize-none rounded-(--radius-lg) border border-input bg-card px-3.5 py-2.5 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
+          className="min-h-[44px] flex-1 resize-none overflow-y-auto rounded-3xl border border-input bg-card px-4 py-2.5 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
         />
 
         {text.trim() ? (
@@ -394,245 +446,6 @@ export function Conversation({ roomId }: { roomId: string }) {
       </div>
     </div>
   );
-}
-
-interface MessageRowProps {
-  message: ChatMessage;
-  mine: boolean;
-  uid: string;
-  onReply: (m: ChatMessage) => void;
-  onCopy: (m: ChatMessage) => void;
-  onReact: (m: ChatMessage, emoji: string) => void;
-  onDelete: (m: ChatMessage) => void;
-  onJumpToReply: (id: string) => void;
-}
-
-function MessageRow({
-  message: m,
-  mine,
-  uid,
-  onReply,
-  onCopy,
-  onReact,
-  onDelete,
-  onJumpToReply,
-}: MessageRowProps) {
-  if (m.isDeleted) {
-    return (
-      <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
-        <div className="my-0.5 rounded-(--radius-lg) bg-secondary px-3.5 py-2 text-sm italic text-muted-foreground">
-          Mensagem apagada
-        </div>
-      </div>
-    );
-  }
-
-  const reply = parseReply(m);
-  const reactions = parseReactions(m);
-  const actions = (
-    <MessageActions
-      mine={mine}
-      message={m}
-      onReply={onReply}
-      onCopy={onCopy}
-      onReact={onReact}
-      onDelete={onDelete}
-    />
-  );
-
-  return (
-    <div
-      id={`msg-${m.id}`}
-      className={cn(
-        'group flex items-end gap-1.5 rounded-(--radius-lg) transition-shadow',
-        mine ? 'justify-end' : 'justify-start',
-      )}
-    >
-      {mine && actions}
-      <div className={cn('flex max-w-[80%] flex-col', mine ? 'items-end' : 'items-start')}>
-        <div
-          className={cn(
-            'my-0.5 rounded-(--radius-lg) px-3.5 py-2 text-sm',
-            mine ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground',
-          )}
-        >
-          {reply && (
-            <button
-              type="button"
-              onClick={() => onJumpToReply(reply.id)}
-              className={cn(
-                'mb-1.5 flex w-full flex-col gap-0.5 rounded-(--radius-sm) border-l-2 px-2 py-1 text-left',
-                mine
-                  ? 'border-primary-foreground/60 bg-primary-foreground/15'
-                  : 'border-primary bg-foreground/5',
-              )}
-            >
-              <span
-                className={cn(
-                  'text-[11px] font-semibold',
-                  mine ? 'text-primary-foreground/90' : 'text-primary',
-                )}
-              >
-                {reply.senderId === uid ? 'Eu' : reply.senderName}
-              </span>
-              <span
-                className={cn(
-                  'truncate text-[11px]',
-                  mine ? 'text-primary-foreground/75' : 'text-muted-foreground',
-                )}
-              >
-                {reply.type === MessageType.text ? reply.content : typeLabel(reply.type)}
-              </span>
-            </button>
-          )}
-          <MessageContent message={m} mine={mine} />
-          <div
-            className={cn(
-              'mt-1 flex items-center justify-end gap-1 text-[10px]',
-              mine ? 'text-primary-foreground/70' : 'text-muted-foreground',
-            )}
-          >
-            {timeFmt.format(m.timestamp)}
-            {mine && <StatusTicks status={m.status} />}
-          </div>
-        </div>
-
-        {reactions.length > 0 && (
-          <div className={cn('mb-0.5 flex flex-wrap gap-1', mine ? 'justify-end' : 'justify-start')}>
-            {reactions.map((r) => {
-              const reacted = r.userIds.includes(uid);
-              return (
-                <button
-                  key={r.emoji}
-                  type="button"
-                  onClick={() => onReact(m, r.emoji)}
-                  title={r.userNames.join(', ')}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-(--radius-pill) border px-1.5 py-0.5 text-[11px] tabular-nums transition-colors',
-                    reacted
-                      ? 'border-primary bg-primary-light text-primary'
-                      : 'border-border bg-card text-muted-foreground hover:bg-secondary',
-                  )}
-                >
-                  <span className="text-xs leading-none">{r.emoji}</span>
-                  {r.userIds.length}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      {!mine && actions}
-    </div>
-  );
-}
-
-function MessageActions({
-  mine,
-  message: m,
-  onReply,
-  onCopy,
-  onReact,
-  onDelete,
-}: {
-  mine: boolean;
-  message: ChatMessage;
-  onReply: (m: ChatMessage) => void;
-  onCopy: (m: ChatMessage) => void;
-  onReact: (m: ChatMessage, emoji: string) => void;
-  onDelete: (m: ChatMessage) => void;
-}) {
-  const items: MenuItem[] = [
-    { label: 'Responder', icon: <CornerUpLeft size={14} />, onClick: () => onReply(m) },
-    ...(m.type === MessageType.text
-      ? [{ label: 'Copiar', icon: <Copy size={14} />, onClick: () => onCopy(m) }]
-      : []),
-    ...(mine
-      ? [{ label: 'Apagar', icon: <Trash2 size={14} />, danger: true, onClick: () => onDelete(m) }]
-      : []),
-  ];
-  return (
-    <div className="self-center">
-      <Menu
-        label="Ações da mensagem"
-        trigger={<MoreHorizontal size={16} />}
-        align={mine ? 'right' : 'left'}
-        items={items}
-        triggerClassName="h-7 w-7 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-        header={(close) => (
-          <>
-            <div className="flex justify-around px-1 pb-1">
-              {REACTION_EMOJIS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => {
-                    close();
-                    onReact(m, emoji);
-                  }}
-                  className="grid h-8 w-8 place-items-center rounded-full text-base hover:bg-secondary"
-                  aria-label={`Reagir ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-            <div className="my-1 h-px bg-border" />
-          </>
-        )}
-      />
-    </div>
-  );
-}
-
-function MessageContent({ message: m, mine }: { message: ChatMessage; mine: boolean }) {
-  switch (m.type) {
-    case MessageType.image:
-      return m.mediaUrl ? (
-        <a href={m.mediaUrl} target="_blank" rel="noreferrer">
-          <img
-            src={m.mediaUrl}
-            alt="Imagem partilhada"
-            className="max-h-64 max-w-full rounded-(--radius-md) object-cover"
-          />
-        </a>
-      ) : (
-        <span>{m.content}</span>
-      );
-    case MessageType.video:
-      return m.mediaUrl ? (
-        <video src={m.mediaUrl} controls className="max-h-64 max-w-full rounded-(--radius-md)" />
-      ) : (
-        <span>{m.content}</span>
-      );
-    case MessageType.voice:
-      return m.mediaUrl ? (
-        <audio src={m.mediaUrl} controls className="h-9 w-56 max-w-full" />
-      ) : (
-        <span>{m.content}</span>
-      );
-    case MessageType.file:
-      return (
-        <a
-          href={m.mediaUrl ?? '#'}
-          target="_blank"
-          rel="noreferrer"
-          className={`flex min-w-0 items-center gap-2 underline ${mine ? '' : 'text-primary'}`}
-        >
-          <FileText size={16} className="shrink-0" />
-          <span className="break-all">{m.fileName ?? 'Anexo'}</span>
-        </a>
-      );
-    default:
-      return <span className="whitespace-pre-wrap break-words">{m.content}</span>;
-  }
-}
-
-function StatusTicks({ status }: { status: MessageStatus }) {
-  if (status === MessageStatus.read) return <CheckCheck size={13} className="text-info" />;
-  if (status === MessageStatus.delivered) return <CheckCheck size={13} />;
-  if (status === MessageStatus.sent) return <Check size={13} />;
-  return <Clock size={11} />;
 }
 
 /* ----------------------------- voice recorder ------------------------------ */
