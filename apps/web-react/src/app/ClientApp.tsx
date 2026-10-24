@@ -11,6 +11,7 @@ import { AppointmentPage } from '@/features/calendar/AppointmentPage';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { ProfileSettingsPage } from '@/features/profile/ProfileSettingsPage';
 import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
+import { ConfirmedRequestToast } from '@/features/calendar/ConfirmedRequestToast';
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
@@ -31,6 +32,7 @@ export function ClientApp() {
       onSignOut={() => void signOutUser()}
     >
       <IncomingMessageToast />
+      <ConfirmedRequestToast />
       <Routes>
         <Route index element={<ClientDashboard />} />
         <Route path="pets" element={<PetsPage />} />
