@@ -12,6 +12,7 @@ import { ProfileSettingsPage } from '@/features/profile/ProfileSettingsPage';
 import { PetForm } from '@/features/pets/PetForm';
 import { PetDetailPage } from '@/features/pets/PetDetailPage';
 import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
+import { CancelledAppointmentToast } from '@/features/vet/CancelledAppointmentToast';
 
 export function VetApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
@@ -33,6 +34,7 @@ export function VetApp() {
       onSignOut={() => void signOutUser()}
     >
       <IncomingMessageToast />
+      <CancelledAppointmentToast />
       <Routes>
         <Route index element={<VetDashboard />} />
         <Route path="agenda" element={<VetAgendaPage />} />
