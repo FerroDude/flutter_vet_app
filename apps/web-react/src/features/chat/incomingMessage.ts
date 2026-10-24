@@ -26,8 +26,10 @@ export function incomingNotice(input: {
   return { show, count };
 }
 
+import { t } from '@/i18n';
+
 export function incomingTitle(count: number): string {
-  return count === 1 ? 'Mensagem nova' : `${count} mensagens novas`;
+  return t(count === 1 ? 'chat.newMsg.one' : 'chat.newMsg.other', { count });
 }
 
 export function incomingBody(senderName: string, content: string): string {
@@ -35,7 +37,7 @@ export function incomingBody(senderName: string, content: string): string {
   const clipped = text.length > 80 ? `${text.slice(0, 79)}…` : text;
   const name = senderName.trim();
   if (name && clipped) return `${name}: ${clipped}`;
-  return name || clipped || 'Mensagem nova';
+  return name || clipped || t('chat.newMsg.one');
 }
 
 /** metadata.kind marking the chat message a client cancellation sends. */

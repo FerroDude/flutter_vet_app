@@ -6,11 +6,12 @@ import { toast } from 'sonner';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { authErrorMessage } from '@/lib/authErrors';
+import { t } from '@/i18n';
 import { AuthShell } from '@/components/ui/AuthShell';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 
-const email = z.string().min(1, 'Indique o email.').email('Email inválido.');
+const email = z.string().min(1, t('auth.emailRequired')).email(t('auth.emailInvalid'));
 
 export function AuthScreen() {
   const [view, setView] = useState<'login' | 'forgot'>('login');
@@ -23,7 +24,7 @@ export function AuthScreen() {
 
 const loginSchema = z.object({
   email,
-  password: z.string().min(1, 'Indique a palavra-passe.'),
+  password: z.string().min(1, t('auth.passwordRequired')),
 });
 
 function LoginForm({ onForgot }: { onForgot: () => void }) {
@@ -42,10 +43,10 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
   });
 
   return (
-    <AuthShell title="Bem-vindo" subtitle="Entre na sua conta Yoshi Vet Care.">
+    <AuthShell title={t('auth.welcome')} subtitle={t('auth.subtitle')}>
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField
-          label="Email"
+          label={t('common.email')}
           type="email"
           autoComplete="email"
           autoFocus
@@ -53,7 +54,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
           {...register('email')}
         />
         <TextField
-          label="Palavra-passe"
+          label={t('auth.password')}
           type="password"
           autoComplete="current-password"
           error={errors.password?.message}
@@ -61,11 +62,11 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         />
         <div className="-mt-1 text-right">
           <button type="button" onClick={onForgot} className="text-sm font-medium text-primary hover:underline">
-            Esqueceu-se da palavra-passe?
+            {t('auth.forgot')}
           </button>
         </div>
         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
-          Entrar
+          {t('auth.signIn')}
         </Button>
       </form>
     </AuthShell>
@@ -99,21 +100,21 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
 
   if (sentTo) {
     return (
-      <AuthShell title="Veja o email" subtitle="Enviámos um link para definir a palavra-passe.">
+      <AuthShell title={t('auth.checkEmail.title')} subtitle={t('auth.checkEmail.subtitle')}>
         <div className="flex flex-col gap-3">
           <div className="rounded-(--radius-md) bg-primary-light px-4 py-3 text-sm font-medium text-primary">
             {sentTo}
           </div>
           <Button size="lg" fullWidth onClick={onBack}>
-            Voltar a entrar
+            {t('auth.backToSignIn')}
           </Button>
           <Button
             variant="ghost"
             onClick={async () => {
-              if (await send(sentTo)) toast.success('Email enviado.');
+              if (await send(sentTo)) toast.success(t('auth.emailSent'));
             }}
           >
-            Não chegou? Reenviar
+            {t('auth.resend')}
           </Button>
         </div>
       </AuthShell>
@@ -122,17 +123,17 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
 
   return (
     <AuthShell
-      title="Repor palavra-passe"
-      subtitle="Indique o email e enviamos um link para definir uma nova palavra-passe."
+      title={t('auth.reset.title')}
+      subtitle={t('auth.reset.subtitle')}
       footer={
         <button type="button" onClick={onBack} className="font-semibold text-primary hover:underline">
-          Voltar a entrar
+          {t('auth.backToSignIn')}
         </button>
       }
     >
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField
-          label="Email"
+          label={t('common.email')}
           type="email"
           autoComplete="email"
           autoFocus
@@ -140,7 +141,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
           {...register('email')}
         />
         <Button type="submit" size="lg" fullWidth loading={isSubmitting}>
-          Enviar link
+          {t('auth.sendLink')}
         </Button>
       </form>
     </AuthShell>

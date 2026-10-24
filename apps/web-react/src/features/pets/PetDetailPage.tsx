@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Activity, ArrowLeft, CalendarDays, PawPrint, Pencil, Pill, Plus, Trash2 } from 'lucide-react';
 import { PetAvatar } from '@/components/ui/PetAvatar';
-import { SYMPTOM_LABELS, EventType, type PetSymptom, type Medication } from '@vetplus/shared';
+import { EventType, type PetSymptom, type Medication } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useDoc, useCollection } from '@/lib/useFirestore';
 import { petDoc, mapPet, petAgeLabel, symptomsQuery, mapSymptom, deleteSymptom, type Pet } from '@/lib/petService';
@@ -18,6 +18,8 @@ import {
 import { eventsQuery, mapEvent, deleteEvent, isCancelled, type AppointmentEvent, type CalendarEvent } from '@/lib/eventService';
 import { clientLabel } from '@/lib/clientService';
 import { dateTimeFmt, errorMessage, longDateFmt } from '@/lib/format';
+import { symptomLabel } from '@/lib/medText';
+import { t } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { PageSpinner } from '@/components/Spinner';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -45,7 +47,7 @@ export function PetDetailPage() {
   const isVetView = role === 'vet' && Boolean(ownerId);
   const uid = (isVetView ? ownerId : firebaseUser?.uid) ?? '';
   const back = isVetView ? `/clients/${ownerId}` : '/pets';
-  const vetName = profile?.displayName?.trim() || 'Veterinária';
+  const vetName = profile?.displayName?.trim() || t('common.vet');
 
   const ref = useMemo(() => (uid && petId ? petDoc(uid, petId) : null), [uid, petId]);
   const { data: pet, loading } = useDoc<Pet>(ref, mapPet);
@@ -77,8 +79,8 @@ export function PetDetailPage() {
     return (
       <EmptyState
         icon={<PawPrint size={40} />}
-        title="Animal não encontrado"
-        action={<Button onClick={() => navigate(back)}>Voltar</Button>}
+        title={t('pets.notFound')}
+        action={<Button onClick={() => navigate(back)}>{t('common.back')}</Button>}
       />
     );
   }
@@ -87,8 +89,8 @@ export function PetDetailPage() {
     p.then(() => ok && toast.success(ok)).catch((e) => toast.error(errorMessage(e)));
 
   const remove = async (what: string, action: () => Promise<unknown>) => {
-    if (await confirm({ title: 'Apagar?', description: `Apagar ${what}? Não dá para desfazer.`, confirmLabel: 'Apagar', danger: true })) {
-      void run(action(), 'Apagado');
+    if (await confirm({ title: t('agenda.deleteTitle'), description: t('agenda.deleteItemNoUndo', { name: what }), confirmLabel: t('common.delete'), danger: true })) {
+      void run(action(), t('agenda.deleted'));
     }
   };
 
@@ -103,7 +105,7 @@ export function PetDetailPage() {
         onClick={() => navigate(back)}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> {isVetView ? 'Cliente' : 'Animais'}
+        <ArrowLeft size={16} /> {isVetView ? t('common.client') : t('nav.pets')}
       </button>
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
@@ -111,11 +113,11 @@ export function PetDetailPage() {
         <div className="min-w-0 flex-1">
           <h1 className="break-words font-display text-3xl font-bold text-foreground">{pet.name}</h1>
           <p className="text-muted-foreground">
-            {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Animal'} · {petAgeLabel(pet.dateOfBirth)}
+            {[pet.species, pet.breed].filter(Boolean).join(' · ') || t('pets.unknown')} · {petAgeLabel(pet.dateOfBirth)}
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate(`${isVetView ? `/clients/${ownerId}/pets` : '/pets'}/${pet.id}/edit`)}>
-          <Pencil size={16} /> Editar
+          <Pencil size={16} /> {t('common.edit')}
         </Button>
       </div>
 
@@ -123,42 +125,42 @@ export function PetDetailPage() {
 
       <Card className="mb-8">
         <CardBody>
-          <p className="mb-4 text-sm font-semibold text-foreground">Ficha</p>
+          <p className="mb-4 text-sm font-semibold text-foreground">{t('pets.record')}</p>
           <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
-            <Detail label="Sexo" value={pet.gender === 'Male' ? 'Macho' : pet.gender === 'Female' ? 'Fêmea' : '—'} />
-            <Detail label="Data de nascimento" value={pet.dateOfBirth ? longDateFmt.format(pet.dateOfBirth) : '—'} />
-            <Detail label="Peso" value={pet.weight || '—'} />
-            <Detail label="Cor / marcas" value={pet.color || '—'} />
-            <Detail label="Microchip" value={pet.microchip || '—'} />
+            <Detail label={t('pets.sex')} value={pet.gender === 'Male' ? t('pets.male') : pet.gender === 'Female' ? t('pets.female') : '—'} />
+            <Detail label={t('pets.dob')} value={pet.dateOfBirth ? longDateFmt.format(pet.dateOfBirth) : '—'} />
+            <Detail label={t('pets.weight')} value={pet.weight || '—'} />
+            <Detail label={t('pets.color')} value={pet.color || '—'} />
+            <Detail label={t('pets.microchip')} value={pet.microchip || '—'} />
           </dl>
           {pet.medicalNotes && (
             <div className="mt-4 border-t border-border pt-4">
-              <Detail label="Notas de saúde" value={pet.medicalNotes} />
+              <Detail label={t('pets.healthNotes')} value={pet.medicalNotes} />
             </div>
           )}
         </CardBody>
       </Card>
 
       <Section
-        title="Medicação"
+        title={t('pets.medication')}
         action={
           <Button variant="outline" onClick={() => setMedForm({ existing: null })}>
-            <Plus size={16} /> Adicionar
+            <Plus size={16} /> {t('common.add')}
           </Button>
         }
       >
         {meds.length === 0 ? (
-          <EmptyState icon={<Pill size={36} />} title="Sem medicação" />
+          <EmptyState icon={<Pill size={36} />} title={t('pets.noMeds')} />
         ) : (
           <div className="space-y-3">
             {meds.map((m) => (
               <MedicationCard
                 key={m.id}
                 med={m}
-                onLogDose={() => void run(logDoseTaken(uid, pet.id, m.id, new Date()), 'Dose registada')}
+                onLogDose={() => void run(logDoseTaken(uid, pet.id, m.id, new Date()), t('agenda.doseLogged'))}
                 onUndo={() =>
                   void undoLastDose(uid, pet.id, m.id).then((ok) =>
-                    toast[ok ? 'success' : 'message'](ok ? 'Última dose anulada' : 'Sem dose para anular'),
+                    toast[ok ? 'success' : 'message'](ok ? t('pets.lastDoseUndone') : t('pets.noDoseToUndo')),
                   )
                 }
                 onEdit={() => setMedForm({ existing: m })}
@@ -171,7 +173,7 @@ export function PetDetailPage() {
       </Section>
 
       <Section
-        title="Consultas"
+        title={t('pets.appointments')}
         action={
           isVetView || profile?.vetId ? (
             <Button
@@ -181,13 +183,13 @@ export function PetDetailPage() {
                 setApptOpen(true);
               }}
             >
-              <Plus size={16} /> {isVetView ? 'Marcar consulta' : 'Pedir marcação'}
+              <Plus size={16} /> {isVetView ? t('pets.book') : t('pets.requestAppointment')}
             </Button>
           ) : undefined
         }
       >
         {petEvents.length === 0 ? (
-          <EmptyState icon={<CalendarDays size={36} />} title="Sem consultas" />
+          <EmptyState icon={<CalendarDays size={36} />} title={t('pets.noAppointments')} />
         ) : (
           <Card>
             <ul className="divide-y divide-border">
@@ -198,12 +200,12 @@ export function PetDetailPage() {
                   strike={isCancelled(e)}
                   dot={e.type === EventType.appointment ? 'bg-event-appointment' : 'bg-accent'}
                   title={e.title}
-                  meta={`${dateTimeFmt.format(e.dateTime)}${isCancelled(e) ? ' · Cancelada' : ''}`}
+                  meta={`${dateTimeFmt.format(e.dateTime)}${isCancelled(e) ? ` · ${t('agenda.cancelled')}` : ''}`}
                   actions={
                     canEdit(e) && (
                       <>
                         <IconBtn
-                          label="Editar"
+                          label={t('common.edit')}
                           onClick={() => {
                             setEditingEvent(e);
                             setApptOpen(true);
@@ -211,7 +213,7 @@ export function PetDetailPage() {
                         >
                           <Pencil size={15} />
                         </IconBtn>
-                        <IconBtn label="Apagar" danger onClick={() => void remove(`"${e.title}"`, () => deleteEvent(uid, e.id))}>
+                        <IconBtn label={t('common.delete')} danger onClick={() => void remove(`"${e.title}"`, () => deleteEvent(uid, e.id))}>
                           <Trash2 size={15} />
                         </IconBtn>
                       </>
@@ -225,18 +227,18 @@ export function PetDetailPage() {
       </Section>
 
       <Section
-        title="Sintomas"
+        title={t('pets.symptoms')}
         action={
           <Button variant="outline" onClick={() => setSymptomOpen(true)}>
-            <Plus size={16} /> Registar
+            <Plus size={16} /> {t('pets.log')}
           </Button>
         }
       >
         {symptoms.length === 0 ? (
           <EmptyState
             icon={<Activity size={36} />}
-            title="Sem sintomas registados"
-            description={isVetView ? undefined : 'Registe sintomas para a veterinária ver o histórico.'}
+            title={t('pets.noSymptoms')}
+            description={isVetView ? undefined : t('pets.noSymptomsHint')}
           />
         ) : (
           <Card>
@@ -245,14 +247,14 @@ export function PetDetailPage() {
                 <ListRow
                   key={s.id}
                   dot="bg-event-symptom"
-                  title={SYMPTOM_LABELS[s.type]}
+                  title={symptomLabel(s.type)}
                   meta={dateTimeFmt.format(s.timestamp)}
                   note={s.note}
                   actions={
                     <IconBtn
-                      label="Apagar sintoma"
+                      label={t('agenda.deleteSymptom')}
                       danger
-                      onClick={() => void remove('este sintoma', () => deleteSymptom(uid, pet.id, s.id))}
+                      onClick={() => void remove(t('pets.thisSymptom'), () => deleteSymptom(uid, pet.id, s.id))}
                     >
                       <Trash2 size={15} />
                     </IconBtn>

@@ -1,5 +1,6 @@
 import { forwardRef, useId, useState, type InputHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
+import { t } from '@/i18n';
 
 interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -44,7 +45,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             <button
               type="button"
               onClick={() => setShow((s) => !s)}
-              aria-label={show ? 'Esconder palavra-passe' : 'Mostrar palavra-passe'}
+              aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
               className="absolute inset-y-0 right-0 grid w-11 place-items-center text-muted-foreground hover:text-foreground"
             >
               {show ? <EyeOff /> : <Eye />}

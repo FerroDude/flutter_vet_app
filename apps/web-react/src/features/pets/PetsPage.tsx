@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PetAvatar } from '@/components/ui/PetAvatar';
 import { PageSpinner } from '@/components/Spinner';
+import { t } from '@/i18n';
 
 export function PetsPage() {
   const { firebaseUser } = useAuth();
@@ -30,12 +31,12 @@ export function PetsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Os seus animais"
-        title="Animais"
-        subtitle="Os seus animais e os registos de saúde."
+        eyebrow={t('pets.eyebrow')}
+        title={t('nav.pets')}
+        subtitle={t('pets.subtitle')}
         actions={
           <Button onClick={() => navigate('/pets/new')}>
-            <Plus size={18} /> Adicionar animal
+            <Plus size={18} /> {t('pets.new')}
           </Button>
         }
       />
@@ -49,7 +50,7 @@ export function PetsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Procurar animais…"
+            placeholder={t('pets.search')}
             className="h-11 w-full rounded-(--radius-md) border border-input bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
           />
         </div>
@@ -60,16 +61,12 @@ export function PetsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<PawPrint size={40} />}
-          title={search ? 'Nenhum animal encontrado' : 'Ainda sem animais'}
-          description={
-            search
-              ? 'Tente outra pesquisa.'
-              : 'Adicione o primeiro animal para registar sintomas, medicação e marcações.'
-          }
+          title={search ? t('pets.noneFound') : t('pets.empty')}
+          description={search ? t('pets.tryOtherSearch') : t('pets.emptyHint')}
           action={
             !search ? (
               <Button onClick={() => navigate('/pets/new')}>
-                <Plus size={18} /> Adicionar animal
+                <Plus size={18} /> {t('pets.new')}
               </Button>
             ) : undefined
           }

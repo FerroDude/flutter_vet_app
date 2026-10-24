@@ -3,6 +3,7 @@ import { LayoutDashboard, PawPrint, CalendarDays, MessageCircle, User } from 'lu
 import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
+import { t } from '@/i18n';
 import { ClientDashboard } from '@/features/dashboard/ClientDashboard';
 import { PetsPage } from '@/features/pets/PetsPage';
 import { PetForm } from '@/features/pets/PetForm';
@@ -19,18 +20,18 @@ export function ClientApp() {
   const { unread } = useRooms('petOwnerId', firebaseUser?.uid ?? '');
 
   const nav: NavItem[] = [
-    { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
-    { to: '/pets', label: 'Animais', icon: PawPrint },
-    { to: '/agenda', label: 'Agenda', icon: CalendarDays },
-    { to: '/chat', label: 'Chat', icon: MessageCircle, badge: unread },
-    { to: '/profile', label: 'Perfil', icon: User },
+    { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
+    { to: '/pets', label: t('nav.pets'), icon: PawPrint },
+    { to: '/agenda', label: t('nav.agenda'), icon: CalendarDays },
+    { to: '/chat', label: t('nav.chat'), icon: MessageCircle, badge: unread },
+    { to: '/profile', label: t('nav.profile'), icon: User },
   ];
 
   return (
     <AppLayout
       nav={nav}
-      userName={profile?.displayName?.trim() || profile?.email || 'Cliente'}
-      userSubtitle="Cliente"
+      userName={profile?.displayName?.trim() || profile?.email || t('common.client')}
+      userSubtitle={t('common.client')}
       onSignOut={() => void signOutUser()}
     >
       <IncomingMessageToast />

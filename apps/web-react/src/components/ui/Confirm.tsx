@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { Dialog } from './Dialog';
 import { Button } from './Button';
+import { t } from '@/i18n';
 
 interface ConfirmOptions {
   title: string;
@@ -46,10 +47,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         footer={
           <>
             <Button variant="outline" onClick={() => close(false)}>
-              {opts?.cancelLabel ?? 'Cancelar'}
+              {opts?.cancelLabel ?? t('common.cancel')}
             </Button>
             <Button variant={opts?.danger ? 'destructive' : 'primary'} onClick={() => close(true)}>
-              {opts?.confirmLabel ?? 'Confirmar'}
+              {opts?.confirmLabel ?? t('common.confirm')}
             </Button>
           </>
         }

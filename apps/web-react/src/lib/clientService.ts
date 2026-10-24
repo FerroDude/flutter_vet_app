@@ -9,6 +9,7 @@ import {
 } from '@vetplus/shared';
 import { db, getSecondaryAuth } from './firebase';
 import { findOrCreateOneOnOneChat } from './chatService';
+import { t } from '@/i18n';
 
 const usersCol = () => collection(db, 'users');
 
@@ -26,7 +27,7 @@ export function clientsQuery(vetId: string) {
 export const mapClient = (id: string, d: DocumentData): UserProfile => userProfileFromFirestore(id, d);
 
 export const clientLabel = (c: Pick<UserProfile, 'displayName' | 'email'>): string =>
-  c.displayName?.trim() || c.email || 'Cliente';
+  c.displayName?.trim() || c.email || t('common.client');
 
 /**
  * Vet adds a client. Creates the Auth user, writes the profile with vetId,
@@ -41,7 +42,7 @@ export async function addClientByEmail(args: {
 }): Promise<string> {
   const email = args.email.trim().toLowerCase();
   const name = args.name.trim();
-  if (!email || !name) throw new Error('Nome e email são obrigatórios');
+  if (!email || !name) throw new Error(t('vet.clients.nameEmailRequired'));
 
   const secondary = getSecondaryAuth();
   let uid: string;
@@ -51,7 +52,7 @@ export async function addClientByEmail(args: {
   } catch (e) {
     await signOut(secondary).catch(() => {});
     if (e instanceof FirebaseError && e.code === 'auth/email-already-in-use') {
-      throw new Error('Esse email já tem conta.');
+      throw new Error(t('vet.clients.emailInUse'));
     }
     throw e;
   }

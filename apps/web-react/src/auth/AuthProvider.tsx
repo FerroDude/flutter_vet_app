@@ -12,6 +12,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { type UserProfile, isVet, isPetOwner } from '@vetplus/shared';
 import { auth } from '@/lib/firebase';
 import { getUserProfile, updateUserProfile } from '@/lib/userService';
+import { t } from '@/i18n';
 
 export type Role = 'vet' | 'petOwner' | 'unknown';
 
@@ -67,10 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const found = await getUserProfile(user.uid);
       if (seq !== loadSeq.current) return; // superseded by a newer load
       setProfile(found);
-      if (!found) setError('Esta conta não tem acesso. Peça à sua veterinária para a adicionar.');
+      if (!found) setError(t('auth.noProfile'));
     } catch (e) {
       if (seq === loadSeq.current) {
-        setError(e instanceof Error ? e.message : 'Não foi possível carregar o perfil');
+        setError(e instanceof Error ? e.message : t('errors.generic'));
         setProfile(null);
       }
     } finally {

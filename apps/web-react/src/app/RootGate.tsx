@@ -3,6 +3,7 @@ import { useAuth, needsDisplayName } from '@/auth/AuthProvider';
 import { PageSpinner } from '@/components/Spinner';
 import { Button } from '@/components/ui/Button';
 import { isFirebaseConfigured } from '@/lib/env';
+import { t } from '@/i18n';
 import { AuthScreen } from '@/features/auth/AuthScreen';
 import { DisplayNameScreen } from '@/features/auth/DisplayNameScreen';
 import { ClientApp } from './ClientApp';
@@ -21,10 +22,7 @@ export function RootGate() {
 
   if (!isFirebaseConfigured) {
     return (
-      <Message title="Firebase não configurado">
-        Copie .env.example para .env.local, preencha a config da app Web na consola Firebase e reinicie o
-        servidor.
-      </Message>
+      <Message title={t('auth.noFirebase.title')}>{t('auth.noFirebase.body')}</Message>
     );
   }
 
@@ -33,12 +31,12 @@ export function RootGate() {
 
   if (error || (!profileLoading && !profile) || (profile && role === 'unknown')) {
     return (
-      <Message title="Sem acesso">
-        {error ?? 'Esta conta não tem um papel definido. Contacte o suporte.'}
+      <Message title={t('auth.noAccess.title')}>
+        {error ?? t('auth.noAccess.body')}
         <div className="mt-4 flex justify-center gap-2">
-          <Button onClick={() => void refreshProfile()}>Tentar de novo</Button>
+          <Button onClick={() => void refreshProfile()}>{t('common.retry')}</Button>
           <Button variant="outline" onClick={() => void signOutUser()}>
-            Terminar sessão
+            {t('common.signOut')}
           </Button>
         </div>
       </Message>

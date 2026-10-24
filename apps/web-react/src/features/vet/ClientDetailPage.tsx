@@ -25,6 +25,7 @@ import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { t } from '@/i18n';
 import { PetAvatar } from '@/components/ui/PetAvatar';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -35,7 +36,7 @@ export function ClientDetailPage() {
   const { firebaseUser, profile } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const staffName = profile?.displayName?.trim() || profile?.email || 'Veterinária';
+  const staffName = profile?.displayName?.trim() || profile?.email || t('common.vet');
 
   const ownerRef = useMemo(() => doc(db, 'users', ownerId), [ownerId]);
   const { data: owner, loading } = useDoc<UserProfile>(ownerRef, mapClient);
@@ -64,7 +65,7 @@ export function ClientDetailPage() {
       });
       navigate(chatRoomPath(roomId));
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível abrir a conversa'));
+      toast.error(errorMessage(e, t('vet.chatOpenFailed')));
     } finally {
       setStarting(false);
     }
@@ -77,7 +78,7 @@ export function ClientDetailPage() {
         onClick={() => navigate('/clients')}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> Clientes
+        <ArrowLeft size={16} /> {t('vet.clients')}
       </button>
 
       {loading && !owner ? (
@@ -85,7 +86,7 @@ export function ClientDetailPage() {
           <Spinner size={28} />
         </div>
       ) : !owner ? (
-        <PageHeader title="Cliente não encontrado" subtitle="Este cliente já não existe." />
+        <PageHeader title={t('vet.clientNotFound')} subtitle={t('vet.clientGone')} />
       ) : (
         <>
           <Card className="mb-6">
@@ -96,16 +97,16 @@ export function ClientDetailPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-2xl font-bold text-foreground">
-                    {owner.displayName || 'Sem nome'}
+                    {owner.displayName || t('vet.noName')}
                   </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button loading={starting} onClick={() => void startChat()}>
-                  <MessageSquare size={16} /> Mensagem
+                  <MessageSquare size={16} /> {t('vet.message')}
                 </Button>
                 <Button variant="outline" onClick={() => setBookOpen(true)}>
-                  <CalendarPlus size={16} /> Marcar consulta
+                  <CalendarPlus size={16} /> {t('vet.book')}
                 </Button>
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -139,7 +140,7 @@ export function ClientDetailPage() {
           {clientUpcoming.length > 0 && (
             <div className="mb-6">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Próximas consultas
+                {t('vet.upcoming')}
               </h2>
               <Card>
                 <ul className="divide-y divide-border">
@@ -159,16 +160,16 @@ export function ClientDetailPage() {
 
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Animais ({pets.length})
+              {t('vet.petsCount', { count: pets.length })}
             </h2>
             <Button variant="outline" onClick={() => navigate(`/clients/${ownerId}/pets/new`)}>
-              <Plus size={15} /> Adicionar animal
+              <Plus size={15} /> {t('vet.addPet')}
             </Button>
           </div>
           {pets.length === 0 ? (
             <Card>
               <CardBody className="text-sm text-muted-foreground">
-                Este cliente ainda não tem animais.
+                {t('vet.noPets')}
               </CardBody>
             </Card>
           ) : (
@@ -207,7 +208,7 @@ function PetCard({ ownerId, pet }: { ownerId: string; pet: Pet }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-foreground">{pet.name}</span>
           <span className="block truncate text-xs text-muted-foreground">
-            {[pet.species, pet.breed].filter(Boolean).join(' · ') || 'Animal'} · {petAgeLabel(pet.dateOfBirth)}
+            {[pet.species, pet.breed].filter(Boolean).join(' · ') || t('pets.unknown')} · {petAgeLabel(pet.dateOfBirth)}
           </span>
         </span>
         <ChevronRight size={18} className="shrink-0 text-muted-foreground" />

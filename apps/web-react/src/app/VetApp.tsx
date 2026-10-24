@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useVetPendingRequests } from '@/lib/appointmentRequestService';
 import { useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
+import { t } from '@/i18n';
 import { VetDashboard } from '@/features/vet/VetDashboard';
 import { VetAgendaPage } from '@/features/vet/VetAgendaPage';
 import { VetChatPage } from '@/features/vet/VetChatPage';
@@ -21,18 +22,18 @@ export function VetApp() {
   const { unread } = useRooms('vetId', firebaseUser?.uid ?? '');
 
   const nav: NavItem[] = [
-    { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
-    { to: '/agenda', label: 'Agenda', icon: CalendarDays, badge: pending.length },
-    { to: '/clients', label: 'Clientes', icon: Users },
-    { to: '/chat', label: 'Chat', icon: MessageCircle, badge: unread },
-    { to: '/profile', label: 'Perfil', icon: User },
+    { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
+    { to: '/agenda', label: t('nav.agenda'), icon: CalendarDays, badge: pending.length },
+    { to: '/clients', label: t('nav.clients'), icon: Users },
+    { to: '/chat', label: t('nav.chat'), icon: MessageCircle, badge: unread },
+    { to: '/profile', label: t('nav.profile'), icon: User },
   ];
 
   return (
     <AppLayout
       nav={nav}
-      userName={profile?.displayName?.trim() || profile?.email || 'Veterinária'}
-      userSubtitle="Veterinária"
+      userName={profile?.displayName?.trim() || profile?.email || t('common.vet')}
+      userSubtitle={t('common.vet')}
       onSignOut={() => void signOutUser()}
     >
       <IncomingMessageToast />

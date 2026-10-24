@@ -2,9 +2,18 @@ import { type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { dayHeadFmt, monthFmt, sameDay, startOfDay } from '@/lib/format';
+import { t, type TKey } from '@/i18n';
 import { Card } from './Card';
 
-const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const WEEKDAYS: TKey[] = [
+  'format.weekday.0',
+  'format.weekday.1',
+  'format.weekday.2',
+  'format.weekday.3',
+  'format.weekday.4',
+  'format.weekday.5',
+  'format.weekday.6',
+];
 
 /** Month cells, Monday first; null pads the first week. */
 function monthCells(month: Date): (Date | null)[] {
@@ -42,7 +51,7 @@ export function MonthGrid({
           {monthFmt.format(month)}
         </h2>
         <div className="flex items-center gap-1">
-          <NavBtn label="Mês anterior" onClick={() => shift(-1)}>
+          <NavBtn label={t('monthgrid.prev')} onClick={() => shift(-1)}>
             <ChevronLeft size={18} />
           </NavBtn>
           <button
@@ -53,9 +62,9 @@ export function MonthGrid({
             }}
             className="rounded-(--radius-sm) px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary"
           >
-            Hoje
+            {t('common.today')}
           </button>
-          <NavBtn label="Mês seguinte" onClick={() => shift(1)}>
+          <NavBtn label={t('monthgrid.next')} onClick={() => shift(1)}>
             <ChevronRight size={18} />
           </NavBtn>
         </div>
@@ -64,7 +73,7 @@ export function MonthGrid({
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((w) => (
           <div key={w} className="pb-1 text-center text-xs font-medium text-muted-foreground">
-            {w}
+            {t(w)}
           </div>
         ))}
         {monthCells(month).map((cell, i) => {

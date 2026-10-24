@@ -36,6 +36,7 @@ import {
 import { useMemo } from 'react';
 import { db, storage } from './firebase';
 import { useCollection } from './useFirestore';
+import { t } from '@/i18n';
 
 export const chatRoomsCol = () => collection(db, 'chatRooms');
 export const roomDoc = (id: string) => doc(db, 'chatRooms', id);
@@ -344,7 +345,7 @@ export async function toggleReaction(
   await runTransaction(db, async (tx) => {
     const ref = messageDoc(roomId, messageId);
     const snap = await tx.get(ref);
-    if (!snap.exists()) throw new Error('Message not found');
+    if (!snap.exists()) throw new Error(t('errors.msgNotFound'));
     const data = snap.data();
     const metadata: Record<string, unknown> = { ...(data.metadata ?? {}) };
     const reactions: ReactionInfo[] = Array.isArray(metadata.reactions)
@@ -437,12 +438,12 @@ export function messageTypeForFile(file: File): MessageType {
 export function mediaPlaceholder(type: MessageType, fileName: string): string {
   switch (type) {
     case MessageType.image:
-      return '📷 Foto';
+      return t('chat.type.image');
     case MessageType.video:
-      return '🎬 Vídeo';
+      return t('chat.type.video');
     case MessageType.voice:
-      return '🎤 Mensagem de voz';
+      return t('chat.type.voice');
     default:
-      return `📎 ${fileName}`;
+      return t('chat.type.file', { name: fileName });
   }
 }

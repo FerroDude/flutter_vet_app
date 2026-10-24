@@ -4,8 +4,9 @@ import {
   type Medication,
   type TimeOfDay,
   MedicationFrequency,
-  frequencyDisplay,
 } from '@vetplus/shared';
+import { frequencyText } from '@/lib/medText';
+import { t } from '@/i18n';
 import {
   createMedication,
   updateMedicationFields,
@@ -117,7 +118,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
   const submit = async () => {
     if (!name.trim()) {
-      toast.error('Indique o nome da medicação');
+      toast.error(t('meds.nameRequired'));
       return;
     }
     const [y, mo, d] = startDate.split('-').map(Number);
@@ -135,14 +136,14 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
     try {
       if (isEdit && existing) {
         await updateMedicationFields(uid, petId, existing.id, input);
-        toast.success('Medicação atualizada');
+        toast.success(t('meds.updated'));
       } else {
         await createMedication(uid, petId, input);
-        toast.success('Medicação adicionada');
+        toast.success(t('meds.added'));
       }
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível guardar a medicação');
+      toast.error(e instanceof Error ? e.message : t('meds.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -152,36 +153,36 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
     <Dialog
       open={open}
       onClose={onClose}
-      title={isEdit ? 'Editar medicação' : 'Adicionar medicação'}
+      title={isEdit ? t('meds.edit') : t('meds.new')}
       className="max-w-lg"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button loading={saving} onClick={() => void submit()}>
-            {isEdit ? 'Guardar' : 'Adicionar'}
+            {isEdit ? t('common.save') : t('common.add')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label="Dose"
-            placeholder="ex. 1 comprimido, 5 ml"
+            label={t('meds.dose')}
+            placeholder={t('meds.dosePlaceholder')}
             value={dosage}
             onChange={(e) => setDosage(e.target.value)}
           />
           <Select
-            label="Frequência"
+            label={t('meds.frequency')}
             value={frequency}
             onChange={(e) => setFrequency(Number(e.target.value) as MedicationFrequency)}
           >
             {FREQS.map((f) => (
               <option key={f} value={f}>
-                {frequencyDisplay(f)}
+                {frequencyText(f)}
               </option>
             ))}
           </Select>
@@ -189,7 +190,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
         {times.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-foreground">Horas da dose</span>
+            <span className="text-sm font-medium text-foreground">{t('meds.doseTimes')}</span>
             <div className="flex flex-wrap gap-2">
               {times.map((t, i) => (
                 <TimeField
@@ -207,13 +208,13 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <TextField
-            label="Data de início"
+            label={t('meds.startDate')}
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
           <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-sm font-medium text-foreground">Duração</span>
+            <span className="text-sm font-medium text-foreground">{t('meds.duration')}</span>
             <div className="flex h-11 min-w-0 items-center gap-2">
               <label className="inline-flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
                 <input
@@ -222,7 +223,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   onChange={(e) => setOngoing(e.target.checked)}
                   className="h-4 w-4 accent-[hsl(var(--primary))]"
                 />
-                Contínua
+                {t('meds.ongoing')}
               </label>
               {!ongoing && (
                 <input
@@ -231,19 +232,19 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
                   value={totalDays}
                   onChange={(e) => setTotalDays(e.target.value)}
                   className="h-11 w-full min-w-0 max-w-24 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
-                  aria-label="Dias no total"
+                  aria-label={t('meds.totalDays')}
                 />
               )}
-              {!ongoing && <span className="shrink-0 text-sm text-muted-foreground">dias</span>}
+              {!ongoing && <span className="shrink-0 text-sm text-muted-foreground">{t('meds.days')}</span>}
             </div>
           </div>
         </div>
 
         <Textarea
-          label="Instruções (opcional)"
+          label={t('meds.instructions')}
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="Com comida, etc."
+          placeholder={t('meds.instructionsPlaceholder')}
         />
 
         <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -253,7 +254,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
             onChange={(e) => setTrackDoses(e.target.checked)}
             className="h-4 w-4 accent-[hsl(var(--primary))]"
           />
-          Registar doses (marcar cada toma)
+          {t('meds.trackDoses')}
         </label>
       </div>
     </Dialog>

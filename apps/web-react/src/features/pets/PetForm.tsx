@@ -19,6 +19,7 @@ import {
 } from '@/lib/petService';
 import { useDoc } from '@/lib/useFirestore';
 import { errorMessage } from '@/lib/format';
+import { t } from '@/i18n';
 import { PetPhotoPicker } from './PetPhotoPicker';
 import { TextField } from '@/components/ui/TextField';
 import { Select } from '@/components/ui/Select';
@@ -28,9 +29,9 @@ import { Dialog } from '@/components/ui/Dialog';
 import { PageSpinner } from '@/components/Spinner';
 
 const schema = z.object({
-  name: z.string().trim().min(1, 'Indique o nome'),
-  species: z.string().trim().min(1, 'Indique a espécie'),
-  breed: z.string().trim().min(1, 'Indique a raça'),
+  name: z.string().trim().min(1, t('pets.nameRequired')),
+  species: z.string().trim().min(1, t('pets.speciesRequired')),
+  breed: z.string().trim().min(1, t('pets.breedRequired')),
   gender: z.enum(['Male', 'Female', 'Unknown']),
   dateOfBirth: z.string().optional(),
   weight: z.string().optional(),
@@ -133,8 +134,8 @@ export function PetForm() {
         await removePetPhoto(uid, id);
       }
 
-      toast.success(isEdit ? 'Animal atualizado' : 'Animal adicionado');
-      if (photoError) toast.error(`O animal foi guardado, mas a foto falhou: ${photoError}`);
+      toast.success(isEdit ? t('pets.updated') : t('pets.added'));
+      if (photoError) toast.error(t('pets.photoFailed', { error: photoError }));
       // New pet → back to the list of pets (client: Animais; vet: the client page).
       navigate(isEdit ? `${petBase}/${id}` : isVetView ? `/clients/${ownerParam}` : '/pets');
     } catch (e) {
@@ -147,10 +148,10 @@ export function PetForm() {
     setDeleting(true);
     try {
       await deletePet(uid, petId);
-      toast.success('Animal apagado');
+      toast.success(t('pets.deleted'));
       navigate('/pets');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível apagar o animal');
+      toast.error(e instanceof Error ? e.message : t('pets.deleteFailed'));
       setDeleting(false);
     }
   };
@@ -162,17 +163,17 @@ export function PetForm() {
         onClick={() => navigate(-1)}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> Voltar
+        <ArrowLeft size={16} /> {t('common.back')}
       </button>
       <h1 className="mb-6 font-display text-3xl font-bold text-foreground">
-        {isEdit ? 'Editar animal' : 'Adicionar animal'}
+        {isEdit ? t('pets.edit') : t('pets.new')}
       </h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {!isVetView && (
           <Card>
             <CardBody className="space-y-4">
-              <p className="text-sm font-semibold text-foreground">Foto</p>
+              <p className="text-sm font-semibold text-foreground">{t('pets.photo')}</p>
               <PetPhotoPicker
                 photoUrl={removePhoto ? null : (existing?.photoUrl ?? null)}
                 photo={photoBlob}
@@ -193,29 +194,29 @@ export function PetForm() {
 
         <Card>
           <CardBody className="space-y-4">
-            <p className="text-sm font-semibold text-foreground">Dados</p>
-            <TextField label="Nome" error={errors.name?.message} {...register('name')} />
+            <p className="text-sm font-semibold text-foreground">{t('pets.data')}</p>
+            <TextField label={t('common.name')} error={errors.name?.message} {...register('name')} />
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
-                label="Espécie"
-                placeholder="Cão, gato, ave…"
+                label={t('pets.species')}
+                placeholder={t('pets.speciesPlaceholder')}
                 error={errors.species?.message}
                 {...register('species')}
               />
               <TextField
-                label="Raça"
+                label={t('pets.breed')}
                 error={errors.breed?.message}
                 {...register('breed')}
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Sexo" error={errors.gender?.message} {...register('gender')}>
-                <option value="Male">Macho</option>
-                <option value="Female">Fêmea</option>
-                <option value="Unknown">Desconhecido</option>
+              <Select label={t('pets.sex')} error={errors.gender?.message} {...register('gender')}>
+                <option value="Male">{t('pets.male')}</option>
+                <option value="Female">{t('pets.female')}</option>
+                <option value="Unknown">{t('pets.unknownGender')}</option>
               </Select>
               <TextField
-                label="Data de nascimento"
+                label={t('pets.dob')}
                 type="date"
                 error={errors.dateOfBirth?.message}
                 {...register('dateOfBirth')}
@@ -223,13 +224,13 @@ export function PetForm() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
-                label="Peso"
-                placeholder="ex. 15 kg"
+                label={t('pets.weight')}
+                placeholder={t('pets.weightPlaceholder')}
                 {...register('weight')}
               />
               <TextField
-                label="Cor / marcas"
-                placeholder="Castanho, manchas brancas…"
+                label={t('pets.color')}
+                placeholder={t('pets.colorPlaceholder')}
                 {...register('color')}
               />
             </div>
@@ -238,10 +239,10 @@ export function PetForm() {
 
         <Card>
           <CardBody className="space-y-4">
-            <p className="text-sm font-semibold text-foreground">Microchip</p>
+            <p className="text-sm font-semibold text-foreground">{t('pets.microchip')}</p>
             <TextField
-              label="Número de microchip"
-              placeholder="Número, se tiver microchip"
+              label={t('pets.microchipNumber')}
+              placeholder={t('pets.microchipPlaceholder')}
               {...register('microchip')}
             />
           </CardBody>
@@ -249,17 +250,17 @@ export function PetForm() {
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button type="submit" loading={isSubmitting}>
-            {isEdit ? 'Guardar' : 'Adicionar animal'}
+            {isEdit ? t('common.save') : t('pets.new')}
           </Button>
         </div>
 
         {isEdit && !isVetView && (
           <div className="border-t border-border pt-6">
             <Button type="button" variant="destructive" onClick={() => setDeleteOpen(true)}>
-              Apagar animal
+              {t('pets.delete')}
             </Button>
           </div>
         )}
@@ -268,15 +269,15 @@ export function PetForm() {
       <Dialog
         open={deleteOpen}
         onClose={() => (deleting ? undefined : setDeleteOpen(false))}
-        title="Apagar animal"
-        description={`Apagar ${existing?.name ?? 'este animal'}? Não dá para desfazer.`}
+        title={t('pets.delete')}
+        description={t('pets.deleteDesc', { name: existing?.name ?? t('pets.thisPet') })}
         footer={
           <>
             <Button variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button variant="destructive" loading={deleting} onClick={() => void onDelete()}>
-              Apagar
+              {t('common.delete')}
             </Button>
           </>
         }

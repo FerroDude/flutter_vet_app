@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Textarea } from '@/components/ui/Textarea';
+import { t } from '@/i18n';
 
 /** Client view of one appointment: details + one-shot cancel with reason. */
 export function AppointmentPage() {
@@ -47,8 +48,8 @@ export function AppointmentPage() {
   if (!event || event.type !== EventType.appointment) {
     return (
       <EmptyState
-        title="Consulta não encontrada"
-        action={<Button onClick={() => navigate('/agenda')}>Voltar à agenda</Button>}
+        title={t('appointment.notFound')}
+        action={<Button onClick={() => navigate('/agenda')}>{t('appointment.backToAgenda')}</Button>}
       />
     );
   }
@@ -57,10 +58,10 @@ export function AppointmentPage() {
   const cancelled = Boolean(appt.cancelledAt);
   const past = appt.dateTime.getTime() < Date.now();
   const status = cancelled
-    ? { label: 'Cancelada', classes: 'bg-destructive/15 text-destructive' }
+    ? { label: t('appointment.status.cancelled'), classes: 'bg-destructive/15 text-destructive' }
     : past
-      ? { label: 'Realizada', classes: 'bg-secondary text-muted-foreground' }
-      : { label: 'Marcada', classes: 'bg-primary-light text-primary' };
+      ? { label: t('appointment.status.done'), classes: 'bg-secondary text-muted-foreground' }
+      : { label: t('appointment.status.scheduled'), classes: 'bg-primary-light text-primary' };
 
   const pet = (appt.petId && petName.get(appt.petId)) || appt.petName || null;
   const canCancel = Boolean(appt.bookedByVetId) && !cancelled && !past;
@@ -77,17 +78,21 @@ export function AppointmentPage() {
           await sendMessage({
             roomId: room.id,
             senderId: uid,
-            senderName: profile?.displayName?.trim() || profile?.email || 'Cliente',
+            senderName: profile?.displayName?.trim() || profile?.email || t('common.client'),
             senderRole: 'pet_owner',
-            content: `Cancelei a consulta de ${dateTimeFmt.format(appt.dateTime)}${pet ? ` (${pet})` : ''}. Motivo: ${trimmed}`,
+            content: t('appointment.cancelMessage', {
+              date: dateTimeFmt.format(appt.dateTime),
+              pet: pet ? ` (${pet})` : '',
+              reason: trimmed,
+            }),
             type: MessageType.text,
             metadata: { kind: 'appointment_cancelled', eventId: appt.id },
           });
         } catch {
-          toast.error('Consulta cancelada, mas não foi possível avisar a veterinária pelo chat.');
+          toast.error(t('appointment.cancelWarnFailed'));
         }
       }
-      toast.success('Consulta cancelada. A veterinária foi avisada.');
+      toast.success(t('appointment.cancelledOk'));
       setCancelOpen(false);
     } catch (e) {
       toast.error(errorMessage(e));
@@ -103,7 +108,7 @@ export function AppointmentPage() {
         onClick={() => navigate('/agenda')}
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} /> Agenda
+        <ArrowLeft size={16} /> {t('common.agenda')}
       </button>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -116,18 +121,18 @@ export function AppointmentPage() {
       <Card>
         <CardBody>
           <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
-            <Detail label="Data e hora" value={dateTimeFmt.format(appt.dateTime)} />
-            <Detail label="Animal" value={pet ?? '—'} />
-            <Detail label="Veterinária" value={appt.vetName || '—'} />
-            {appt.location && <Detail label="Local" value={appt.location} />}
+            <Detail label={t('appointment.dateTime')} value={dateTimeFmt.format(appt.dateTime)} />
+            <Detail label={t('common.pet')} value={pet ?? '—'} />
+            <Detail label={t('common.vet')} value={appt.vetName || '—'} />
+            {appt.location && <Detail label={t('appointment.location')} value={appt.location} />}
             {cancelled && appt.cancelledAt && (
-              <Detail label="Cancelada em" value={dateTimeFmt.format(appt.cancelledAt)} />
+              <Detail label={t('appointment.cancelledAt')} value={dateTimeFmt.format(appt.cancelledAt)} />
             )}
-            {cancelled && appt.cancelReason && <Detail label="Motivo" value={appt.cancelReason} />}
+            {cancelled && appt.cancelReason && <Detail label={t('appointment.reason')} value={appt.cancelReason} />}
           </dl>
           {appt.description && (
             <div className="mt-4 border-t border-border pt-4">
-              <Detail label="Notas" value={appt.description} />
+              <Detail label={t('appointment.notes')} value={appt.description} />
             </div>
           )}
         </CardBody>
@@ -136,7 +141,7 @@ export function AppointmentPage() {
       {canCancel && (
         <div className="mt-6 border-t border-border pt-6">
           <Button variant="destructive" onClick={() => setCancelOpen(true)}>
-            Cancelar consulta
+            {t('appointment.cancel')}
           </Button>
         </div>
       )}
@@ -144,12 +149,12 @@ export function AppointmentPage() {
       <Dialog
         open={cancelOpen}
         onClose={() => (busy ? undefined : setCancelOpen(false))}
-        title="Cancelar consulta"
-        description="A veterinária é avisada. Indique o motivo."
+        title={t('appointment.cancel')}
+        description={t('appointment.cancel.desc')}
         footer={
           <>
             <Button variant="outline" disabled={busy} onClick={() => setCancelOpen(false)}>
-              Manter
+              {t('common.keep')}
             </Button>
             <Button
               variant="destructive"
@@ -157,16 +162,16 @@ export function AppointmentPage() {
               disabled={!reason.trim()}
               onClick={() => void confirmCancel()}
             >
-              Cancelar consulta
+              {t('appointment.cancel')}
             </Button>
           </>
         }
       >
         <Textarea
-          label="Motivo"
+          label={t('appointment.reason')}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Porque precisa de cancelar?"
+          placeholder={t('appointment.reasonPlaceholder')}
         />
       </Dialog>
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
+import { t } from '@/i18n';
 
 const VIEW = 280;
 const OUT = 512;
@@ -70,7 +71,7 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
         setOff({ x: (VIEW - canvas.width * b) / 2, y: (VIEW - canvas.height * b) / 2 });
       } catch {
         if (!cancelled) {
-          toast.error('Não foi possível abrir a imagem.');
+          toast.error(t('pets.crop.openFailed'));
           onCancel();
         }
       }
@@ -138,7 +139,7 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
     canvas.height = OUT;
     canvas.getContext('2d')!.drawImage(src, sx, sy, sSize, sSize, 0, 0, OUT, OUT);
     canvas.toBlob(
-      (b) => (b ? onConfirm(b) : toast.error('Não foi possível processar a imagem.')),
+      (b) => (b ? onConfirm(b) : toast.error(t('pets.crop.processFailed'))),
       'image/jpeg',
       0.85,
     );
@@ -148,15 +149,15 @@ export function PhotoCropDialog({ file, onCancel, onConfirm }: PhotoCropDialogPr
     <Dialog
       open={file !== null}
       onClose={onCancel}
-      title="Ajustar foto"
-      description="Arraste para posicionar e use o zoom."
+      title={t('pets.crop.title')}
+      description={t('pets.crop.desc')}
       footer={
         <>
           <Button variant="outline" onClick={onCancel}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button onClick={confirm} disabled={!nat}>
-            Usar foto
+            {t('pets.crop.use')}
           </Button>
         </>
       }

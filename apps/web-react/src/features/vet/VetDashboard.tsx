@@ -8,6 +8,7 @@ import { useVetPendingRequests } from '@/lib/appointmentRequestService';
 import { dateTimeFmt, dayHeadFmt, dayShortFmt, greeting, sameDay, timeFmt } from '@/lib/format';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { t } from '@/i18n';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
@@ -33,7 +34,7 @@ export function VetDashboard() {
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dayLabel = (d: Date) =>
-    sameDay(d, now) ? 'Hoje' : sameDay(d, tomorrow) ? 'Amanhã' : dayShortFmt.format(d);
+    sameDay(d, now) ? t('common.today') : sameDay(d, tomorrow) ? t('common.tomorrow') : dayShortFmt.format(d);
   const firstUnread = rooms.find((r) => (r.unreadCounts[uid] ?? 0) > 0);
 
   return (
@@ -47,22 +48,22 @@ export function VetDashboard() {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           icon={<CalendarClock size={20} />}
-          title="Pedidos"
+          title={t('vetDash.requests')}
           alert={pending.length}
-          caption={pending.length === 1 ? '1 pendente' : `${pending.length} pendentes`}
+          caption={t(pending.length === 1 ? 'vetDash.pending.one' : 'vetDash.pending.other', { count: pending.length })}
           onClick={() => navigate('/agenda')}
         />
         <StatCard
           icon={<MessageCircle size={20} />}
-          title="Mensagens"
+          title={t('vetDash.messages')}
           alert={unread}
-          caption={unread === 1 ? '1 por ler' : `${unread} por ler`}
+          caption={t(unread === 1 ? 'vetDash.unread.one' : 'vetDash.unread.other', { count: unread })}
           onClick={() => navigate(firstUnread ? chatRoomPath(firstUnread.id) : '/chat')}
         />
         <StatCard
           icon={<Users size={20} />}
-          title="Clientes"
-          caption={clients.length === 1 ? '1 cliente' : `${clients.length} clientes`}
+          title={t('vetDash.clients')}
+          caption={t(clients.length === 1 ? 'vetDash.clients.one' : 'vetDash.clients.other', { count: clients.length })}
           onClick={() => navigate('/clients')}
         />
       </div>
@@ -70,11 +71,11 @@ export function VetDashboard() {
       <section>
         <SectionHeader
           className="mb-4"
-          eyebrow="Agenda"
-          title="Próximas consultas"
+          eyebrow={t('nav.agenda')}
+          title={t('vetDash.upcoming')}
           action={
             <Button variant="ghost" onClick={() => navigate('/agenda')}>
-              Ver agenda
+              {t('vet.viewAgenda')}
             </Button>
           }
         />
@@ -82,7 +83,7 @@ export function VetDashboard() {
           <Card>
             <CardBody className="flex items-center gap-3 text-sm text-muted-foreground">
               <CheckCircle2 size={18} className="text-primary" />
-              Sem consultas marcadas.
+              {t('vetDash.noAppointments')}
             </CardBody>
           </Card>
         ) : (
@@ -102,7 +103,7 @@ export function VetDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-foreground">
                         {a.petName || a.title}
-                        <span className="font-normal text-muted-foreground"> · {a.clientName || 'Cliente'}</span>
+                        <span className="font-normal text-muted-foreground"> · {a.clientName || t('common.client')}</span>
                       </p>
                       <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Clock size={13} /> {dayLabel(a.dateTime)}, {timeFmt.format(a.dateTime)}
@@ -118,7 +119,7 @@ export function VetDashboard() {
       </section>
       {recentCancels.length > 0 && (
         <section>
-          <SectionHeader className="mb-4" eyebrow="Agenda" title="Canceladas recentemente" />
+          <SectionHeader className="mb-4" eyebrow={t('nav.agenda')} title={t('vetDash.recentCancels')} />
           <div className="space-y-3">
             {recentCancels.map((a) => (
               <button
@@ -135,7 +136,7 @@ export function VetDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-foreground">
                         {a.petName || a.title}
-                        <span className="font-normal text-muted-foreground"> · {a.clientName || 'Cliente'}</span>
+                        <span className="font-normal text-muted-foreground"> · {a.clientName || t('common.client')}</span>
                       </p>
                       <p className="text-sm text-muted-foreground">{dateTimeFmt.format(a.dateTime)}</p>
                       {a.cancelReason && (

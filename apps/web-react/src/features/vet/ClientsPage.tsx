@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/TextField';
+import { t } from '@/i18n';
 
 export function ClientsPage() {
   const { firebaseUser, profile } = useAuth();
@@ -35,13 +36,13 @@ export function ClientsPage() {
   const addClient = async () => {
     setAdding(true);
     try {
-      await addClientByEmail({ vetId: uid, vetName: profile?.displayName?.trim() || 'Veterinária', name, email });
-      toast.success('Cliente adicionado. Vai receber um email para definir a palavra-passe.');
+      await addClientByEmail({ vetId: uid, vetName: profile?.displayName?.trim() || t('common.vet'), name, email });
+      toast.success(t('vet.clients.added'));
       setName('');
       setEmail('');
       setAddOpen(false);
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível adicionar o cliente'));
+      toast.error(errorMessage(e, t('vet.clients.addFailed')));
     } finally {
       setAdding(false);
     }
@@ -50,12 +51,12 @@ export function ClientsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Prática"
-        title="Clientes"
-        subtitle="As pessoas de quem trata."
+        eyebrow={t('vet.clients.eyebrow')}
+        title={t('vet.clients')}
+        subtitle={t('vet.clients.subtitle')}
         actions={
           <Button onClick={() => setAddOpen(true)}>
-            <Plus size={16} /> Adicionar cliente
+            <Plus size={16} /> {t('vet.clients.add')}
           </Button>
         }
       />
@@ -70,21 +71,21 @@ export function ClientsPage() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Procurar por nome ou email…"
-            aria-label="Procurar clientes"
+            placeholder={t('vet.clients.search')}
+            aria-label={t('vet.clients.searchAria')}
             className="h-11 w-full rounded-(--radius-md) border border-input bg-card pl-9 pr-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
           />
         </div>
       )}
 
       {error ? (
-        <EmptyState icon={<Users size={36} />} title="Não foi possível carregar os clientes" description="Tente outra vez." />
+        <EmptyState icon={<Users size={36} />} title={t('vet.clients.loadFailed')} description={t('vet.clients.tryAgain')} />
       ) : shown.length === 0 ? (
         <EmptyState
           icon={<Users size={36} />}
-          title={search ? 'Sem resultados' : 'Ainda sem clientes'}
+          title={search ? t('vet.clients.noResults') : t('vet.clients.empty')}
           description={
-            search ? 'Tente outro nome ou email.' : 'Adicione um cliente. Recebe um email para definir a palavra-passe.'
+            search ? t('vet.clients.tryOther') : t('vet.clients.emptyHint')
           }
         />
       ) : (
@@ -123,15 +124,15 @@ export function ClientsPage() {
       <Dialog
         open={addOpen}
         onClose={() => (adding ? undefined : setAddOpen(false))}
-        title="Adicionar cliente"
-        description="Recebe um email para definir a palavra-passe."
+        title={t('vet.clients.add')}
+        description={t('vet.clients.addDesc')}
         footer={
           <>
             <Button variant="outline" disabled={adding} onClick={() => setAddOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button loading={adding} onClick={() => void addClient()}>
-              Enviar convite
+              {t('vet.clients.invite')}
             </Button>
           </>
         }
@@ -143,8 +144,8 @@ export function ClientsPage() {
             void addClient();
           }}
         >
-          <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
-          <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField label={t('common.email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <button type="submit" hidden />
         </form>
       </Dialog>

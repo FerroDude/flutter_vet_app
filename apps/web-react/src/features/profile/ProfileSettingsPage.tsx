@@ -5,6 +5,7 @@ import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { getUserProfile } from '@/lib/userService';
 import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
+import { lang, setLang, t, type Lang } from '@/i18n';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -45,7 +46,7 @@ export function ProfileSettingsPage() {
     address.trim() !== (profile?.address ?? '') ||
     postalCode.trim() !== (profile?.postalCode ?? '');
 
-  const displayName = profile?.displayName?.trim() || profile?.email || 'Utilizador';
+  const displayName = profile?.displayName?.trim() || profile?.email || t('common.user');
 
   const save = async () => {
     setSaving(true);
@@ -56,9 +57,9 @@ export function ProfileSettingsPage() {
         address: address.trim(),
         postalCode: postalCode.trim(),
       });
-      toast.success('Perfil atualizado');
+      toast.success(t('profile.updated'));
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível atualizar o perfil'));
+      toast.error(errorMessage(e, t('profile.updateFailed')));
     } finally {
       setSaving(false);
     }
@@ -66,7 +67,7 @@ export function ProfileSettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader eyebrow="Conta" title="Perfil" subtitle="Os seus dados." />
+      <PageHeader eyebrow={t('profile.account')} title={t('profile.title')} subtitle={t('profile.subtitle')} />
 
       <Card className="mb-6">
         <CardBody className="flex items-center gap-5">
@@ -76,29 +77,29 @@ export function ProfileSettingsPage() {
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-2xl font-bold text-foreground">{displayName}</p>
             <p className="truncate text-sm text-muted-foreground">
-              {isClient ? 'Cliente' : 'Veterinária'} · {profile?.email}
+              {isClient ? t('common.client') : t('common.vet')} · {profile?.email}
             </p>
           </div>
         </CardBody>
       </Card>
 
-      <Section title="Dados">
+      <Section title={t('profile.data')}>
         <Card>
           <CardBody className="space-y-4">
-            <TextField label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
+            <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label="Telefone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <TextField label={t('common.phone')} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
               <TextField
-                label="Morada"
+                label={t('profile.address')}
                 autoComplete="street-address"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                hint={isClient ? undefined : 'Os clientes veem a morada para as visitas.'}
+                hint={isClient ? undefined : t('profile.addressHint')}
               />
               <TextField
-                label="Código postal"
+                label={t('profile.postalCode')}
                 placeholder="1000-001"
                 maxLength={12}
                 autoComplete="postal-code"
@@ -108,25 +109,45 @@ export function ProfileSettingsPage() {
             </div>
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
-                {profile?.createdAt ? `Conta desde ${longDateFmt.format(profile.createdAt)}` : ''}
+                {profile?.createdAt ? t('profile.since', { date: longDateFmt.format(profile.createdAt) }) : ''}
               </p>
               <Button disabled={!dirty} loading={saving} onClick={() => void save()}>
-                Guardar
+                {t('common.save')}
               </Button>
             </div>
           </CardBody>
         </Card>
       </Section>
 
+      <Section title={t('profile.language')}>
+        <Card>
+          <CardBody>
+            <div className="flex gap-2">
+              {(['pt', 'en'] as Lang[]).map((l) => (
+                <Button
+                  key={l}
+                  variant={lang === l ? 'primary' : 'outline'}
+                  onClick={() => {
+                    if (l !== lang) setLang(l);
+                  }}
+                >
+                  {l === 'pt' ? 'Português' : 'English'}
+                </Button>
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      </Section>
+
       {isClient && (
-        <Section title="A sua veterinária">
+        <Section title={t('profile.yourVet')}>
           <Card>
             <CardBody className="flex items-start gap-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
                 <Stethoscope size={18} />
               </span>
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="break-words font-medium text-foreground">{vet?.displayName || 'Veterinária'}</p>
+                <p className="break-words font-medium text-foreground">{vet?.displayName || t('common.vet')}</p>
                 {vet?.phone && (
                   <a href={`tel:${vet.phone}`} className="block text-sm text-muted-foreground hover:text-foreground">
                     {vet.phone}
@@ -142,7 +163,7 @@ export function ProfileSettingsPage() {
       )}
 
       <Button variant="outline" onClick={() => void signOutUser()}>
-        <LogOut size={16} /> Terminar sessão
+        <LogOut size={16} /> {t('common.signOut')}
       </Button>
     </div>
   );

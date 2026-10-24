@@ -36,6 +36,7 @@ import { TimeField } from '@/components/ui/TimeField';
 import { Textarea } from '@/components/ui/Textarea';
 import { MonthGrid } from '@/components/ui/MonthGrid';
 import { useConfirm } from '@/components/ui/Confirm';
+import { t } from '@/i18n';
 import { toLocalInput } from '@/features/calendar/EventFormDialog';
 import { VetAppointmentDialog } from './VetAppointmentDialog';
 
@@ -45,7 +46,7 @@ export function VetAgendaPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const uid = firebaseUser?.uid ?? '';
-  const vetName = profile?.displayName?.trim() || profile?.email || 'Veterinária';
+  const vetName = profile?.displayName?.trim() || profile?.email || t('common.vet');
   const { appointments, error } = useVetAppointments(uid);
   const { requests } = useRequests('vetId', uid);
 
@@ -81,18 +82,20 @@ export function VetAgendaPage() {
   const cancel = async (a: AppointmentEvent) => {
     const cancelled = Boolean(a.cancelledAt);
     const ok = await confirm({
-      title: cancelled ? 'Remover consulta?' : 'Cancelar consulta?',
+      title: cancelled ? t('vetAgenda.removeTitle') : t('vetAgenda.cancelTitle'),
       description: cancelled
-        ? 'Remover esta consulta cancelada da agenda?'
-        : `${a.clientName ? `Com ${a.clientName}. ` : ''}Sai também do calendário do cliente.`,
-      confirmLabel: cancelled ? 'Remover' : 'Cancelar consulta',
-      cancelLabel: 'Manter',
+        ? t('vetAgenda.removeDesc')
+        : a.clientName
+          ? t('vetAgenda.cancelDesc.with', { name: a.clientName })
+          : t('vetAgenda.cancelDesc'),
+      confirmLabel: cancelled ? t('common.remove') : t('vetAgenda.cancelAppt'),
+      cancelLabel: t('common.keep'),
       danger: true,
     });
     if (!ok) return;
     try {
       await deleteEvent(a.userId, a.id);
-      toast.success(cancelled ? 'Consulta removida' : 'Consulta cancelada');
+      toast.success(cancelled ? t('vetAgenda.removed') : t('vetAgenda.cancelled'));
     } catch (e) {
       toast.error(errorMessage(e));
     }
@@ -108,33 +111,33 @@ export function VetAgendaPage() {
       });
       navigate(chatRoomPath(roomId));
     } catch (e) {
-      toast.error(errorMessage(e, 'Não foi possível abrir a conversa'));
+      toast.error(errorMessage(e, t('vet.chatOpenFailed')));
     }
   };
 
   return (
     <div>
       <PageHeader
-        eyebrow="Agenda"
-        title="Agenda"
-        subtitle="Pedidos dos clientes e consultas marcadas."
+        eyebrow={t('nav.agenda')}
+        title={t('nav.agenda')}
+        subtitle={t('vetAgenda.subtitle')}
         actions={
           <Button onClick={openNew}>
-            <Plus size={16} /> Nova consulta
+            <Plus size={16} /> {t('vetAgenda.new')}
           </Button>
         }
       />
 
       {error && (
         <p className="mb-4 rounded-(--radius-md) bg-destructive/10 p-3 text-sm text-destructive">
-          Não foi possível carregar a agenda.
+          {t('vetAgenda.loadFailed')}
         </p>
       )}
 
       {pending.length > 0 && (
         <section className="mb-6">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pedidos pendentes ({pending.length})
+            {t('vetAgenda.pending', { count: pending.length })}
           </h2>
           <div className="space-y-2">
             {pending.map((r) => (
@@ -143,10 +146,10 @@ export function VetAgendaPage() {
                   <MessageSquare size={15} /> Chat
                 </Button>
                 <Button variant="outline" className="h-9" onClick={() => setAnswering({ request: r, mode: 'deny' })}>
-                  Recusar
+                  {t('vetAgenda.deny')}
                 </Button>
                 <Button className="h-9" onClick={() => setAnswering({ request: r, mode: 'confirm' })}>
-                  Confirmar
+                  {t('common.confirm')}
                 </Button>
               </RequestCard>
             ))}
@@ -181,7 +184,7 @@ export function VetAgendaPage() {
               {dayHeadFmt.format(day)}
             </h2>
             {selected.length === 0 ? (
-              <EmptyState icon={<CalendarDays size={32} />} title="Sem consultas" description="Nada marcado neste dia." />
+              <EmptyState icon={<CalendarDays size={32} />} title={t('vetAgenda.noAppointments')} description={t('vetAgenda.nothingDay')} />
             ) : (
               <div className="space-y-2">
                 {selected.map((a) => (
@@ -210,7 +213,7 @@ export function VetAgendaPage() {
             className="text-sm font-medium text-muted-foreground hover:text-foreground"
             aria-expanded={showHandled}
           >
-            {showHandled ? 'Esconder' : 'Ver'} pedidos tratados ({handled.length})
+            {showHandled ? t('vetAgenda.hide') : t('vetAgenda.show')} {t('vetAgenda.handled', { count: handled.length })}
           </button>
           {showHandled && (
             <div className="mt-3 space-y-2">
@@ -254,7 +257,7 @@ function RequestCard({ request: r, children }: { request: AppointmentRequest; ch
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {r.status === AppointmentRequestStatus.confirmed && r.bookedDateTime
-          ? `Marcado para ${dateTimeFmt.format(r.bookedDateTime)}`
+          ? t('agenda.bookedFor', { date: dateTimeFmt.format(r.bookedDateTime) })
           : `${preferredRange(r.preferredDateStart, r.preferredDateEnd)} · ${TIME_PREFERENCE_LABEL[r.timePreference]}`}
       </p>
       <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">{r.reason}</p>
@@ -295,7 +298,7 @@ function AppointmentRow({
           </p>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             <button type="button" onClick={onClient} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
-              <User size={12} /> {a.clientName || 'Cliente'}
+              <User size={12} /> {a.clientName || t('common.client')}
             </button>
             {a.petName && (
               <span className="inline-flex items-center gap-1">
@@ -310,7 +313,9 @@ function AppointmentRow({
           </p>
           {cancelled && (
             <p className="mt-1 text-xs text-destructive">
-              Cancelada pelo cliente{a.cancelReason ? `: ${a.cancelReason}` : ''}
+              {a.cancelReason
+                ? t('vetAgenda.cancelledByClientReason', { reason: a.cancelReason })
+                : t('vetAgenda.cancelledByClient')}
             </p>
           )}
           {a.description && (
@@ -322,7 +327,7 @@ function AppointmentRow({
             <button
               type="button"
               onClick={onEdit}
-              aria-label="Editar consulta"
+              aria-label={t('vetAgenda.editAppt')}
               className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
             >
               <Pencil size={15} />
@@ -331,7 +336,7 @@ function AppointmentRow({
           <button
             type="button"
             onClick={onCancel}
-            aria-label={cancelled ? 'Remover' : 'Cancelar consulta'}
+            aria-label={cancelled ? t('common.remove') : t('vetAgenda.cancelAppt')}
             className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
           >
             <Trash2 size={15} />
@@ -383,7 +388,7 @@ function AnswerDialog({
     try {
       if (isConfirm) {
         const dateTime = new Date(`${day}T${time || '00:00'}`);
-        if (!day || !time || Number.isNaN(dateTime.getTime())) throw new Error('Escolha a data e a hora.');
+        if (!day || !time || Number.isNaN(dateTime.getTime())) throw new Error(t('vetAgenda.pickDateTime'));
         const werr = requestWindowError(r, dateTime);
         if (werr) throw new Error(werr);
         const note = message.trim() || null;
@@ -400,18 +405,22 @@ function AnswerDialog({
             senderId: vetId,
             senderName: vetName,
             senderRole: 'vet',
-            content: `Consulta confirmada: ${dateTimeFmt.format(dateTime)} (${r.petName}).${note ? ` ${note}` : ''}`,
+            content: t('vetAgenda.confirmMessage', {
+              date: dateTimeFmt.format(dateTime),
+              pet: r.petName,
+              note: note ? ` ${note}` : '',
+            }),
             type: MessageType.text,
             metadata: { kind: 'appointment_confirmed', requestId: r.id },
           });
-          toast.success('Pedido confirmado. O cliente foi avisado.');
+          toast.success(t('vetAgenda.confirmedOk'));
         } catch {
-          toast.warning('Pedido confirmado, mas não foi possível avisar o cliente pelo chat.');
+          toast.warning(t('vetAgenda.confirmWarnFailed'));
         }
       } else {
-        if (!message.trim()) throw new Error('Indique o motivo da recusa.');
+        if (!message.trim()) throw new Error(t('vetAgenda.denyReasonRequired'));
         await denyRequest({ requestId: r.id, vetId, vetName, message: message.trim() });
-        toast.success('Pedido recusado');
+        toast.success(t('vetAgenda.denied'));
       }
       onClose();
     } catch (e) {
@@ -425,18 +434,18 @@ function AnswerDialog({
     <Dialog
       open={Boolean(answering)}
       onClose={() => (busy ? undefined : onClose())}
-      title={isConfirm ? 'Confirmar pedido' : 'Recusar pedido'}
+      title={isConfirm ? t('vetAgenda.confirmTitle') : t('vetAgenda.denyTitle')}
       description={
         r
           ? isConfirm
-            ? `Escolha a hora para ${r.petName}.`
-            : `Recusar a marcação de ${r.petName}. Indique o motivo.`
+            ? t('vetAgenda.pickTime', { pet: r.petName })
+            : t('vetAgenda.denyDesc', { pet: r.petName })
           : undefined
       }
       footer={
         <>
           <Button variant="outline" disabled={busy} onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </Button>
           <Button
             variant={isConfirm ? 'primary' : 'destructive'}
@@ -444,7 +453,7 @@ function AnswerDialog({
             disabled={isConfirm && windowPassed}
             onClick={() => void submit()}
           >
-            {isConfirm ? 'Confirmar' : 'Recusar pedido'}
+            {isConfirm ? t('common.confirm') : t('vetAgenda.denyTitle')}
           </Button>
         </>
       }
@@ -453,20 +462,21 @@ function AnswerDialog({
         {isConfirm && r && (
           <>
             <p className="text-xs text-muted-foreground">
-              Pedido:{' '}
-              {sameDay(r.preferredDateStart, r.preferredDateEnd)
-                ? dayShortFmt.format(r.preferredDateStart)
-                : `${dayShortFmt.format(r.preferredDateStart)} – ${dayShortFmt.format(r.preferredDateEnd)}`}{' '}
-              · {timePreferenceText(r.timePreference)}
+              {t('vetAgenda.requested', {
+                range: sameDay(r.preferredDateStart, r.preferredDateEnd)
+                  ? dayShortFmt.format(r.preferredDateStart)
+                  : `${dayShortFmt.format(r.preferredDateStart)} – ${dayShortFmt.format(r.preferredDateEnd)}`,
+                pref: timePreferenceText(r.timePreference),
+              })}
             </p>
             {windowPassed ? (
               <p className="text-sm text-muted-foreground">
-                O intervalo pedido já passou. Recuse e sugira outra data.
+                {t('vetAgenda.windowPassed')}
               </p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 <TextField
-                  label="Dia"
+                  label={t('vetAgenda.day')}
                   type="date"
                   min={toLocalInput(r.preferredDateStart).slice(0, 10)}
                   max={toLocalInput(r.preferredDateEnd).slice(0, 10)}
@@ -474,7 +484,7 @@ function AnswerDialog({
                   onChange={(e) => setDay(e.target.value)}
                 />
                 <TimeField
-                  label="Hora"
+                  label={t('time.hour')}
                   minuteStep={15}
                   minHour={timeWindow?.[0] ?? 0}
                   maxHour={timeWindow?.[1] ?? 23}
@@ -486,10 +496,10 @@ function AnswerDialog({
           </>
         )}
         <Textarea
-          label={isConfirm ? 'Nota para o cliente (opcional)' : 'Motivo'}
+          label={isConfirm ? t('vetAgenda.noteForClient') : t('appointment.reason')}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder={isConfirm ? 'O que o cliente deve saber' : 'Explique o motivo e sugira outra altura…'}
+          placeholder={isConfirm ? t('vetAgenda.notePlaceholder') : t('vetAgenda.denyPlaceholder')}
         />
       </div>
     </Dialog>

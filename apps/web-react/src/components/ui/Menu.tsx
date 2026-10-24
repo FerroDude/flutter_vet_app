@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/cn';
+import { t } from '@/i18n';
 
 export interface MenuItem {
   label: string;
@@ -99,7 +100,7 @@ export const Menu = forwardRef<
           <>
             <button
               type="button"
-              aria-label="Fechar menu"
+              aria-label={t('menu.close')}
               className="fixed inset-0 z-40 cursor-default"
               onClick={close}
             />
