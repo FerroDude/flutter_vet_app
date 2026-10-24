@@ -26,7 +26,7 @@ export function VetChatPage() {
           <p className="px-4 pb-1 pt-4 font-display text-lg font-bold text-foreground">Conversas</p>
           {rooms.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
-              Sem conversas. Abrem quando adiciona um cliente.
+              Sem conversas.
             </p>
           ) : (
             <ul className="divide-y divide-border">

@@ -110,7 +110,6 @@ export function RequestFormDialog({
       open={open}
       onClose={onClose}
       title="Pedir marcação"
-      description="A veterinária revê o pedido e confirma a hora."
       footer={
         <>
           <Button variant="outline" onClick={onClose}>

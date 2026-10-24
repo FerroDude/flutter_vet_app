@@ -148,7 +148,7 @@ export function PetDetailPage() {
         }
       >
         {meds.length === 0 ? (
-          <EmptyState icon={<Pill size={36} />} title="Sem medicação" description="Adicione medicação para seguir as doses." />
+          <EmptyState icon={<Pill size={36} />} title="Sem medicação" />
         ) : (
           <div className="space-y-3">
             {meds.map((m) => (

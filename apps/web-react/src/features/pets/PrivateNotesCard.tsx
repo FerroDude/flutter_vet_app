@@ -100,12 +100,9 @@ export function PrivateNotesCard({
   return (
     <Card className="mb-6">
       <CardBody className="space-y-4">
-        <div>
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Lock size={14} /> Notas privadas
-          </p>
-          <p className="text-xs text-muted-foreground">Só a veterinária vê estas notas. O cliente não.</p>
-        </div>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+          <Lock size={14} /> Notas privadas
+        </p>
 
         <div className="space-y-2">
           <Textarea
