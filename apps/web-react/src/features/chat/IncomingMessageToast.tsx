@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
 import {
   CANCEL_KIND,
+  CONFIRM_KIND,
   getActiveChatRoom,
   incomingBody,
   incomingNotice,
@@ -31,9 +32,10 @@ export function IncomingMessageToast() {
       const next = room.unreadCounts[uid] ?? 0;
       const prev = seen.current.get(room.id) ?? 0;
       seen.current.set(room.id, next);
-      // Cancellation messages are surfaced by the dedicated watcher
-      // (CancelledAppointmentToast) instead of the generic chat toast.
-      if (room.lastMessage?.metadata?.kind === CANCEL_KIND) continue;
+      // Cancellation/confirmation messages are surfaced by dedicated watchers
+      // (CancelledAppointmentToast / ConfirmedRequestToast), not the generic toast.
+      const kind = room.lastMessage?.metadata?.kind;
+      if (kind === CANCEL_KIND || kind === CONFIRM_KIND) continue;
       const notice = incomingNotice({
         prevUnread: prev,
         nextUnread: next,

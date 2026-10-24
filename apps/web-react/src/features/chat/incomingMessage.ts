@@ -41,6 +41,9 @@ export function incomingBody(senderName: string, content: string): string {
 /** metadata.kind marking the chat message a client cancellation sends. */
 export const CANCEL_KIND = 'appointment_cancelled';
 
+/** metadata.kind marking the chat message the vet confirmation sends. */
+export const CONFIRM_KIND = 'appointment_confirmed';
+
 /** OS notification when the tab is unfocused and permission was granted. */
 export function notifyOs(title: string, body: string, open: () => void): void {
   if (typeof Notification === 'undefined') return;
