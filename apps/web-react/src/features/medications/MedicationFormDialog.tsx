@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
+import { TimeField } from '@/components/ui/TimeField';
 
 const FREQS: MedicationFrequency[] = [
   MedicationFrequency.once,
@@ -191,14 +192,13 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
             <span className="text-sm font-medium text-foreground">Horas da dose</span>
             <div className="flex flex-wrap gap-2">
               {times.map((t, i) => (
-                <input
+                <TimeField
                   key={i}
-                  type="time"
+                  minuteStep={5}
                   value={timeToInput(t)}
-                  onChange={(e) =>
-                    setTimes((prev) => prev.map((p, j) => (j === i ? inputToTime(e.target.value) : p)))
+                  onChange={(v) =>
+                    setTimes((prev) => prev.map((p, j) => (j === i ? inputToTime(v) : p)))
                   }
-                  className="h-11 rounded-(--radius-md) border border-input bg-card px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
                 />
               ))}
             </div>

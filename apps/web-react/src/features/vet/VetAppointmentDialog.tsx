@@ -11,6 +11,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { TextField } from '@/components/ui/TextField';
+import { DateTimeField } from '@/components/ui/TimeField';
 import { Textarea } from '@/components/ui/Textarea';
 
 function defaultStart(day: Date): Date {
@@ -196,11 +197,10 @@ export function VetAppointmentDialog({
           </Select>
         </div>
 
-        <TextField
+        <DateTimeField
           label="Data e hora"
-          type="datetime-local"
           value={when}
-          onChange={(e) => setWhen(e.target.value)}
+          onChange={setWhen}
           hint={
             clash
               ? `Atenção: já tem ${clash.clientName || 'uma consulta'} perto desta hora.`

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
+import { DateTimeField } from '@/components/ui/TimeField';
 
 export function toLocalInput(d: Date): string {
   const p = (n: number) => `${n}`.padStart(2, '0');
@@ -118,7 +119,7 @@ export function EventFormDialog({
           placeholder="Banho, desparasitação, comprar ração…"
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField label="Data e hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField label="Data e hora" value={when} onChange={setWhen} />
           <Select label="Animal (opcional)" value={petId} onChange={(e) => setPetId(e.target.value)}>
             <option value="">Sem animal</option>
             {pets.map((p) => (
