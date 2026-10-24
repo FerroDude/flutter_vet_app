@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { LayoutDashboard, CalendarDays, MessageCircle, Users, User } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useVetPendingRequests } from '@/lib/appointmentRequestService';
+import { useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
 import { VetDashboard } from '@/features/vet/VetDashboard';
 import { VetAgendaPage } from '@/features/vet/VetAgendaPage';
@@ -17,12 +18,13 @@ import { CancelledAppointmentToast } from '@/features/vet/CancelledAppointmentTo
 export function VetApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
   const pending = useVetPendingRequests(firebaseUser?.uid ?? '');
+  const { unread } = useRooms('vetId', firebaseUser?.uid ?? '');
 
   const nav: NavItem[] = [
     { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
     { to: '/agenda', label: 'Agenda', icon: CalendarDays, badge: pending.length },
     { to: '/clients', label: 'Clientes', icon: Users },
-    { to: '/chat', label: 'Chat', icon: MessageCircle },
+    { to: '/chat', label: 'Chat', icon: MessageCircle, badge: unread },
     { to: '/profile', label: 'Perfil', icon: User },
   ];
 
