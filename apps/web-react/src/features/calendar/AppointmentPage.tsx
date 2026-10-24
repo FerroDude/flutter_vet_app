@@ -81,6 +81,7 @@ export function AppointmentPage() {
             senderRole: 'pet_owner',
             content: `Cancelei a consulta de ${dateTimeFmt.format(appt.dateTime)}${pet ? ` (${pet})` : ''}. Motivo: ${trimmed}`,
             type: MessageType.text,
+            metadata: { kind: 'appointment_cancelled', eventId: appt.id },
           });
         } catch {
           toast.error('Consulta cancelada, mas não foi possível avisar a veterinária pelo chat.');

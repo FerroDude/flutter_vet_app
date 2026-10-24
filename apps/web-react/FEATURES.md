@@ -36,7 +36,7 @@ Menu: Painel · Animais · Agenda · Chat · Perfil.
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
 - **Perfil**: name, phone, address; the vet's contact details; sign out.
 
-Appointments the vet booked are read-only for the client, except a one-shot cancellation with a reason.
+Appointments the vet booked are read-only for the client, except a one-shot cancellation with a reason. The vet gets a dedicated "Consulta cancelada" alert (toast + OS notification) on top of the chat message.
 
 ## Vet app (`VetApp`)
 

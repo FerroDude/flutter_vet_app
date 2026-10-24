@@ -4,28 +4,14 @@ import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
 import {
+  CANCEL_KIND,
   getActiveChatRoom,
   incomingBody,
   incomingNotice,
   incomingTitle,
+  notifyOs,
 } from './incomingMessage';
 import { chatRoomPath } from './useSelectedChatRoom';
-
-function notifyOs(title: string, body: string, open: () => void): void {
-  if (typeof Notification === 'undefined') return;
-  if (Notification.permission !== 'granted') return;
-  if (document.hasFocus()) return;
-  try {
-    const n = new Notification(title, { body });
-    n.onclick = () => {
-      window.focus();
-      n.close();
-      open();
-    };
-  } catch {
-    /* browser blocked it */
-  }
-}
 
 /** Toast on the signed-in user when someone else sends a chat message. */
 export function IncomingMessageToast() {
@@ -45,6 +31,9 @@ export function IncomingMessageToast() {
       const next = room.unreadCounts[uid] ?? 0;
       const prev = seen.current.get(room.id) ?? 0;
       seen.current.set(room.id, next);
+      // Cancellation messages are surfaced by the dedicated watcher
+      // (CancelledAppointmentToast) instead of the generic chat toast.
+      if (room.lastMessage?.metadata?.kind === CANCEL_KIND) continue;
       const notice = incomingNotice({
         prevUnread: prev,
         nextUnread: next,

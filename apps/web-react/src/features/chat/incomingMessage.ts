@@ -37,3 +37,23 @@ export function incomingBody(senderName: string, content: string): string {
   if (name && clipped) return `${name}: ${clipped}`;
   return name || clipped || 'Mensagem nova';
 }
+
+/** metadata.kind marking the chat message a client cancellation sends. */
+export const CANCEL_KIND = 'appointment_cancelled';
+
+/** OS notification when the tab is unfocused and permission was granted. */
+export function notifyOs(title: string, body: string, open: () => void): void {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  if (document.hasFocus()) return;
+  try {
+    const n = new Notification(title, { body });
+    n.onclick = () => {
+      window.focus();
+      n.close();
+      open();
+    };
+  } catch {
+    /* browser blocked it */
+  }
+}
