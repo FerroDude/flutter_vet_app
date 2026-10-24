@@ -14,7 +14,7 @@ import {
 } from '@/lib/eventService';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
 import { sendMessage, useRooms } from '@/lib/chatService';
-import { dateTimeFmt, errorMessage } from '@/lib/format';
+import { dateTimeFmt, errorMessage, eventTitle } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { PageSpinner } from '@/components/Spinner';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -112,7 +112,7 @@ export function AppointmentPage() {
       </button>
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <h1 className="break-words font-display text-3xl font-bold text-foreground">{appt.title}</h1>
+        <h1 className="break-words font-display text-3xl font-bold text-foreground">{eventTitle(appt.title)}</h1>
         <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', status.classes)}>
           {status.label}
         </span>

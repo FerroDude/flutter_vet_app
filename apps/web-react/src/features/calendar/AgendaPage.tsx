@@ -41,6 +41,7 @@ import {
   dayHeadFmt,
   dayKey,
   errorMessage,
+  eventTitle,
   preferredRange,
   startOfDay,
   timeFmt,
@@ -130,7 +131,7 @@ export function AgendaPage() {
   };
 
   const removeEvent = async (e: CalendarEvent) => {
-    if (await confirm({ title: t('agenda.deleteTitle'), description: t('agenda.deleteItem', { name: `"${e.title}"` }), confirmLabel: t('common.delete'), danger: true })) {
+    if (await confirm({ title: t('agenda.deleteTitle'), description: t('agenda.deleteItem', { name: `"${eventTitle(e.title)}"` }), confirmLabel: t('common.delete'), danger: true })) {
       void run(deleteEvent(uid, e.id), t('agenda.deleted'));
     }
   };
@@ -397,7 +398,7 @@ function EventRow({
   const row = (
     <Row
       color={appt ? 'bg-event-appointment' : 'bg-accent'}
-      title={e.title}
+      title={eventTitle(e.title)}
       strike={completed || cancelled}
       meta={[timeFmt.format(e.dateTime), petName, appt?.bookedByVetId && (appt.vetName || t('common.vet'))]
         .filter(Boolean)

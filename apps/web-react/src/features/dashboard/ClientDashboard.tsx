@@ -10,7 +10,7 @@ import { eventsQuery, mapEvent, isCancelled, type CalendarEvent } from '@/lib/ev
 import { useRooms } from '@/lib/chatService';
 import { logDoseTaken, undoLastDose, setMedicationStatus } from '@/lib/medicationService';
 import { useAllMedications } from '@/lib/useAllMedications';
-import { dateTimeFmt, dayHeadFmt, errorMessage, greeting, sameDay, timeFmt } from '@/lib/format';
+import { dateTimeFmt, dayHeadFmt, errorMessage, eventTitle, greeting, sameDay, timeFmt } from '@/lib/format';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -85,7 +85,7 @@ export function ClientDashboard() {
                 <Card className="flex items-center gap-3 p-3 transition-colors hover:bg-secondary">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-event-appointment" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-foreground">{e.title}</span>
+                    <span className="block truncate font-medium text-foreground">{eventTitle(e.title)}</span>
                     <span className="block truncate text-xs text-muted-foreground">
                       {[
                         dateTimeFmt.format(e.dateTime),
@@ -151,7 +151,7 @@ export function ClientDashboard() {
                     {timeFmt.format(e.dateTime)}
                   </span>
                   <span className="min-w-0 flex-1 truncate">
-                    <span className="font-medium text-foreground">{e.title}</span>
+                    <span className="font-medium text-foreground">{eventTitle(e.title)}</span>
                     {e.petId && petName.get(e.petId) && (
                       <span className="text-xs text-muted-foreground"> · {petName.get(e.petId)}</span>
                     )}
