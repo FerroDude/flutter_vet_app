@@ -5,7 +5,7 @@ import { useClients } from '@/lib/useClients';
 import { useRooms } from '@/lib/chatService';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { useVetPendingRequests } from '@/lib/appointmentRequestService';
-import { dateTimeFmt, dayHeadFmt, dayShortFmt, greeting, sameDay, timeFmt } from '@/lib/format';
+import { dateTimeFmt, dayHeadFmt, dayShortFmt, eventTitle, greeting, sameDay, timeFmt } from '@/lib/format';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { t } from '@/i18n';
@@ -102,7 +102,7 @@ export function VetDashboard() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-foreground">
-                        {a.petName || a.title}
+                        {a.petName || eventTitle(a.title)}
                         <span className="font-normal text-muted-foreground"> · {a.clientName || t('common.client')}</span>
                       </p>
                       <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -135,7 +135,7 @@ export function VetDashboard() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-foreground">
-                        {a.petName || a.title}
+                        {a.petName || eventTitle(a.title)}
                         <span className="font-normal text-muted-foreground"> · {a.clientName || t('common.client')}</span>
                       </p>
                       <p className="text-sm text-muted-foreground">{dateTimeFmt.format(a.dateTime)}</p>

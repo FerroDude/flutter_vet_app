@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useCollection } from '@/lib/useFirestore';
 import { useClients } from '@/lib/useClients';
 import { clientLabel } from '@/lib/clientService';
-import { errorMessage } from '@/lib/format';
+import { errorMessage, eventTitle } from '@/lib/format';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
 import { appointmentTitle, saveVetAppointment, type AppointmentEvent } from '@/lib/eventService';
 import { toLocalInput } from '@/features/calendar/EventFormDialog';
@@ -71,7 +71,7 @@ export function VetAppointmentDialog({
       setClientId(existing.userId);
       setPetId(existing.petId ?? '');
       setWhen(toLocalInput(existing.dateTime));
-      setTitle(existing.title);
+      setTitle(eventTitle(existing.title));
       setTitleTouched(true);
       setLocation(existing.location ?? '');
       setDescription(existing.description ?? '');

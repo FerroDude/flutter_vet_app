@@ -20,7 +20,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { db } from '@/lib/firebase';
 import { useDoc, useCollection } from '@/lib/useFirestore';
 import { clientLabel, mapClient } from '@/lib/clientService';
-import { dateTimeFmt, errorMessage, fullAddress } from '@/lib/format';
+import { dateTimeFmt, errorMessage, eventTitle, fullAddress } from '@/lib/format';
 import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
@@ -150,7 +150,7 @@ export function ClientDetailPage() {
                       <span className="shrink-0 font-medium tabular-nums text-foreground">
                         {dateTimeFmt.format(a.dateTime)}
                       </span>
-                      <span className="min-w-0 truncate text-muted-foreground">{a.title}</span>
+                      <span className="min-w-0 truncate text-muted-foreground">{eventTitle(a.title)}</span>
                     </li>
                   ))}
                 </ul>

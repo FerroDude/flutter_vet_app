@@ -17,7 +17,7 @@ import {
 } from '@/lib/medicationService';
 import { eventsQuery, mapEvent, deleteEvent, isCancelled, type AppointmentEvent, type CalendarEvent } from '@/lib/eventService';
 import { clientLabel } from '@/lib/clientService';
-import { dateTimeFmt, errorMessage, longDateFmt } from '@/lib/format';
+import { dateTimeFmt, errorMessage, eventTitle, longDateFmt } from '@/lib/format';
 import { symptomLabel } from '@/lib/medText';
 import { t } from '@/i18n';
 import { cn } from '@/lib/cn';
@@ -199,7 +199,7 @@ export function PetDetailPage() {
                   to={!isVetView && e.type === EventType.appointment ? `/agenda/consultas/${e.id}` : undefined}
                   strike={isCancelled(e)}
                   dot={e.type === EventType.appointment ? 'bg-event-appointment' : 'bg-accent'}
-                  title={e.title}
+                  title={eventTitle(e.title)}
                   meta={`${dateTimeFmt.format(e.dateTime)}${isCancelled(e) ? ` · ${t('agenda.cancelled')}` : ''}`}
                   actions={
                     canEdit(e) && (
@@ -213,7 +213,7 @@ export function PetDetailPage() {
                         >
                           <Pencil size={15} />
                         </IconBtn>
-                        <IconBtn label={t('common.delete')} danger onClick={() => void remove(`"${e.title}"`, () => deleteEvent(uid, e.id))}>
+                        <IconBtn label={t('common.delete')} danger onClick={() => void remove(`"${eventTitle(e.title)}"`, () => deleteEvent(uid, e.id))}>
                           <Trash2 size={15} />
                         </IconBtn>
                       </>

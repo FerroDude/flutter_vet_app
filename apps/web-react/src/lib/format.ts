@@ -2,6 +2,8 @@
 
 import { AppointmentRequestStatus, TimePreference } from '@vetplus/shared';
 import { locale, t, type TKey } from '@/i18n';
+import { pt } from '@/i18n/pt';
+import { en } from '@/i18n/en';
 
 const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, o);
 
@@ -93,4 +95,18 @@ export function preferredRange(start: Date, end: Date): string {
 
 export function errorMessage(e: unknown, fallback = t('errors.generic')): string {
   return e instanceof Error && e.message ? e.message : fallback;
+}
+
+/** Re-translate a default appointment title at display time: titles are stored
+ *  in the language they were created in, so "Consulta — X" must still render in
+ *  English (and vice-versa). Custom titles pass through unchanged. */
+export function eventTitle(title: string): string {
+  for (const dict of [pt, en]) {
+    if (title === dict['event.appointmentName']) return t('event.appointmentName');
+    const prefix = dict['event.appointmentFor'].split('{pet}')[0];
+    if (prefix && title.startsWith(prefix)) {
+      return t('event.appointmentFor', { pet: title.slice(prefix.length) });
+    }
+  }
+  return title;
 }
