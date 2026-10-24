@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LayoutDashboard, PawPrint, CalendarDays, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
+import { useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
 import { ClientDashboard } from '@/features/dashboard/ClientDashboard';
 import { PetsPage } from '@/features/pets/PetsPage';
@@ -13,20 +14,21 @@ import { ProfileSettingsPage } from '@/features/profile/ProfileSettingsPage';
 import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
 import { ConfirmedRequestToast } from '@/features/calendar/ConfirmedRequestToast';
 
-const NAV: NavItem[] = [
-  { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
-  { to: '/pets', label: 'Animais', icon: PawPrint },
-  { to: '/agenda', label: 'Agenda', icon: CalendarDays },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/profile', label: 'Perfil', icon: User },
-];
-
 export function ClientApp() {
-  const { profile, signOutUser } = useAuth();
+  const { firebaseUser, profile, signOutUser } = useAuth();
+  const { unread } = useRooms('petOwnerId', firebaseUser?.uid ?? '');
+
+  const nav: NavItem[] = [
+    { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
+    { to: '/pets', label: 'Animais', icon: PawPrint },
+    { to: '/agenda', label: 'Agenda', icon: CalendarDays },
+    { to: '/chat', label: 'Chat', icon: MessageCircle, badge: unread },
+    { to: '/profile', label: 'Perfil', icon: User },
+  ];
 
   return (
     <AppLayout
-      nav={NAV}
+      nav={nav}
       userName={profile?.displayName?.trim() || profile?.email || 'Cliente'}
       userSubtitle="Cliente"
       onSignOut={() => void signOutUser()}
