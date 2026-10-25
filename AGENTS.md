@@ -30,5 +30,7 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
 
 ## Accounts
 - No in-app sign-up. Rules forbid self-created profiles.
-- Vets: `GOOGLE_APPLICATION_CREDENTIALS=<service-account.json> npm run create-vet -- <email> "<name>"`
+- Vets: `GOOGLE_CLOUD_PROJECT=vetplus-digital npm run create-vet -- <email> "<name>"`. Uses the
+  gcloud Application Default Credentials (`gcloud auth application-default login` once, with the
+  project owner's Google account). No service-account key file needed.
 - Clients: added by the vet in the app (`clientService.addClientByEmail`).

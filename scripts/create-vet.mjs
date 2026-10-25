@@ -3,11 +3,11 @@
 // add a vet.
 //
 // Usage:
-//   GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json \
-//     npm run create-vet -- vet@example.com "Dra. Nome"
+//   gcloud auth application-default login   (once, project owner's account)
+//   GOOGLE_CLOUD_PROJECT=vetplus-digital npm run create-vet -- vet@example.com "Dra. Nome"
 //
-// The service account key comes from Firebase console > Project settings >
-// Service accounts. Never commit it.
+// Uses Application Default Credentials, so no service-account key file is
+// needed. Never commit a key if you use one instead.
 //
 // Prints a password-setup link to send to the vet. She can also use
 // "Esqueci-me da palavra-passe" on the login screen.
