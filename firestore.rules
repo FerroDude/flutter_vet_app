@@ -204,7 +204,10 @@ service cloud.firestore {
           && request.resource.data.petId == petId
           && request.resource.data.petName is string && request.resource.data.petName.size() <= 100
           && request.resource.data.finderName is string && request.resource.data.finderName.size() <= 100
-          && request.resource.data.finderContact is string && request.resource.data.finderContact.size() >= 3 && request.resource.data.finderContact.size() <= 200
+          && request.resource.data.finderContact is string
+          && request.resource.data.finderContact.size() <= 200
+          && (request.resource.data.finderContact.matches('^[+]?([ ().-]*[0-9]){6,}[ ().-]*$')
+              || request.resource.data.finderContact.matches('^[^ @]+@[^ @]+[.][^ @]+$'))
           && request.resource.data.message is string && request.resource.data.message.size() <= 1000
           && request.resource.data.resolved == false
           && request.resource.data.createdAt == request.time;

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Phone, PawPrint, Bell } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { getPetTag, sendFoundReport, type PetTag } from '@/lib/petTagService';
+import { isValidContact } from '@/lib/contact';
 import { errorMessage } from '@/lib/format';
 import { PetAvatar } from '@/components/ui/PetAvatar';
 import { Button } from '@/components/ui/Button';
@@ -122,7 +123,7 @@ function FoundForm({ tag }: { tag: PetTag }) {
   const [sent, setSent] = useState(false);
 
   const submit = async () => {
-    if (contact.trim().length < 3) {
+    if (!isValidContact(contact)) {
       setContactError(t('tag.contactRequired'));
       return;
     }
@@ -151,6 +152,7 @@ function FoundForm({ tag }: { tag: PetTag }) {
           <TextField label={t('tag.finderName')} value={name} onChange={(e) => setName(e.target.value)} />
           <TextField
             label={t('tag.finderContact')}
+            required
             value={contact}
             error={contactError}
             onChange={(e) => {

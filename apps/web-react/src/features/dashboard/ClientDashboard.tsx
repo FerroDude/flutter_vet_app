@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { CalendarDays, Check, ChevronRight, MessageCircle, PawPrint } from 'lucide-react';
 import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/shared';
 import { useFoundReports, resolveFoundReport, type FoundReport } from '@/lib/petTagService';
+import { PHONE_RE, EMAIL_RE } from '@/lib/contact';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
@@ -176,9 +177,8 @@ export function ClientDashboard() {
 
 /** Finder-contact link: tel: for phone-shaped contacts, mailto: for emails. */
 function contactLink(contact: string) {
-  const digits = contact.replace(/\D/g, '');
-  if (digits.length >= 6 && /^[+\d][\d\s\-()]*$/.test(contact)) return `tel:${contact}`;
-  if (contact.includes('@')) return `mailto:${contact}`;
+  if (PHONE_RE.test(contact)) return `tel:${contact}`;
+  if (EMAIL_RE.test(contact)) return `mailto:${contact}`;
   return null;
 }
 

@@ -367,6 +367,10 @@ describe('found report rules', () => {
     const other = env.authenticatedContext('other').firestore();
     const ref = doc(anon, 'petTags/luna/foundReports/r2');
     await assertSucceeds(setDoc(ref, report()));
+    await assertSucceeds(setDoc(doc(anon, 'petTags/luna/foundReports/r3'), { ...report(), finderContact: 'a@b.pt' }));
+    await assertSucceeds(
+      setDoc(doc(anon, 'petTags/luna/foundReports/r4'), { ...report(), finderContact: '+351 912 345 678' }),
+    );
     await assertFails(getDoc(doc(anon, ref.path)));
     await assertFails(getDoc(doc(other, ref.path)));
     await assertSucceeds(getDoc(doc(client, ref.path)));
@@ -382,6 +386,9 @@ describe('found report rules', () => {
     await assertFails(addDoc(col, { ...report(), ownerId: 'other' }));
     await assertFails(addDoc(col, { ...report(), extra: 'x' }));
     await assertFails(addDoc(col, { ...report(), finderContact: 'ab' }));
+    await assertFails(addDoc(col, { ...report(), finderContact: 'abcdef' }));
+    await assertFails(addDoc(col, { ...report(), finderContact: '12345' }));
+    await assertFails(addDoc(col, { ...report(), finderContact: '' }));
     await assertFails(addDoc(col, { ...report(), resolved: true }));
     await assertFails(addDoc(collection(anon, 'petTags/ghost/foundReports'), report()));
   });

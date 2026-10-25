@@ -23,6 +23,8 @@ import { useCollection } from './useFirestore';
 import { petDoc, mapPet, type Pet } from './petService';
 import { parseDateOptional } from '@vetplus/shared';
 
+export { PHONE_RE, EMAIL_RE, isValidContact } from './contact';
+
 export interface PetTag {
   petId: string;
   ownerId: string;
