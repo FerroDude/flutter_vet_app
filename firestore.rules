@@ -188,12 +188,23 @@ service cloud.firestore {
     match /petTags/{petId} {
       allow get: if true;
       allow list: if false;
-      allow create: if isOwner(request.resource.data.ownerId)
-        && request.resource.data.petId == petId
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid)/pets/$(petId));
-      allow update: if isOwner(resource.data.ownerId)
-        && unchanged('ownerId')
-        && unchanged('petId');
+      // The client's vet may write the tag's pet fields so a vet-printed QR
+      // always resolves — but never the owner's contact choice.
+      function vetTagWrite() {
+        return isClientsVet(request.resource.data.ownerId)
+          && exists(/databases/$(database)/documents/users/$(request.resource.data.ownerId)/pets/$(petId));
+      }
+      allow create: if request.resource.data.petId == petId && (
+          (isOwner(request.resource.data.ownerId)
+            && exists(/databases/$(database)/documents/users/$(request.auth.uid)/pets/$(petId)))
+          || (vetTagWrite()
+            && request.resource.data.get('showContact', false) == false
+            && request.resource.data.get('contactName', null) == null
+            && request.resource.data.get('contactPhone', null) == null));
+      allow update: if unchanged('ownerId') && unchanged('petId') && (
+          isOwner(resource.data.ownerId)
+          || (isClientsVet(resource.data.ownerId)
+              && onlyChanges(['petName','species','breed','microchip','photoUrl','updatedAt'])));
       allow delete: if isOwner(resource.data.ownerId);
 
       // Finder → owner alerts. Anyone (no login) can create a report against an

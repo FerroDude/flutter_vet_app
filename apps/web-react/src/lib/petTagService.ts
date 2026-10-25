@@ -87,6 +87,16 @@ export async function getPetTag(petId: string): Promise<PetTag | null> {
   return snap.exists() ? mapPetTag(snap.id, snap.data()) : null;
 }
 
+/** The public pet fields shared by owner and vet writes. */
+const petFields = (pet: Pet) => ({
+  petName: pet.name,
+  species: pet.species,
+  breed: pet.breed,
+  microchip: pet.microchip ?? '',
+  photoUrl: pet.photoUrl ?? null,
+  updatedAt: serverTimestamp(),
+});
+
 /** Create/refresh the owner's public tag for a pet. Contact details are only
  *  written when showContact is on — the public page shows just the pet then. */
 export async function syncPetTag(
@@ -98,33 +108,39 @@ export async function syncPetTag(
   await setDoc(tagDoc(pet.id), {
     ownerId,
     petId: pet.id,
-    petName: pet.name,
-    species: pet.species,
-    breed: pet.breed,
-    microchip: pet.microchip ?? '',
-    photoUrl: pet.photoUrl ?? null,
+    ...petFields(pet),
     contactName: showContact ? owner.displayName : null,
     contactPhone: showContact && owner.phone ? owner.phone : null,
     showContact,
-    updatedAt: serverTimestamp(),
   });
 }
 
+/** Vet-side tag write when printing a QR the owner never created. Creates the
+ *  tag with contact hidden (owner opts in later) or refreshes pet fields —
+ *  rules forbid touching the owner's contact choice. */
+export async function ensurePetTagAsVet(ownerId: string, pet: Pet): Promise<void> {
+  if (!(await getPetTag(pet.id))) {
+    await setDoc(tagDoc(pet.id), {
+      ownerId,
+      petId: pet.id,
+      ...petFields(pet),
+      contactName: null,
+      contactPhone: null,
+      showContact: false,
+    });
+    return;
+  }
+  await updateDoc(tagDoc(pet.id), petFields(pet));
+}
+
 /** After a pet edit/photo change: refresh the tag's public pet fields if the
- *  tag exists. Owner-side only; silently ignored otherwise. */
+ *  tag exists. Owner or the client's vet; silently ignored otherwise. */
 export async function refreshPetTag(ownerId: string, petId: string): Promise<void> {
   try {
     const snap = await getDoc(petDoc(ownerId, petId));
     if (!snap.exists()) return;
     const pet = mapPet(snap.id, snap.data());
-    await updateDoc(tagDoc(petId), {
-      petName: pet.name,
-      species: pet.species,
-      breed: pet.breed,
-      microchip: pet.microchip ?? '',
-      photoUrl: pet.photoUrl ?? null,
-      updatedAt: serverTimestamp(),
-    });
+    await updateDoc(tagDoc(petId), petFields(pet));
   } catch {
     /* no tag or no permission */
   }

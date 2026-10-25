@@ -136,7 +136,7 @@ export function PetForm() {
       }
 
       // Keep the public QR tag fresh (owner only; vet edits never touch tags).
-      if (!isVetView) void refreshPetTag(uid, id);
+      void refreshPetTag(uid, id);
 
       toast.success(isEdit ? t('pets.updated') : t('pets.added'));
       if (photoError) toast.error(t('pets.photoFailed', { error: photoError }));

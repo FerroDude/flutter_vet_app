@@ -121,11 +121,9 @@ export function PetDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!isVetView && (
-            <Button variant="outline" onClick={() => setTagOpen(true)}>
-              <QrCode size={16} /> {t('tag.qr')}
-            </Button>
-          )}
+          <Button variant="outline" onClick={() => setTagOpen(true)}>
+            <QrCode size={16} /> {t('tag.qr')}
+          </Button>
           <Button variant="outline" onClick={() => navigate(`${isVetView ? `/clients/${ownerId}/pets` : '/pets'}/${pet.id}/edit`)}>
             <Pencil size={16} /> {t('common.edit')}
           </Button>
@@ -133,16 +131,15 @@ export function PetDetailPage() {
       </div>
 
       {isVetView && <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />}
-      {!isVetView && (
-        <PetTagDialog
-          open={tagOpen}
-          onClose={() => setTagOpen(false)}
-          uid={uid}
-          pet={pet}
-          ownerName={profile?.displayName?.trim() || profile?.email || ''}
-          ownerPhone={profile?.phone ?? ''}
-        />
-      )}
+      <PetTagDialog
+        open={tagOpen}
+        onClose={() => setTagOpen(false)}
+        uid={uid}
+        pet={pet}
+        ownerView={!isVetView}
+        ownerName={profile?.displayName?.trim() || profile?.email || ''}
+        ownerPhone={profile?.phone ?? ''}
+      />
 
       <Card className="mb-8">
         <CardBody>

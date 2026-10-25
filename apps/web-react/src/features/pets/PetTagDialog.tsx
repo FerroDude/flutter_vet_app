@@ -4,7 +4,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { Download, Printer } from 'lucide-react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
-import { getPetTag, syncPetTag } from '@/lib/petTagService';
+import { getPetTag, syncPetTag, ensurePetTagAsVet } from '@/lib/petTagService';
 import { errorMessage } from '@/lib/format';
 import { type Pet } from '@/lib/petService';
 import { t } from '@/i18n';
@@ -12,15 +12,19 @@ import { t } from '@/i18n';
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** The pet OWNER's uid (clientId in vet view). */
   uid: string;
   pet: Pet;
-  ownerName: string;
-  ownerPhone: string;
+  /** true = owner (contact opt-in shown); false = vet (pet fields only). */
+  ownerView: boolean;
+  ownerName?: string;
+  ownerPhone?: string;
 }
 
-/** QR-code dialog on the pet page (owner only): keeps petTags/{petId} in sync
- *  and offers PNG download + print for a physical tag. */
-export function PetTagDialog({ open, onClose, uid, pet, ownerName, ownerPhone }: Props) {
+/** QR-code dialog on the pet page. Owner: syncs the tag + contact opt-in.
+ *  Vet: creates/refreshes the pet fields only — the contact choice stays
+ *  the owner's. */
+export function PetTagDialog({ open, onClose, uid, pet, ownerView, ownerName = '', ownerPhone = '' }: Props) {
   const url = `${window.location.origin}${import.meta.env.BASE_URL}t/${pet.id}`;
   const [showContact, setShowContact] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
@@ -33,10 +37,19 @@ export function PetTagDialog({ open, onClose, uid, pet, ownerName, ownerPhone }:
     }
   };
 
-  // On open: restore the stored showContact choice, then write the tag.
+  // On open: owner restores the stored showContact choice then writes the tag;
+  // the vet just creates/refreshes the pet fields.
   useEffect(() => {
     if (!open) return;
     void (async () => {
+      if (!ownerView) {
+        try {
+          await ensurePetTagAsVet(uid, pet);
+        } catch (e) {
+          toast.error(errorMessage(e));
+        }
+        return;
+      }
       let show = false;
       try {
         show = (await getPetTag(pet.id))?.showContact ?? false;
@@ -88,17 +101,23 @@ export function PetTagDialog({ open, onClose, uid, pet, ownerName, ownerPhone }:
         </div>
         <p className="break-words text-center font-medium text-foreground">{pet.name}</p>
 
-        <label className="inline-flex items-center gap-2 self-start text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={showContact}
-            disabled={!ownerPhone}
-            onChange={(e) => togglePhone(e.target.checked)}
-            className="h-4 w-4 accent-[hsl(var(--primary))]"
-          />
-          {t('tag.showContact')}
-        </label>
-        {!ownerPhone && <p className="-mt-2 self-start text-xs text-muted-foreground">{t('tag.noPhone')}</p>}
+        {ownerView && (
+          <>
+            <label className="inline-flex items-center gap-2 self-start text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showContact}
+                disabled={!ownerPhone}
+                onChange={(e) => togglePhone(e.target.checked)}
+                className="h-4 w-4 accent-[hsl(var(--primary))]"
+              />
+              {t('tag.showContact')}
+            </label>
+            {!ownerPhone && (
+              <p className="-mt-2 self-start text-xs text-muted-foreground">{t('tag.noPhone')}</p>
+            )}
+          </>
+        )}
 
         <div className="flex w-full justify-end gap-2">
           <Button variant="outline" onClick={download}>

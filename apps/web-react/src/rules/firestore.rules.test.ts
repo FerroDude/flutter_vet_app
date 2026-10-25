@@ -327,6 +327,36 @@ describe('pet tag rules', () => {
     await assertFails(deleteDoc(doc(other, 'petTags/luna')));
     await assertSucceeds(deleteDoc(doc(client, 'petTags/luna')));
   });
+
+  it("lets the client's vet write pet fields but never the contact choice", async () => {
+    await seedPet();
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users/client/pets/rex'), { name: 'Rex' }),
+    );
+    const vet = env.authenticatedContext('vet').firestore();
+    const otherVet = env.authenticatedContext('other').firestore();
+
+    // Vet creates a tag with contact hidden — allowed.
+    await assertSucceeds(
+      setDoc(doc(vet, 'petTags/luna'), {
+        ...tag,
+        showContact: false,
+        contactName: null,
+        contactPhone: null,
+      }),
+    );
+    // Vet can refresh pet fields but not the owner's contact choice.
+    await assertSucceeds(updateDoc(doc(vet, 'petTags/luna'), { petName: 'Luninha' }));
+    await assertFails(updateDoc(doc(vet, 'petTags/luna'), { contactPhone: '910000000' }));
+    await assertFails(updateDoc(doc(vet, 'petTags/luna'), { showContact: true }));
+
+    // Vet creates with contact exposed — denied; other vet — denied entirely.
+    const rex = { ...tag, petId: 'rex', petName: 'Rex' };
+    await assertFails(setDoc(doc(vet, 'petTags/rex'), { ...rex, showContact: true }));
+    await assertFails(setDoc(doc(vet, 'petTags/rex'), { ...rex, contactPhone: '910000000' }));
+    await assertFails(setDoc(doc(otherVet, 'petTags/rex'), { ...rex, showContact: false }));
+    await assertFails(updateDoc(doc(otherVet, 'petTags/luna'), { petName: 'x' }));
+  });
 });
 
 describe('found report rules', () => {
