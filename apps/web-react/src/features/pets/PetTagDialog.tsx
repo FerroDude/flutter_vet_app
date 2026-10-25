@@ -22,7 +22,7 @@ interface Props {
  *  and offers PNG download + print for a physical tag. */
 export function PetTagDialog({ open, onClose, uid, pet, ownerName, ownerPhone }: Props) {
   const url = `${window.location.origin}${import.meta.env.BASE_URL}t/${pet.id}`;
-  const [showPhone, setShowPhone] = useState(true);
+  const [showContact, setShowContact] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
   const sync = async (show: boolean) => {
@@ -33,24 +33,24 @@ export function PetTagDialog({ open, onClose, uid, pet, ownerName, ownerPhone }:
     }
   };
 
-  // On open: restore the stored showPhone choice, then write the tag.
+  // On open: restore the stored showContact choice, then write the tag.
   useEffect(() => {
     if (!open) return;
     void (async () => {
-      let show = true;
+      let show = false;
       try {
-        show = (await getPetTag(pet.id))?.showPhone ?? true;
+        show = (await getPetTag(pet.id))?.showContact ?? false;
       } catch {
         /* first time or no access */
       }
-      setShowPhone(show);
+      setShowContact(show);
       void sync(show);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, pet.id]);
 
   const togglePhone = (show: boolean) => {
-    setShowPhone(show);
+    setShowContact(show);
     void sync(show);
   };
 
@@ -91,12 +91,12 @@ export function PetTagDialog({ open, onClose, uid, pet, ownerName, ownerPhone }:
         <label className="inline-flex items-center gap-2 self-start text-sm text-muted-foreground">
           <input
             type="checkbox"
-            checked={showPhone}
+            checked={showContact}
             disabled={!ownerPhone}
             onChange={(e) => togglePhone(e.target.checked)}
             className="h-4 w-4 accent-[hsl(var(--primary))]"
           />
-          {t('tag.showPhone')}
+          {t('tag.showContact')}
         </label>
         {!ownerPhone && <p className="-mt-2 self-start text-xs text-muted-foreground">{t('tag.noPhone')}</p>}
 

@@ -135,6 +135,20 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "foundReports",
+      "fieldPath": "ownerId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
       "collectionGroup": "events",
       "fieldPath": "bookedByVetId",
       "indexes": [

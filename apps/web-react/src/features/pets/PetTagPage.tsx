@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { Phone, PawPrint } from 'lucide-react';
+import { toast } from 'sonner';
+import { Phone, PawPrint, Bell } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
-import { getPetTag, type PetTag } from '@/lib/petTagService';
+import { getPetTag, sendFoundReport, type PetTag } from '@/lib/petTagService';
+import { errorMessage } from '@/lib/format';
 import { PetAvatar } from '@/components/ui/PetAvatar';
 import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/TextField';
+import { Textarea } from '@/components/ui/Textarea';
 import { Logo } from '@/components/ui/Logo';
 import { LangToggle } from '@/components/ui/AuthShell';
 import { PageSpinner } from '@/components/Spinner';
@@ -12,7 +16,8 @@ import { t } from '@/i18n';
 
 /**
  * Public pet-tag page at /t/:petId. Signed-in owner → their pet page, their
- * vet → the client pet page, everyone else → the safe public card.
+ * vet → the client pet page, everyone else → the safe public card + a
+ * "alert the owner" form.
  */
 export function PetTagPage() {
   const { petId = '' } = useParams<{ petId: string }>();
@@ -38,7 +43,7 @@ export function PetTagPage() {
     }
   }
 
-  const firstName = tag ? (tag.contactName.trim().split(' ')[0] ?? '') : '';
+  const firstName = tag?.contactName?.trim().split(' ')[0] ?? '';
 
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center px-5 py-12">
@@ -73,17 +78,24 @@ export function PetTagPage() {
                   {[tag.species, tag.breed].filter(Boolean).join(' · ')}
                 </p>
               )}
+              {tag.microchip && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('tag.microchip', { chip: tag.microchip })}
+                </p>
+              )}
               <p className="mt-4 text-sm text-muted-foreground">{t('tag.found')}</p>
-              <p className="mt-3 font-medium text-foreground">
-                {t('tag.owner', { name: firstName })}
-              </p>
-              {tag.contactPhone ? (
+              {tag.showContact && tag.contactName && (
+                <p className="mt-3 font-medium text-foreground">
+                  {t('tag.owner', { name: firstName })}
+                </p>
+              )}
+              {tag.showContact && tag.contactPhone && (
                 <Button className="mt-3" onClick={() => (window.location.href = `tel:${tag.contactPhone}`)}>
                   <Phone size={16} /> {t('tag.call', { phone: tag.contactPhone })}
                 </Button>
-              ) : (
-                <p className="mt-3 text-sm text-muted-foreground">{t('tag.noContact')}</p>
               )}
+
+              <FoundForm tag={tag} />
             </>
           )}
         </div>
@@ -94,6 +106,69 @@ export function PetTagPage() {
           </Link>
         </p>
       </div>
+    </div>
+  );
+}
+
+/** "Found this pet?" collapsible alert form — anonymous, writes a foundReport
+ *  the owner sees on their dashboard. */
+function FoundForm({ tag }: { tag: PetTag }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [contact, setContact] = useState('');
+  const [message, setMessage] = useState('');
+  const [contactError, setContactError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const submit = async () => {
+    if (contact.trim().length < 3) {
+      setContactError(t('tag.contactRequired'));
+      return;
+    }
+    setSending(true);
+    try {
+      await sendFoundReport(tag, { finderName: name, finderContact: contact, message });
+      setSent(true);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t border-border pt-5 text-left">
+      <h2 className="text-center text-sm font-semibold text-foreground">{t('tag.foundHeading')}</h2>
+      {sent ? (
+        <p className="mt-3 text-center text-sm text-muted-foreground">{t('tag.sent')}</p>
+      ) : !open ? (
+        <Button variant="outline" className="mt-3 w-full" onClick={() => setOpen(true)}>
+          <Bell size={16} /> {t('tag.alert')}
+        </Button>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <TextField label={t('tag.finderName')} value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField
+            label={t('tag.finderContact')}
+            value={contact}
+            error={contactError}
+            onChange={(e) => {
+              setContact(e.target.value);
+              setContactError('');
+            }}
+          />
+          <Textarea
+            label={t('tag.message')}
+            placeholder={t('tag.messagePlaceholder')}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <Button className="w-full" loading={sending} onClick={() => void submit()}>
+            {t('tag.sendAlert')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

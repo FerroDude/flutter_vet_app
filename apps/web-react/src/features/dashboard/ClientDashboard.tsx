@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarDays, ChevronRight, MessageCircle } from 'lucide-react';
+import { CalendarDays, Check, ChevronRight, MessageCircle, PawPrint } from 'lucide-react';
 import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/shared';
+import { useFoundReports, resolveFoundReport, type FoundReport } from '@/lib/petTagService';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
@@ -37,6 +38,8 @@ export function ClientDashboard() {
     .slice(0, 3);
 
   const { rooms, unread } = useRooms('petOwnerId', uid);
+  const { reports } = useFoundReports(uid);
+  const unresolved = reports.filter((r) => !r.resolved);
   const meds = useAllMedications(uid);
   const activeMeds = useMemo(
     () =>
@@ -57,6 +60,10 @@ export function ClientDashboard() {
         eyebrow={dayHeadFmt.format(new Date())}
         title={firstName ? `${greeting()}, ${firstName}` : greeting()}
       />
+
+      {unresolved.map((r) => (
+        <FoundAlert key={r.id} report={r} onResolve={() => void run(resolveFoundReport(r.petId, r.id))} />
+      ))}
 
       {unread > 0 && (
         <Banner
@@ -164,6 +171,50 @@ export function ClientDashboard() {
         )}
       </section>
     </div>
+  );
+}
+
+/** Finder-contact link: tel: for phone-shaped contacts, mailto: for emails. */
+function contactLink(contact: string) {
+  const digits = contact.replace(/\D/g, '');
+  if (digits.length >= 6 && /^[+\d][\d\s\-()]*$/.test(contact)) return `tel:${contact}`;
+  if (contact.includes('@')) return `mailto:${contact}`;
+  return null;
+}
+
+/** Highlighted "pet was found" alert on the client dashboard. */
+function FoundAlert({ report: r, onResolve }: { report: FoundReport; onResolve: () => void }) {
+  const href = contactLink(r.finderContact);
+  return (
+    <Card className="border-warning/40 bg-warning/15 p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-warning/20 text-warning">
+          <PawPrint size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-foreground">{t('tag.foundToast', { name: r.petName })}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {r.finderName || t('tag.someone')}
+            {r.message ? ` — ${r.message}` : ''}
+          </p>
+          <p className="mt-1 text-sm">
+            {href ? (
+              <a href={href} className="font-medium text-foreground underline">
+                {r.finderContact}
+              </a>
+            ) : (
+              <span className="text-foreground">{r.finderContact}</span>
+            )}
+            {r.createdAt && (
+              <span className="text-muted-foreground"> · {dateTimeFmt.format(r.createdAt)}</span>
+            )}
+          </p>
+        </div>
+        <Button variant="outline" size="md" className="shrink-0" onClick={onResolve}>
+          <Check size={15} /> {t('tag.resolve')}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

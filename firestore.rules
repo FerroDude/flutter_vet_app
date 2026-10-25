@@ -110,6 +110,11 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.bookedByVetId == request.auth.uid;
     }
 
+    // Owner's "found" alerts across all of their pet tags.
+    match /{path=**}/foundReports/{reportId} {
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
     match /chatRooms/{roomId} {
       function inRoom() {
         return signedIn() && (
@@ -190,6 +195,22 @@ service cloud.firestore {
         && unchanged('ownerId')
         && unchanged('petId');
       allow delete: if isOwner(resource.data.ownerId);
+
+      // Finder → owner alerts. Anyone (no login) can create a report against an
+      // existing tag; only the owner can read/resolve/delete them.
+      match /foundReports/{reportId} {
+        allow create: if request.resource.data.keys().hasOnly(['ownerId','petId','petName','finderName','finderContact','message','resolved','createdAt'])
+          && request.resource.data.ownerId == get(/databases/$(database)/documents/petTags/$(petId)).data.ownerId
+          && request.resource.data.petId == petId
+          && request.resource.data.petName is string && request.resource.data.petName.size() <= 100
+          && request.resource.data.finderName is string && request.resource.data.finderName.size() <= 100
+          && request.resource.data.finderContact is string && request.resource.data.finderContact.size() >= 3 && request.resource.data.finderContact.size() <= 200
+          && request.resource.data.message is string && request.resource.data.message.size() <= 1000
+          && request.resource.data.resolved == false
+          && request.resource.data.createdAt == request.time;
+        allow read, delete: if isOwner(resource.data.ownerId);
+        allow update: if isOwner(resource.data.ownerId) && onlyChanges(['resolved']);
+      }
     }
   }
 }

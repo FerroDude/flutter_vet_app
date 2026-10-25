@@ -19,6 +19,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 const rules = readFileSync(resolve(process.cwd(), '../../firestore.rules'), 'utf8');
@@ -325,5 +326,72 @@ describe('pet tag rules', () => {
     await assertFails(updateDoc(doc(other, 'petTags/luna'), { petName: 'x' }));
     await assertFails(deleteDoc(doc(other, 'petTags/luna')));
     await assertSucceeds(deleteDoc(doc(client, 'petTags/luna')));
+  });
+});
+
+describe('found report rules', () => {
+  const report = () => ({
+    ownerId: 'client',
+    petId: 'luna',
+    petName: 'Luna',
+    finderName: 'Zé',
+    finderContact: '910000000',
+    message: 'Encontrei-a na rua',
+    resolved: false,
+    createdAt: serverTimestamp(),
+  });
+
+  const seedTag = () =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'petTags/luna'), {
+        ownerId: 'client',
+        petId: 'luna',
+        petName: 'Luna',
+      }),
+    );
+
+  const seedReport = () =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'petTags/luna/foundReports/r1'), {
+        ownerId: 'client',
+        petId: 'luna',
+        finderContact: '910000000',
+        resolved: false,
+      }),
+    );
+
+  it('lets anyone create a valid report and reads only for the owner', async () => {
+    await seedTag();
+    const anon = env.unauthenticatedContext().firestore();
+    const client = env.authenticatedContext('client').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    const ref = doc(anon, 'petTags/luna/foundReports/r2');
+    await assertSucceeds(setDoc(ref, report()));
+    await assertFails(getDoc(doc(anon, ref.path)));
+    await assertFails(getDoc(doc(other, ref.path)));
+    await assertSucceeds(getDoc(doc(client, ref.path)));
+    await assertSucceeds(
+      getDocs(query(collectionGroup(client, 'foundReports'), where('ownerId', '==', 'client'))),
+    );
+  });
+
+  it('rejects forged, malformed or resolved-at-creation reports', async () => {
+    await seedTag();
+    const anon = env.unauthenticatedContext().firestore();
+    const col = collection(anon, 'petTags/luna/foundReports');
+    await assertFails(addDoc(col, { ...report(), ownerId: 'other' }));
+    await assertFails(addDoc(col, { ...report(), extra: 'x' }));
+    await assertFails(addDoc(col, { ...report(), finderContact: 'ab' }));
+    await assertFails(addDoc(col, { ...report(), resolved: true }));
+    await assertFails(addDoc(collection(anon, 'petTags/ghost/foundReports'), report()));
+  });
+
+  it('lets the owner resolve but not edit the report', async () => {
+    await seedTag();
+    await seedReport();
+    const client = env.authenticatedContext('client').firestore();
+    const ref = doc(client, 'petTags/luna/foundReports/r1');
+    await assertSucceeds(updateDoc(ref, { resolved: true }));
+    await assertFails(updateDoc(ref, { message: 'editado' }));
   });
 });

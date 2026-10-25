@@ -1,10 +1,27 @@
 // Public pet tags (QR codes): top-level petTags/{petId} with only the fields a
 // stranger needs — no medical data, no email. Read is public by id; writes are
-// owner-only via the rules.
+// owner-only via the rules. petTags/{petId}/foundReports/* are "found" alerts
+// anyone can send the owner.
 
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, type DocumentData } from 'firebase/firestore';
+import { useMemo } from 'react';
+import {
+  collection,
+  collectionGroup,
+  addDoc,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  serverTimestamp,
+  type DocumentData,
+} from 'firebase/firestore';
 import { db } from './firebase';
+import { useCollection } from './useFirestore';
 import { petDoc, mapPet, type Pet } from './petService';
+import { parseDateOptional } from '@vetplus/shared';
 
 export interface PetTag {
   petId: string;
@@ -12,13 +29,27 @@ export interface PetTag {
   petName: string;
   species: string;
   breed: string;
+  microchip: string;
   photoUrl: string | null;
-  contactName: string;
+  contactName: string | null;
   contactPhone: string | null;
-  showPhone: boolean;
+  showContact: boolean;
+}
+
+export interface FoundReport {
+  id: string;
+  ownerId: string;
+  petId: string;
+  petName: string;
+  finderName: string;
+  finderContact: string;
+  message: string;
+  resolved: boolean;
+  createdAt: Date | null;
 }
 
 const tagDoc = (petId: string) => doc(db, 'petTags', petId);
+const reportsCol = (petId: string) => collection(db, 'petTags', petId, 'foundReports');
 
 function mapPetTag(id: string, d: DocumentData): PetTag {
   return {
@@ -27,10 +58,25 @@ function mapPetTag(id: string, d: DocumentData): PetTag {
     petName: (d.petName as string) ?? '',
     species: (d.species as string) ?? '',
     breed: (d.breed as string) ?? '',
+    microchip: (d.microchip as string) ?? '',
     photoUrl: (d.photoUrl as string | null) ?? null,
-    contactName: (d.contactName as string) ?? '',
+    contactName: (d.contactName as string | null) ?? null,
     contactPhone: (d.contactPhone as string | null) ?? null,
-    showPhone: Boolean(d.showPhone),
+    showContact: d.showContact === true,
+  };
+}
+
+export function mapFoundReport(id: string, d: DocumentData): FoundReport {
+  return {
+    id,
+    ownerId: (d.ownerId as string) ?? '',
+    petId: (d.petId as string) ?? '',
+    petName: (d.petName as string) ?? '',
+    finderName: (d.finderName as string) ?? '',
+    finderContact: (d.finderContact as string) ?? '',
+    message: (d.message as string) ?? '',
+    resolved: d.resolved === true,
+    createdAt: parseDateOptional(d.createdAt) ?? null,
   };
 }
 
@@ -39,12 +85,13 @@ export async function getPetTag(petId: string): Promise<PetTag | null> {
   return snap.exists() ? mapPetTag(snap.id, snap.data()) : null;
 }
 
-/** Create/refresh the owner's public tag for a pet. */
+/** Create/refresh the owner's public tag for a pet. Contact details are only
+ *  written when showContact is on — the public page shows just the pet then. */
 export async function syncPetTag(
   ownerId: string,
   pet: Pet,
   owner: { displayName: string; phone: string },
-  showPhone: boolean,
+  showContact: boolean,
 ): Promise<void> {
   await setDoc(tagDoc(pet.id), {
     ownerId,
@@ -52,10 +99,11 @@ export async function syncPetTag(
     petName: pet.name,
     species: pet.species,
     breed: pet.breed,
+    microchip: pet.microchip ?? '',
     photoUrl: pet.photoUrl ?? null,
-    contactName: owner.displayName,
-    contactPhone: showPhone && owner.phone ? owner.phone : null,
-    showPhone,
+    contactName: showContact ? owner.displayName : null,
+    contactPhone: showContact && owner.phone ? owner.phone : null,
+    showContact,
     updatedAt: serverTimestamp(),
   });
 }
@@ -71,6 +119,7 @@ export async function refreshPetTag(ownerId: string, petId: string): Promise<voi
       petName: pet.name,
       species: pet.species,
       breed: pet.breed,
+      microchip: pet.microchip ?? '',
       photoUrl: pet.photoUrl ?? null,
       updatedAt: serverTimestamp(),
     });
@@ -85,4 +134,43 @@ export async function deletePetTag(petId: string): Promise<void> {
   } catch {
     /* no tag or no permission */
   }
+}
+
+/* ------------------------------ Found reports ------------------------------ */
+
+/** Anonymous "I found this pet" alert on a public tag page. */
+export async function sendFoundReport(
+  tag: PetTag,
+  report: { finderName: string; finderContact: string; message: string },
+): Promise<void> {
+  await addDoc(reportsCol(tag.petId), {
+    ownerId: tag.ownerId,
+    petId: tag.petId,
+    petName: tag.petName,
+    finderName: report.finderName.trim(),
+    finderContact: report.finderContact.trim(),
+    message: report.message.trim(),
+    resolved: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
+/** All of the owner's reports across their tags (sorted client-side). */
+export function foundReportsQuery(uid: string) {
+  return query(collectionGroup(db, 'foundReports'), where('ownerId', '==', uid));
+}
+
+/** Live list of the owner's found reports, newest first. */
+export function useFoundReports(uid: string) {
+  const q = useMemo(() => (uid ? foundReportsQuery(uid) : null), [uid]);
+  const { data, loading, error } = useCollection(q, mapFoundReport);
+  const reports = useMemo(
+    () => [...data].sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)),
+    [data],
+  );
+  return { reports, loading, error };
+}
+
+export async function resolveFoundReport(petId: string, reportId: string): Promise<void> {
+  await updateDoc(doc(reportsCol(petId), reportId), { resolved: true });
 }
