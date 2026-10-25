@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, MapPin, MessageSquare, PawPrint, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { AppointmentRequestStatus, MessageType, type AppointmentRequest } from '@vetplus/shared';
@@ -301,11 +301,19 @@ function AppointmentRow({
             <button type="button" onClick={onClient} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
               <User size={12} /> {a.clientName || t('common.client')}
             </button>
-            {a.petName && (
-              <span className="inline-flex items-center gap-1">
-                <PawPrint size={12} /> {a.petName}
-              </span>
-            )}
+            {a.petName &&
+              (a.petId ? (
+                <Link
+                  to={`/clients/${a.userId}/pets/${a.petId}`}
+                  className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
+                >
+                  <PawPrint size={12} /> {a.petName}
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <PawPrint size={12} /> {a.petName}
+                </span>
+              ))}
             {a.location && (
               <span className="inline-flex items-center gap-1">
                 <MapPin size={12} /> {a.location}
