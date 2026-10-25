@@ -21,6 +21,7 @@ import { useDoc } from '@/lib/useFirestore';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/i18n';
 import { PetPhotoPicker } from './PetPhotoPicker';
+import { refreshPetTag } from '@/lib/petTagService';
 import { TextField } from '@/components/ui/TextField';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -133,6 +134,9 @@ export function PetForm() {
       } else if (removePhoto) {
         await removePetPhoto(uid, id);
       }
+
+      // Keep the public QR tag fresh (owner only; vet edits never touch tags).
+      if (!isVetView) void refreshPetTag(uid, id);
 
       toast.success(isEdit ? t('pets.updated') : t('pets.added'));
       if (photoError) toast.error(t('pets.photoFailed', { error: photoError }));

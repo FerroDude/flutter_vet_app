@@ -143,6 +143,8 @@ export async function deletePet(uid: string, petId: string): Promise<void> {
   // the pet doc is gone, matching the Flutter behavior.)
   await deleteEventsForPet(uid, petId);
   await deleteDoc(petDoc(uid, petId));
+  // Its public QR tag goes too (no orphan public page).
+  await deleteDoc(doc(db, 'petTags', petId)).catch(() => {});
 }
 
 /** Human-readable age from a birth date (mirrors dashboard_page getAge). */

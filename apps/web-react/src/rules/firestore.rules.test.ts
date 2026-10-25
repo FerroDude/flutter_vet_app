@@ -280,3 +280,50 @@ describe('chat rules', () => {
     await assertFails(updateDoc(doc(client, m), { metadata: { replyToContent: 'x' } }));
   });
 });
+
+describe('pet tag rules', () => {
+  const tag = { ownerId: 'client', petId: 'luna', petName: 'Luna', species: 'Cão' };
+
+  const seedPet = () =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users/client/pets/luna'), { name: 'Luna' }),
+    );
+
+  const seedTag = (id = 'luna', data: object = tag) =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `petTags/${id}`), data),
+    );
+
+  it('lets anyone read one tag by id but not list the collection', async () => {
+    await seedTag();
+    const anon = env.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(anon, 'petTags/luna')));
+    await assertFails(getDocs(collection(anon, 'petTags')));
+  });
+
+  it('lets the owner create a tag for their own pet', async () => {
+    await seedPet();
+    const client = env.authenticatedContext('client').firestore();
+    await assertSucceeds(setDoc(doc(client, 'petTags/luna'), tag));
+  });
+
+  it('blocks another user, an ownerId spoof, and a pet the owner does not have', async () => {
+    await seedPet();
+    const other = env.authenticatedContext('other').firestore();
+    const client = env.authenticatedContext('client').firestore();
+    await assertFails(setDoc(doc(other, 'petTags/luna'), tag));
+    await assertFails(setDoc(doc(client, 'petTags/luna'), { ...tag, ownerId: 'other' }));
+    await assertFails(setDoc(doc(client, 'petTags/ghost'), { ...tag, petId: 'ghost' }));
+  });
+
+  it('lets the owner update, blocks changing ownerId, and blocks other writers', async () => {
+    await seedTag();
+    const client = env.authenticatedContext('client').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    await assertSucceeds(updateDoc(doc(client, 'petTags/luna'), { petName: 'Luninha' }));
+    await assertFails(updateDoc(doc(client, 'petTags/luna'), { ownerId: 'other' }));
+    await assertFails(updateDoc(doc(other, 'petTags/luna'), { petName: 'x' }));
+    await assertFails(deleteDoc(doc(other, 'petTags/luna')));
+    await assertSucceeds(deleteDoc(doc(client, 'petTags/luna')));
+  });
+});

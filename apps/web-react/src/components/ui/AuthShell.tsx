@@ -43,7 +43,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
 }
 
 /** Small PT | EN text toggle shown on unauthenticated screens. */
-function LangToggle() {
+export function LangToggle() {
   const option = (l: Lang, label: string) => (
     <button
       type="button"

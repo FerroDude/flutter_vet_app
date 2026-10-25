@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Activity, ArrowLeft, CalendarDays, PawPrint, Pencil, Pill, Plus, Trash2 } from 'lucide-react';
+import { Activity, ArrowLeft, CalendarDays, PawPrint, Pencil, Pill, Plus, QrCode, Trash2 } from 'lucide-react';
 import { PetAvatar } from '@/components/ui/PetAvatar';
 import { EventType, type PetSymptom, type Medication } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
@@ -33,6 +33,7 @@ import { EventFormDialog } from '@/features/calendar/EventFormDialog';
 import { RequestFormDialog } from '@/features/calendar/RequestFormDialog';
 import { VetAppointmentDialog } from '@/features/vet/VetAppointmentDialog';
 import { PrivateNotesCard } from './PrivateNotesCard';
+import { PetTagDialog } from './PetTagDialog';
 
 /**
  * One pet's record. Clients see their own pets at /pets/:petId; the vet sees a
@@ -72,6 +73,7 @@ export function PetDetailPage() {
   const [symptomOpen, setSymptomOpen] = useState(false);
   const [medForm, setMedForm] = useState<{ existing: Medication | null } | null>(null);
   const [apptOpen, setApptOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   if (loading) return <PageSpinner />;
@@ -116,12 +118,27 @@ export function PetDetailPage() {
             {[pet.species, pet.breed].filter(Boolean).join(' · ') || t('pets.unknown')} · {petAgeLabel(pet.dateOfBirth)}
           </p>
         </div>
+        {!isVetView && (
+          <Button variant="outline" onClick={() => setTagOpen(true)}>
+            <QrCode size={16} /> {t('tag.qr')}
+          </Button>
+        )}
         <Button variant="outline" onClick={() => navigate(`${isVetView ? `/clients/${ownerId}/pets` : '/pets'}/${pet.id}/edit`)}>
           <Pencil size={16} /> {t('common.edit')}
         </Button>
       </div>
 
       {isVetView && <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />}
+      {!isVetView && (
+        <PetTagDialog
+          open={tagOpen}
+          onClose={() => setTagOpen(false)}
+          uid={uid}
+          pet={pet}
+          ownerName={profile?.displayName?.trim() || profile?.email || ''}
+          ownerPhone={profile?.phone ?? ''}
+        />
+      )}
 
       <Card className="mb-8">
         <CardBody>
