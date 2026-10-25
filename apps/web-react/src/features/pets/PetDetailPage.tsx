@@ -111,21 +111,25 @@ export function PetDetailPage() {
       </button>
 
       <div className="mb-6 flex flex-wrap items-center gap-4">
-        <PetAvatar pet={pet} size={88} />
-        <div className="min-w-0 flex-1">
-          <h1 className="break-words font-display text-3xl font-bold text-foreground">{pet.name}</h1>
-          <p className="text-muted-foreground">
-            {[pet.species, pet.breed].filter(Boolean).join(' · ') || t('pets.unknown')} · {petAgeLabel(pet.dateOfBirth)}
-          </p>
+        <div className="flex min-w-0 flex-1 basis-64 items-center gap-4">
+          <PetAvatar pet={pet} size={88} />
+          <div className="min-w-0 flex-1">
+            <h1 className="break-words font-display text-3xl font-bold text-foreground">{pet.name}</h1>
+            <p className="text-muted-foreground">
+              {[pet.species, pet.breed].filter(Boolean).join(' · ') || t('pets.unknown')} · {petAgeLabel(pet.dateOfBirth)}
+            </p>
+          </div>
         </div>
-        {!isVetView && (
-          <Button variant="outline" onClick={() => setTagOpen(true)}>
-            <QrCode size={16} /> {t('tag.qr')}
+        <div className="flex flex-wrap gap-2">
+          {!isVetView && (
+            <Button variant="outline" onClick={() => setTagOpen(true)}>
+              <QrCode size={16} /> {t('tag.qr')}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => navigate(`${isVetView ? `/clients/${ownerId}/pets` : '/pets'}/${pet.id}/edit`)}>
+            <Pencil size={16} /> {t('common.edit')}
           </Button>
-        )}
-        <Button variant="outline" onClick={() => navigate(`${isVetView ? `/clients/${ownerId}/pets` : '/pets'}/${pet.id}/edit`)}>
-          <Pencil size={16} /> {t('common.edit')}
-        </Button>
+        </div>
       </div>
 
       {isVetView && <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />}
