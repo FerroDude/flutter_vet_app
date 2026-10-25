@@ -71,7 +71,7 @@ export function TimeField({
           const h = Number(e.target.value);
           emit(h, h === maxHour && bounded ? 0 : minute);
         }}
-        className={cn(selectClasses, 'w-auto')}
+        className={cn(selectClasses, 'w-auto min-w-[4.75rem] shrink-0')}
         style={selectChevronStyle}
       >
         {hours.map((h) => (
@@ -85,7 +85,7 @@ export function TimeField({
         aria-label={label ? undefined : t('time.minutes')}
         value={minute}
         onChange={(e) => emit(hour, Number(e.target.value))}
-        className={cn(selectClasses, 'w-auto')}
+        className={cn(selectClasses, 'w-auto min-w-[4.75rem] shrink-0')}
         style={selectChevronStyle}
       >
         {minutes.map((m) => (
@@ -124,7 +124,7 @@ export function DateTimeField({ label, value, onChange, minuteStep, hint }: Date
       <label htmlFor={autoId} className={fieldLabelClasses}>
         {label}
       </label>
-      <div className="grid grid-cols-[1fr_auto] items-center gap-2">
+      <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto]">
         <input
           id={autoId}
           type="date"
