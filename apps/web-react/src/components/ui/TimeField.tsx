@@ -5,24 +5,18 @@ import { fieldLabelClasses, selectChevronStyle, selectClasses } from './Select';
 import { t } from '@/i18n';
 
 const pad = (n: number) => `${n}`.padStart(2, '0');
+const fmt = (mins: number) => `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 
-/** Minutes selectable for a given hour. When `hour === maxHour` and maxHour is a
- *  real upper bound (not 23), only :00 is valid. An off-grid `current` minute is
- *  kept as an option so an existing value is never lost. */
-export function minuteOptions(
-  hour: number,
-  maxHour: number,
-  step: number,
-  current?: number,
-): number[] {
-  if (hour === maxHour && maxHour !== 23) {
-    return current != null && current !== 0 ? [0, current] : [0];
-  }
-  const opts: number[] = [];
-  for (let m = 0; m < 60; m += Math.max(1, step)) opts.push(m);
-  if (current != null && !opts.includes(current)) {
+/** "HH:mm" options from minHour:00 every `step` minutes. A real upper bound
+ *  (maxHour < 23) ends at maxHour:00; otherwise the list runs to the end of the
+ *  day. An off-grid `current` value is kept so an existing time is never lost. */
+export function timeOptions(minHour: number, maxHour: number, step: number, current?: string): string[] {
+  const end = maxHour < 23 ? maxHour * 60 : 24 * 60 - 1;
+  const opts: string[] = [];
+  for (let m = minHour * 60; m <= end; m += Math.max(1, step)) opts.push(fmt(m));
+  if (current && !opts.includes(current)) {
     opts.push(current);
-    opts.sort((a, b) => a - b);
+    opts.sort();
   }
   return opts;
 }
@@ -43,67 +37,34 @@ export function TimeField({
   onChange,
   minHour = 0,
   maxHour = 23,
-  minuteStep = 5,
+  minuteStep = 15,
   className,
 }: TimeFieldProps) {
   const autoId = useId();
-  const [hStr, mStr] = value.split(':');
-  const hour = Number(hStr) || 0;
-  const minute = Number(mStr) || 0;
-  const bounded = maxHour !== 23;
-
-  const hours: number[] = [];
-  for (let h = minHour; h <= maxHour; h++) hours.push(h);
-  if (!hours.includes(hour)) hours.push(hour);
-  hours.sort((a, b) => a - b);
-
-  const minutes = minuteOptions(hour, maxHour, minuteStep, minute);
-
-  const emit = (h: number, m: number) => onChange(`${pad(h)}:${pad(m)}`);
-
-  const selects = (
-    <div className={cn('flex items-center gap-1.5', className)}>
-      <select
-        id={label ? autoId : undefined}
-        aria-label={label ? undefined : t('time.hour')}
-        value={hour}
-        onChange={(e) => {
-          const h = Number(e.target.value);
-          emit(h, h === maxHour && bounded ? 0 : minute);
-        }}
-        className={cn(selectClasses, 'w-auto min-w-[4.75rem] shrink-0')}
-        style={selectChevronStyle}
-      >
-        {hours.map((h) => (
-          <option key={h} value={h}>
-            {pad(h)}
-          </option>
-        ))}
-      </select>
-      <span className="text-sm font-medium text-muted-foreground">:</span>
-      <select
-        aria-label={label ? undefined : t('time.minutes')}
-        value={minute}
-        onChange={(e) => emit(hour, Number(e.target.value))}
-        className={cn(selectClasses, 'w-auto min-w-[4.75rem] shrink-0')}
-        style={selectChevronStyle}
-      >
-        {minutes.map((m) => (
-          <option key={m} value={m}>
-            {pad(m)}
-          </option>
-        ))}
-      </select>
-    </div>
+  const select = (
+    <select
+      id={label ? autoId : undefined}
+      aria-label={label ? undefined : t('time.hour')}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn(selectClasses, 'tabular-nums', className)}
+      style={selectChevronStyle}
+    >
+      {timeOptions(minHour, maxHour, minuteStep, value).map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 
-  if (!label) return selects;
+  if (!label) return select;
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={autoId} className={fieldLabelClasses}>
         {label}
       </label>
-      {selects}
+      {select}
     </div>
   );
 }
@@ -124,13 +85,13 @@ export function DateTimeField({ label, value, onChange, minuteStep, hint }: Date
       <label htmlFor={autoId} className={fieldLabelClasses}>
         {label}
       </label>
-      <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] items-center gap-2">
         <input
           id={autoId}
           type="date"
           value={date}
           onChange={(e) => onChange(e.target.value ? `${e.target.value}T${time || '09:00'}` : '')}
-          className={cn(inputBase, 'border-input')}
+          className={cn(inputBase, 'min-w-0 border-input')}
         />
         <TimeField
           value={time || '09:00'}

@@ -195,7 +195,7 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
               {times.map((t, i) => (
                 <TimeField
                   key={i}
-                  minuteStep={5}
+                  className="w-28"
                   value={timeToInput(t)}
                   onChange={(v) =>
                     setTimes((prev) => prev.map((p, j) => (j === i ? inputToTime(v) : p)))
