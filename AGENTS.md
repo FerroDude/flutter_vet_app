@@ -18,6 +18,7 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
 - `npm run lint` is broken (eslint not installed).
 
 ## Workflow preference
+- Commit messages: no "Generated with Devin" line and no "Co-Authored-By: Devin" trailer.
 - The user tests on the live site: after every finished change, commit, push to `main` and run
   `npm run deploy` (plus `firebase deploy --only firestore|storage` when rules/indexes change)
   without asking.
