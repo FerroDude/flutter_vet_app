@@ -54,10 +54,7 @@ export function PetTagPage() {
         className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-light to-transparent"
       />
       <div className="relative flex w-full max-w-md flex-col items-center">
-        <Logo />
-        <span className="mt-5 text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-primary">
-          Yoshi Vet Care
-        </span>
+        <Logo className="h-10" />
 
         <div className="mt-8 w-full rounded-(--radius-lg) border border-border bg-card p-6 text-center shadow-(--shadow-md) sm:p-7">
           {!tag ? (

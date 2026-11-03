@@ -53,9 +53,8 @@ export function AppLayout({
       </a>
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 py-6 lg:flex">
-        <div className="flex items-center gap-2.5 px-2">
-          <Logo size={36} />
-          <span className="font-display text-lg font-semibold leading-tight text-foreground">Yoshi Vet Care</span>
+        <div className="px-2">
+          <Logo className="h-7" />
         </div>
         <nav aria-label={t('nav.main')} className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((item) => (
@@ -67,10 +66,7 @@ export function AppLayout({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur lg:hidden">
-        <div className="flex items-center gap-2.5">
-          <Logo size={32} />
-          <span className="font-display text-base font-semibold leading-tight text-foreground">Yoshi Vet Care</span>
-        </div>
+        <Logo className="h-6 min-w-0" />
         <button
           type="button"
           onClick={onSignOut}
