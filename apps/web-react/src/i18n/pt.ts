@@ -42,8 +42,6 @@ export const pt = {
   'nav.main': 'Navegação principal',
   'nav.skip': 'Saltar para o conteúdo',
 
-  'auth.welcome': 'Bem-vindo',
-  'auth.subtitle': 'Entre na sua conta Yoshi Vet Care.',
   'auth.password': 'Palavra-passe',
   'auth.forgot': 'Esqueceu-se da palavra-passe?',
   'auth.signIn': 'Entrar',

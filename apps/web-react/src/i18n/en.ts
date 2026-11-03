@@ -44,8 +44,6 @@ export const en: Record<TKey, string> = {
   'nav.main': 'Main navigation',
   'nav.skip': 'Skip to content',
 
-  'auth.welcome': 'Welcome',
-  'auth.subtitle': 'Sign in to your Yoshi Vet Care account.',
   'auth.password': 'Password',
   'auth.forgot': 'Forgot your password?',
   'auth.signIn': 'Sign in',

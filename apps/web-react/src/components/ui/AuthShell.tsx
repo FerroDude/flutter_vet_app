@@ -3,7 +3,7 @@ import { Logo } from './Logo';
 import { lang, setLang, t, type Lang } from '@/i18n';
 
 interface AuthShellProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
@@ -20,9 +20,11 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
       />
       <div className="relative flex w-full max-w-md flex-col items-center">
         <Logo className="h-10" />
-        <h1 className="mt-6 text-center font-display text-3xl font-bold text-foreground">
-          {title}
-        </h1>
+        {title && (
+          <h1 className="mt-6 text-center font-display text-3xl font-bold text-foreground">
+            {title}
+          </h1>
+        )}
         {subtitle && (
           <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
             {subtitle}
