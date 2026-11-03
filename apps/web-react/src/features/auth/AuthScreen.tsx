@@ -43,7 +43,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
   });
 
   return (
-    <AuthShell>
+    <AuthShell title={t('auth.signIn')} subtitle={t('auth.subtitle')}>
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField
           label={t('common.email')}

@@ -20,18 +20,15 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
       />
       <div className="relative flex w-full max-w-md flex-col items-center">
         <Logo className="h-10" />
-        {title && (
-          <h1 className="mt-6 text-center font-display text-3xl font-bold text-foreground">
-            {title}
-          </h1>
-        )}
-        {subtitle && (
-          <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
-            {subtitle}
-          </p>
-        )}
+        <p className="mt-3 text-center text-sm font-medium text-muted-foreground">{t('auth.tagline')}</p>
 
         <div className="mt-8 w-full rounded-(--radius-lg) border border-border bg-card p-6 shadow-(--shadow-md) sm:p-7">
+          {title && (
+            <div className="mb-6">
+              <h1 className="text-xl font-semibold text-foreground">{title}</h1>
+              {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+            </div>
+          )}
           {children}
         </div>
 

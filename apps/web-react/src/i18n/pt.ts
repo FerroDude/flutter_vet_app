@@ -42,6 +42,8 @@ export const pt = {
   'nav.main': 'Navegação principal',
   'nav.skip': 'Saltar para o conteúdo',
 
+  'auth.tagline': 'Onde os animais são família',
+  'auth.subtitle': 'Aceda à sua conta para continuar.',
   'auth.password': 'Palavra-passe',
   'auth.forgot': 'Esqueceu-se da palavra-passe?',
   'auth.signIn': 'Entrar',

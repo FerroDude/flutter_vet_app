@@ -44,6 +44,8 @@ export const en: Record<TKey, string> = {
   'nav.main': 'Main navigation',
   'nav.skip': 'Skip to content',
 
+  'auth.tagline': 'Where pets are family',
+  'auth.subtitle': 'Sign in to your account to continue.',
   'auth.password': 'Password',
   'auth.forgot': 'Forgot your password?',
   'auth.signIn': 'Sign in',
