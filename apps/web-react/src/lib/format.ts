@@ -97,6 +97,10 @@ export function errorMessage(e: unknown, fallback = t('errors.generic')): string
   return e instanceof Error && e.message ? e.message : fallback;
 }
 
+/** Case- and accent-insensitive search normalization (NFD + strip diacritics). */
+export const normalizeText = (s: string): string =>
+  s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
 /** Re-translate a default appointment title at display time: titles are stored
  *  in the language they were created in, so "Consulta — X" must still render in
  *  English (and vice-versa). Custom titles pass through unchanged. */

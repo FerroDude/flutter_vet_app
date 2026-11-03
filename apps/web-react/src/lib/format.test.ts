@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventTitle } from './format';
+import { eventTitle, normalizeText } from './format';
 
 // Test env defaults to lang 'pt': stored en titles render in pt, stored pt
 // titles stay as-is, custom titles pass through.
@@ -16,5 +16,15 @@ describe('eventTitle', () => {
     expect(eventTitle('Consulta — Luna')).toBe('Consulta — Luna');
     expect(eventTitle('Banho')).toBe('Banho');
     expect(eventTitle('Annual check-up')).toBe('Annual check-up');
+  });
+});
+
+describe('normalizeText', () => {
+  it('folds case and accents for search', () => {
+    expect(normalizeText('Tomás')).toBe('tomas');
+    expect(normalizeText('ÁGATA')).toBe('agata');
+    expect(normalizeText('Émile')).toBe('emile');
+    expect(normalizeText('São')).toContain(normalizeText('sao'));
+    expect(normalizeText('Rex ')).toBe('rex ');
   });
 });

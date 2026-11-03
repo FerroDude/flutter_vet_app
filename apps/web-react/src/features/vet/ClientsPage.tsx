@@ -1,17 +1,20 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ChevronRight, Mail, Phone, Plus, Search, Users } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useClients } from '@/lib/useClients';
+import { useClientPets } from '@/lib/useClientPets';
 import { addClientByEmail, clientLabel } from '@/lib/clientService';
-import { errorMessage } from '@/lib/format';
+import { errorMessage, normalizeText } from '@/lib/format';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { TextField } from '@/components/ui/TextField';
+import { PetAvatar } from '@/components/ui/PetAvatar';
+import { Spinner } from '@/components/Spinner';
 import { t } from '@/i18n';
 
 export function ClientsPage() {
@@ -26,12 +29,30 @@ export function ClientsPage() {
   const [email, setEmail] = useState('');
   const [adding, setAdding] = useState(false);
 
-  const shown = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return s
-      ? clients.filter((c) => clientLabel(c).toLowerCase().includes(s) || c.email.toLowerCase().includes(s))
-      : clients;
-  }, [clients, search]);
+  const q = normalizeText(search.trim());
+  const { pets, loading: petsLoading } = useClientPets(clients, Boolean(q));
+
+  const shown = useMemo(
+    () =>
+      q
+        ? clients.filter(
+            (c) => normalizeText(clientLabel(c)).includes(q) || normalizeText(c.email).includes(q),
+          )
+        : clients,
+    [clients, q],
+  );
+
+  const shownPets = useMemo(
+    () =>
+      (q ? pets : [])
+        .filter((p) => normalizeText(p.pet.name).includes(q))
+        .sort(
+          (a, b) =>
+            a.pet.name.localeCompare(b.pet.name) ||
+            clientLabel(a.owner).localeCompare(clientLabel(b.owner)),
+        ),
+    [pets, q],
+  );
 
   const addClient = async () => {
     setAdding(true);
@@ -80,7 +101,11 @@ export function ClientsPage() {
 
       {error ? (
         <EmptyState icon={<Users size={36} />} title={t('vet.clients.loadFailed')} description={t('vet.clients.tryAgain')} />
-      ) : shown.length === 0 ? (
+      ) : q && shown.length === 0 && shownPets.length === 0 && petsLoading ? (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      ) : shown.length === 0 && (q ? shownPets.length === 0 : true) ? (
         <EmptyState
           icon={<Users size={36} />}
           title={search ? t('vet.clients.noResults') : t('vet.clients.empty')}
@@ -90,6 +115,40 @@ export function ClientsPage() {
         />
       ) : (
         <div className="space-y-3">
+          {shownPets.length > 0 && (
+            <p className="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-primary">
+              {t('vet.clients.petsSection')}
+            </p>
+          )}
+          {shownPets.map(({ pet, owner }) => (
+            <Card key={`${owner.id}/${pet.id}`}>
+              <div className="flex items-center gap-4 p-4">
+                <Link
+                  to={`/clients/${owner.id}/pets/${pet.id}`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <PetAvatar pet={pet} size={44} className="shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-foreground">{pet.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[pet.species, pet.breed].filter(Boolean).join(' · ') || t('pets.unknown')}
+                    </span>
+                  </span>
+                </Link>
+                <Link
+                  to={`/clients/${owner.id}`}
+                  className="max-w-[45%] truncate text-sm font-medium text-primary hover:underline"
+                >
+                  {t('vet.clients.owner', { name: clientLabel(owner) })}
+                </Link>
+              </div>
+            </Card>
+          ))}
+          {q && shown.length > 0 && (
+            <p className="pt-2 text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-primary">
+              {t('vet.clients.clientsSection')}
+            </p>
+          )}
           {shown.map((c) => (
             <Card key={c.id}>
               <button
