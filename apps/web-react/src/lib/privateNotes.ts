@@ -1,6 +1,7 @@
-// Vet-only notes on a pet. Each note is one doc in
-// users/{clientId}/pets/{petId}/private/{noteId}; rules hide the collection
-// from the client. The legacy single doc (id "notes") reads as one note.
+// Notes on a pet. Each note is one doc in
+// users/{clientId}/pets/{petId}/{private|publicNotes}/{noteId}. Private notes
+// are vet-only; public notes are written by the vet and readable by the owner.
+// The legacy single doc (id "notes") reads as one note.
 
 import {
   addDoc,
@@ -13,6 +14,8 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
+export type NoteKind = 'private' | 'public';
+
 export interface PrivateNote {
   id: string;
   text: string;
@@ -21,11 +24,11 @@ export interface PrivateNote {
   updatedBy: string | null;
 }
 
-const notesCol = (clientId: string, petId: string) =>
-  collection(db, 'users', clientId, 'pets', petId, 'private');
+const notesCol = (clientId: string, petId: string, kind: NoteKind = 'private') =>
+  collection(db, 'users', clientId, 'pets', petId, kind === 'public' ? 'publicNotes' : 'private');
 
-export function privateNotesQuery(clientId: string, petId: string) {
-  return query(notesCol(clientId, petId));
+export function privateNotesQuery(clientId: string, petId: string, kind: NoteKind = 'private') {
+  return query(notesCol(clientId, petId, kind));
 }
 
 function toDate(v: unknown): Date | null {
@@ -52,9 +55,10 @@ export async function addPrivateNote(args: {
   petId: string;
   text: string;
   vetId: string;
+  kind?: NoteKind;
 }): Promise<void> {
   const now = Date.now();
-  await addDoc(notesCol(args.clientId, args.petId), {
+  await addDoc(notesCol(args.clientId, args.petId, args.kind), {
     text: args.text,
     createdAt: now,
     updatedAt: now,
@@ -68,14 +72,20 @@ export async function updatePrivateNote(args: {
   noteId: string;
   text: string;
   vetId: string;
+  kind?: NoteKind;
 }): Promise<void> {
-  await updateDoc(doc(notesCol(args.clientId, args.petId), args.noteId), {
+  await updateDoc(doc(notesCol(args.clientId, args.petId, args.kind), args.noteId), {
     text: args.text,
     updatedAt: Date.now(),
     updatedBy: args.vetId,
   });
 }
 
-export async function deletePrivateNote(clientId: string, petId: string, noteId: string): Promise<void> {
-  await deleteDoc(doc(notesCol(clientId, petId), noteId));
+export async function deletePrivateNote(
+  clientId: string,
+  petId: string,
+  noteId: string,
+  kind: NoteKind = 'private',
+): Promise<void> {
+  await deleteDoc(doc(notesCol(clientId, petId, kind), noteId));
 }

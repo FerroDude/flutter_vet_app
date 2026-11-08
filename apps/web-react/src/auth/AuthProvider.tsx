@@ -9,8 +9,9 @@ import {
   type ReactNode,
 } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 import { type UserProfile, isVet, isPetOwner } from '@vetplus/shared';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { getUserProfile, updateUserProfile } from '@/lib/userService';
 import { t } from '@/i18n';
 
@@ -69,6 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (seq !== loadSeq.current) return; // superseded by a newer load
       setProfile(found);
       if (!found) setError(t('auth.noProfile'));
+      // A client who got in via "forgot password" never used the invite:
+      // clear the flag once so the vet's "not invited" badge goes away.
+      if (found && isPetOwner(found) && found.invitePending === true) {
+        void updateDoc(doc(db, 'users', found.id), {
+          invitePending: false,
+          updatedAt: Date.now(),
+        }).catch(() => {});
+      }
     } catch (e) {
       if (seq === loadSeq.current) {
         setError(e instanceof Error ? e.message : t('errors.generic'));

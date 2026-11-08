@@ -1,13 +1,13 @@
 import { FirebaseError } from 'firebase/app';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
-import { collection, doc, query, setDoc, where, type DocumentData } from 'firebase/firestore';
+import { collection, doc, query, setDoc, updateDoc, where, type DocumentData } from 'firebase/firestore';
 import {
   UserType,
   userProfileFromFirestore,
   userProfileToFirestore,
   type UserProfile,
 } from '@vetplus/shared';
-import { db, getSecondaryAuth } from './firebase';
+import { auth, db, getSecondaryAuth } from './firebase';
 import { findOrCreateOneOnOneChat } from './chatService';
 import { t } from '@/i18n';
 
@@ -31,7 +31,9 @@ export const clientLabel = (c: Pick<UserProfile, 'displayName' | 'email'>): stri
 
 /**
  * Vet adds a client. Creates the Auth user, writes the profile with vetId,
- * sends the set-password email, and opens the direct chat room.
+ * and opens the direct chat room. With sendInvite the set-password email
+ * goes out now; without it the profile is marked invitePending and the vet
+ * can send the invite later with sendClientInvite.
  * The secondary app keeps the vet's session signed in.
  */
 export async function addClientByEmail(args: {
@@ -39,6 +41,7 @@ export async function addClientByEmail(args: {
   vetName: string;
   name: string;
   email: string;
+  sendInvite: boolean;
 }): Promise<string> {
   const email = args.email.trim().toLowerCase();
   const name = args.name.trim();
@@ -76,11 +79,13 @@ export async function addClientByEmail(args: {
     isActive: true,
     globalType: null,
     fcmToken: null,
+    invitePending: !args.sendInvite,
+    invitedAt: args.sendInvite ? now : null,
   };
 
   try {
     await setDoc(doc(usersCol(), uid), userProfileToFirestore(profile));
-    await sendPasswordResetEmail(secondary, email);
+    if (args.sendInvite) await sendPasswordResetEmail(secondary, email);
     await findOrCreateOneOnOneChat({
       petOwnerId: uid,
       petOwnerName: name,
@@ -92,4 +97,17 @@ export async function addClientByEmail(args: {
   }
 
   return uid;
+}
+
+/**
+ * Send (or resend) the set-password email to a client and mark the profile
+ * invited. Uses the primary auth — it only emails, it never signs in.
+ */
+export async function sendClientInvite(client: Pick<UserProfile, 'id' | 'email'>): Promise<void> {
+  await sendPasswordResetEmail(auth, client.email);
+  await updateDoc(doc(usersCol(), client.id), {
+    invitePending: false,
+    invitedAt: Date.now(),
+    updatedAt: Date.now(),
+  });
 }

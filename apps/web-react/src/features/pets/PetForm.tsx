@@ -14,6 +14,7 @@ import {
   mapPet,
   uploadPetPhoto,
   removePetPhoto,
+  petAgeLabel,
   type PetFields,
   type Pet,
 } from '@/lib/petService';
@@ -102,6 +103,8 @@ export function PetForm() {
       setHydrated(true);
     }
   }, [isEdit, existing, hydrated, reset]);
+
+  const dobDate = fromDateInput(watch('dateOfBirth'));
 
   if (isEdit && loading) return <PageSpinner />;
 
@@ -223,6 +226,7 @@ export function PetForm() {
                 label={t('pets.dob')}
                 type="date"
                 error={errors.dateOfBirth?.message}
+                hint={dobDate ? petAgeLabel(dobDate) : undefined}
                 {...register('dateOfBirth')}
               />
             </div>

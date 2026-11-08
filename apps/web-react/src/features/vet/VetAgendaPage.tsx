@@ -39,6 +39,7 @@ import { MonthGrid } from '@/components/ui/MonthGrid';
 import { useConfirm } from '@/components/ui/Confirm';
 import { t } from '@/i18n';
 import { toLocalInput } from '@/features/calendar/EventFormDialog';
+import { AddToCalendar } from '@/features/calendar/AddToCalendar';
 import { VetAppointmentDialog } from './VetAppointmentDialog';
 
 /** Vet agenda: pending requests to answer, the month calendar and upcoming visits. */
@@ -332,6 +333,17 @@ function AppointmentRow({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {!cancelled && (
+            <AddToCalendar
+              item={{
+                id: a.id,
+                title: `${eventTitle(a.title)} · ${a.clientName || t('common.client')}${a.petName ? ` (${a.petName})` : ''}`,
+                start: a.dateTime,
+                details: a.description,
+                location: a.location ?? undefined,
+              }}
+            />
+          )}
           {!cancelled && (
             <button
               type="button"

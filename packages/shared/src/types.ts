@@ -35,6 +35,10 @@ export interface UserProfile {
   isActive: boolean;
   globalType?: string | null; // 'appOwner' | null
   fcmToken?: string | null;
+  /** Client created without the invite email yet. Legacy docs: treated as false. */
+  invitePending?: boolean;
+  /** When the invite (set-password email) was last sent. */
+  invitedAt?: Date | null;
 }
 
 export interface Pet {

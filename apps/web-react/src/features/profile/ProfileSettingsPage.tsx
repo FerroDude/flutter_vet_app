@@ -4,6 +4,7 @@ import { LogOut, Stethoscope } from 'lucide-react';
 import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { getUserProfile } from '@/lib/userService';
+import { notificationPermission, requestNotifications } from '@/lib/notifications';
 import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
 import { lang, setLang, t, type Lang } from '@/i18n';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -21,6 +22,7 @@ export function ProfileSettingsPage() {
   const [postalCode, setPostalCode] = useState('');
   const [saving, setSaving] = useState(false);
   const [vet, setVet] = useState<UserProfile | null>(null);
+  const [notifPerm, setNotifPerm] = useState(notificationPermission());
 
   useEffect(() => {
     setName(profile?.displayName ?? '');
@@ -135,6 +137,27 @@ export function ProfileSettingsPage() {
                 </Button>
               ))}
             </div>
+          </CardBody>
+        </Card>
+      </Section>
+
+      <Section title={t('notif.title')}>
+        <Card>
+          <CardBody className="space-y-2">
+            {notifPerm === 'unsupported' ? (
+              <p className="text-sm text-muted-foreground">{t('notif.unsupported')}</p>
+            ) : notifPerm === 'granted' ? (
+              <p className="text-sm text-muted-foreground">{t('notif.granted')}</p>
+            ) : notifPerm === 'denied' ? (
+              <p className="text-sm text-muted-foreground">{t('notif.denied')}</p>
+            ) : (
+              <Button onClick={() => void requestNotifications().then(setNotifPerm)}>
+                {t('notif.enable')}
+              </Button>
+            )}
+            {notifPerm !== 'unsupported' && (
+              <p className="text-xs text-muted-foreground">{t('notif.tabOnly')}</p>
+            )}
           </CardBody>
         </Card>
       </Section>

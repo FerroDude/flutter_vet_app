@@ -27,6 +27,7 @@ export function ClientsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [sendInvite, setSendInvite] = useState(true);
   const [adding, setAdding] = useState(false);
 
   const q = normalizeText(search.trim());
@@ -57,11 +58,19 @@ export function ClientsPage() {
   const addClient = async () => {
     setAdding(true);
     try {
-      await addClientByEmail({ vetId: uid, vetName: profile?.displayName?.trim() || t('common.vet'), name, email });
-      toast.success(t('vet.clients.added'));
+      const newUid = await addClientByEmail({
+        vetId: uid,
+        vetName: profile?.displayName?.trim() || t('common.vet'),
+        name,
+        email,
+        sendInvite,
+      });
+      toast.success(t(sendInvite ? 'vet.clients.added' : 'vet.clients.addedNoInvite'));
       setName('');
       setEmail('');
+      setSendInvite(true);
       setAddOpen(false);
+      if (!sendInvite) navigate(`/clients/${newUid}`);
     } catch (e) {
       toast.error(errorMessage(e, t('vet.clients.addFailed')));
     } finally {
@@ -160,7 +169,14 @@ export function ClientsPage() {
                   {clientLabel(c).charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-foreground">{clientLabel(c)}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="truncate font-medium text-foreground">{clientLabel(c)}</span>
+                    {c.invitePending && (
+                      <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {t('vet.clients.notInvited')}
+                      </span>
+                    )}
+                  </span>
                   <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                     <span className="inline-flex min-w-0 max-w-full items-center gap-1">
                       <Mail size={12} className="shrink-0" />
@@ -191,7 +207,7 @@ export function ClientsPage() {
               {t('common.cancel')}
             </Button>
             <Button loading={adding} onClick={() => void addClient()}>
-              {t('vet.clients.invite')}
+              {sendInvite ? t('vet.clients.invite') : t('vet.clients.add')}
             </Button>
           </>
         }
@@ -205,6 +221,15 @@ export function ClientsPage() {
         >
           <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
           <TextField label={t('common.email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={sendInvite}
+              onChange={(e) => setSendInvite(e.target.checked)}
+              className="h-4 w-4 accent-[hsl(var(--primary))]"
+            />
+            {t('vet.clients.sendInviteNow')}
+          </label>
           <button type="submit" hidden />
         </form>
       </Dialog>

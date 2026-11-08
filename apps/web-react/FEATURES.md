@@ -12,7 +12,7 @@ The UI is available in European Portuguese (`pt-PT`) and English (`en`), chosen 
 
 - No sign-up in the app. Firestore rules refuse self-created profiles.
 - Vets are created with `npm run create-vet` (Admin SDK, see `scripts/create-vet.mjs`).
-- The vet adds a client (Clientes → Adicionar cliente). That creates the Auth user with a random password, writes the profile with `vetId`, sends the set-password email and opens their chat room.
+- The vet adds a client (Clientes → Adicionar cliente). That creates the Auth user with a random password, writes the profile with `vetId` and opens their chat room. The "Enviar convite por email agora" checkbox (on by default) also sends the set-password email; unchecked, the profile is marked `invitePending` and the vet lands on the new client's page to add pets right away. A "Por convidar" badge shows on the clients list and client page until the invite is sent — from there the vet sends it (button on the client page, also "Reenviar email de acesso" afterwards). If the client signs in anyway (e.g. via "forgot password"), their profile clears the flag itself.
 - Login screen: email + password, and "forgot password". No email-verification step.
 
 `RootGate`:
@@ -31,10 +31,10 @@ The UI is available in European Portuguese (`pt-PT`) and English (`en`), chosen 
 Menu: Painel · Animais · Agenda · Chat · Perfil.
 
 - **Painel**: greeting, unread messages, upcoming appointments (next 3), up to 3 active medications, today's entries. Pets live only in the Animais tab.
-- **Animais**: pet list and search; pet form (create/edit); pet page with record, medications (log/undo dose, pause, complete, delete), appointments and symptoms. Each pet can have a printable QR tag (`/t/:petId`) that opens a public page (photo, name, species/breed, microchip — owner name/phone only when the owner opts in) for anyone who scans it; a "found this pet?" form alerts the owner (dashboard card + notification) without an account — owner/vet get redirected to the in-app pet page instead.
-- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit (date interval + time of day); the vet confirms only inside that requested window; a confirmation alerts the client ("Consulta confirmada") and sends a chat message. "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat.
+- **Animais**: pet list and search; pet form (create/edit — the birth-date field shows the live age); pet page with record (birth date shown with age), medications (log/undo dose, pause, complete, delete), appointments and symptoms. Public notes written by the vet appear above the record, read-only. Each pet can have a printable QR tag (`/t/:petId`) that opens a public page (photo, name, species/breed, microchip — owner name/phone only when the owner opts in) for anyone who scans it; a "found this pet?" form alerts the owner (dashboard card + notification) without an account — owner/vet get redirected to the in-app pet page instead.
+- **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit (date interval + time of day); the vet confirms only inside that requested window; a confirmation alerts the client ("Consulta confirmada") and sends a chat message. "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat. Upcoming appointments offer an "Adicionar ao calendário" menu (Google Calendar link for gmail addresses, a `.ics` download for everyone).
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
-- **Perfil**: name, phone, address; the vet's contact details; sign out.
+- **Perfil**: name, phone, address; the vet's contact details; browser-notification permission; sign out.
 
 Appointments the vet booked are read-only for the client, except a one-shot cancellation with a reason. The vet gets a dedicated "Consulta cancelada" alert (toast + OS notification) on top of the chat message.
 
@@ -43,19 +43,20 @@ Appointments the vet booked are read-only for the client, except a one-shot canc
 Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 
 - **Painel**: pending requests, unread messages, client count, upcoming appointments, and "Canceladas recentemente" (client cancellations from the last 7 days, with the reason).
-- **Agenda**: pending requests (confirm with a time → booked into the client's calendar in one batch; deny with a reason; open chat), month calendar with appointment counts, the selected day (client-cancelled appointments shown struck through and removable), and the handled-requests history. "Nova consulta" books an appointment for any client/pet (warns about clashes within 30 minutes); edit and cancel from the list.
-- **Clientes**: list and search; add client. Client page: contact details, chat, book appointment, upcoming appointments, pets (open a pet page or add a pet).
-- **Pet page (vet view)**: everything the client sees plus **private notes** (a list of notes only the vet can read) and booking appointments directly.
+- **Agenda**: pending requests (confirm with a time → booked into the client's calendar in one batch; deny with a reason; open chat), month calendar with appointment counts, the selected day (client-cancelled appointments shown struck through and removable), and the handled-requests history. "Nova consulta" books an appointment for any client/pet (warns about clashes within 30 minutes); edit and cancel from the list. Each non-cancelled appointment also has the "Adicionar ao calendário" menu.
+- **Clientes**: list and search; add client (with or without sending the invite email). Client page: contact details, chat, book appointment, send/resend the access invite, upcoming appointments, pets (open a pet page or add a pet).
+- **Pet page (vet view)**: everything the client sees plus **private notes** (a list of notes only the vet can read) and **public notes** (notes the vet writes and the owner reads on their pet page), and booking appointments directly.
 - **Chat**: conversation list + open conversation.
-- **Perfil**: name, phone, address (clients see it for home visits); sign out.
+- **Perfil**: name, phone, address (clients see it for home visits); browser-notification permission; sign out.
 
 ## Data (Firestore)
 
 | Path | What |
 |---|---|
-| `users/{uid}` | Profile. `userType` 0 client / 1 vet, `vetId` on clients |
+| `users/{uid}` | Profile. `userType` 0 client / 1 vet, `vetId` on clients; `invitePending`/`invitedAt` track the access invite |
 | `users/{uid}/pets/{petId}` | Pet; `medications/`, `symptoms/` below it |
 | `users/{uid}/pets/{petId}/private/{noteId}` | Vet-only notes |
+| `users/{uid}/pets/{petId}/publicNotes/{noteId}` | Notes the vet writes; the owner can read them |
 | `users/{uid}/events/{eventId}` | Calendar entries. Vet bookings carry `bookedByVetId`, `clientName`, `petName` |
 | `appointmentRequests/{id}` | Client → vet requests (`vetId`, `status`, `bookedDateTime`) |
 | `chatRooms/{id}` + `messages/` | One room per client/vet pair |
@@ -64,5 +65,5 @@ The vet agenda is a collection-group query on `events` where `bookedByVetId == v
 
 ## Not in the app
 
-- Push notifications: removed until server-side senders exist. The old Cloud Functions were clinic-based and live on the `archive/mobile-flutter` branch. In-app toasts for new chat messages still work.
+- Push notifications: removed until server-side senders exist. The old Cloud Functions were clinic-based and live on the `archive/mobile-flutter` branch. In-app toasts for new chat messages still work, and users can grant browser-notification permission (Perfil → Notificações, or a one-time prompt) to get OS notifications while the app is open in a tab.
 - Account deletion: not offered; the vet manages client accounts.

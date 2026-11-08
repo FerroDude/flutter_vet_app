@@ -359,6 +359,86 @@ describe('pet tag rules', () => {
   });
 });
 
+describe('public notes rules', () => {
+  const seed = () =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users/client/pets/luna/publicNotes/n1'), {
+        text: 'Para o tutor',
+        createdAt: 1,
+        updatedAt: 1,
+        updatedBy: 'vet',
+      }),
+    );
+
+  it('lets the vet add, list and edit public notes', async () => {
+    await seed();
+    const vet = env.authenticatedContext('vet').firestore();
+    const notes = collection(vet, 'users/client/pets/luna/publicNotes');
+    await assertSucceeds(addDoc(notes, { text: 'Primeira', createdAt: 1, updatedAt: 1, updatedBy: 'vet' }));
+    await assertSucceeds(getDocs(notes));
+    await assertSucceeds(updateDoc(doc(vet, 'users/client/pets/luna/publicNotes/n1'), { text: 'Nova' }));
+    await assertSucceeds(deleteDoc(doc(vet, 'users/client/pets/luna/publicNotes/n1')));
+  });
+
+  it('lets the client read public notes but not write them', async () => {
+    await seed();
+    const client = env.authenticatedContext('client').firestore();
+    const notes = collection(client, 'users/client/pets/luna/publicNotes');
+    await assertSucceeds(getDocs(notes));
+    await assertSucceeds(getDoc(doc(client, 'users/client/pets/luna/publicNotes/n1')));
+    await assertFails(addDoc(notes, { text: 'x' }));
+    await assertFails(updateDoc(doc(client, 'users/client/pets/luna/publicNotes/n1'), { text: 'x' }));
+    await assertFails(deleteDoc(doc(client, 'users/client/pets/luna/publicNotes/n1')));
+  });
+
+  it('hides public notes from another vet', async () => {
+    await seed();
+    const other = env.authenticatedContext('other').firestore();
+    await assertFails(getDoc(doc(other, 'users/client/pets/luna/publicNotes/n1')));
+    await assertFails(getDocs(collection(other, 'users/client/pets/luna/publicNotes')));
+  });
+});
+
+describe('client invite rules', () => {
+  const seedPending = () =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'users/client'), {
+        email: 'ana@example.com',
+        displayName: 'Ana',
+        userType: 0,
+        vetId: 'vet',
+        invitePending: true,
+        invitedAt: null,
+      }),
+    );
+
+  it('lets the vet mark her client invited and blocks other changes', async () => {
+    await seedPending();
+    const vet = env.authenticatedContext('vet').firestore();
+    await assertSucceeds(
+      updateDoc(doc(vet, 'users/client'), { invitePending: false, invitedAt: 2, updatedAt: 2 }),
+    );
+    await assertFails(updateDoc(doc(vet, 'users/client'), { displayName: 'Outra' }));
+  });
+
+  it('blocks setting invitePending true and blocks another vet', async () => {
+    const vet = env.authenticatedContext('vet').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    await assertFails(
+      updateDoc(doc(vet, 'users/client'), { invitePending: true, invitedAt: null, updatedAt: 2 }),
+    );
+    await assertFails(
+      updateDoc(doc(other, 'users/client'), { invitePending: false, invitedAt: 2, updatedAt: 2 }),
+    );
+  });
+
+  it('lets the client clear their own invitePending', async () => {
+    await seedPending();
+    const client = env.authenticatedContext('client').firestore();
+    await assertSucceeds(updateDoc(doc(client, 'users/client'), { invitePending: false, updatedAt: 2 }));
+  });
+});
+
 describe('found report rules', () => {
   const report = () => ({
     ownerId: 'client',

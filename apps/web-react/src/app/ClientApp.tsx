@@ -15,6 +15,7 @@ import { ProfileSettingsPage } from '@/features/profile/ProfileSettingsPage';
 import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
 import { ConfirmedRequestToast } from '@/features/calendar/ConfirmedRequestToast';
 import { FoundReportToast } from '@/features/pets/FoundReportToast';
+import { NotificationPrompt } from '@/features/notifications/NotificationPrompt';
 
 export function ClientApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
@@ -38,6 +39,7 @@ export function ClientApp() {
       <IncomingMessageToast />
       <ConfirmedRequestToast />
       <FoundReportToast />
+      <NotificationPrompt />
       <Routes>
         <Route index element={<ClientDashboard />} />
         <Route path="pets" element={<PetsPage />} />

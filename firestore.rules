@@ -57,11 +57,16 @@ service cloud.firestore {
         && request.resource.data.vetId == request.auth.uid
         && request.resource.data.userType == 0;
 
-      allow update: if isSelf(userId)
+      allow update: if (isSelf(userId)
         && unchanged('vetId')
         && unchanged('userType')
         && unchanged('clinicRole')
-        && unchanged('globalType');
+        && unchanged('globalType'))
+        // The vet may mark a client invited after sending the invite email.
+        || (isVet()
+          && resource.data.vetId == request.auth.uid
+          && onlyChanges(['invitePending', 'invitedAt', 'updatedAt'])
+          && request.resource.data.invitePending == false);
 
       allow delete: if isSelf(userId);
 
@@ -78,6 +83,11 @@ service cloud.firestore {
 
         match /private/{docId} {
           allow read, write: if isClientsVet(userId);
+        }
+
+        match /publicNotes/{noteId} {
+          allow read: if isOwner(userId) || isClientsVet(userId);
+          allow write: if isClientsVet(userId);
         }
       }
 

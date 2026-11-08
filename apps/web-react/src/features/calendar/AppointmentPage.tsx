@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Textarea } from '@/components/ui/Textarea';
+import { AddToCalendar } from './AddToCalendar';
 import { t } from '@/i18n';
 
 /** Client view of one appointment: details + one-shot cancel with reason. */
@@ -137,6 +138,20 @@ export function AppointmentPage() {
           )}
         </CardBody>
       </Card>
+
+      {!cancelled && !past && (
+        <div className="mt-4 flex">
+          <AddToCalendar
+            item={{
+              id: appt.id,
+              title: `${eventTitle(appt.title)} · ${appt.vetName}${pet ? ` (${pet})` : ''}`,
+              start: appt.dateTime,
+              details: appt.description,
+              location: appt.location ?? undefined,
+            }}
+          />
+        </div>
+      )}
 
       {canCancel && (
         <div className="mt-6 border-t border-border pt-6">

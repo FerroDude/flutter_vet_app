@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Lock, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Lock, Pencil, Trash2 } from 'lucide-react';
 import { useCollection } from '@/lib/useFirestore';
 import {
   addPrivateNote,
@@ -8,6 +8,7 @@ import {
   mapPrivateNote,
   privateNotesQuery,
   updatePrivateNote,
+  type NoteKind,
   type PrivateNote,
 } from '@/lib/privateNotes';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -32,13 +33,18 @@ function errorText(e: unknown): string {
 export function PrivateNotesCard({
   clientId,
   petId,
-  vetId,
+  vetId = '',
+  kind = 'private',
+  readOnly = false,
 }: {
   clientId: string;
   petId: string;
-  vetId: string;
+  vetId?: string;
+  kind?: NoteKind;
+  /** Owner view: list only, and the whole card hides when there are no notes. */
+  readOnly?: boolean;
 }) {
-  const q = useMemo(() => privateNotesQuery(clientId, petId), [clientId, petId]);
+  const q = useMemo(() => privateNotesQuery(clientId, petId, kind), [clientId, petId, kind]);
   const { data, loading } = useCollection<PrivateNote>(q, mapPrivateNote);
   const notes = useMemo(
     () =>
@@ -60,7 +66,7 @@ export function PrivateNotesCard({
     if (!text) return;
     setAdding(true);
     try {
-      await addPrivateNote({ clientId, petId, text, vetId });
+      await addPrivateNote({ clientId, petId, text, vetId, kind });
       setDraft('');
     } catch (e) {
       toast.error(errorText(e));
@@ -74,7 +80,7 @@ export function PrivateNotesCard({
     if (!text) return;
     setSavingEdit(true);
     try {
-      await updatePrivateNote({ clientId, petId, noteId, text, vetId });
+      await updatePrivateNote({ clientId, petId, noteId, text, vetId, kind });
       setEditingId(null);
     } catch (e) {
       toast.error(errorText(e));
@@ -92,35 +98,45 @@ export function PrivateNotesCard({
     });
     if (!ok) return;
     try {
-      await deletePrivateNote(clientId, petId, note.id);
+      await deletePrivateNote(clientId, petId, note.id, kind);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('notes.deleteFailed'));
     }
   };
 
+  if (readOnly && (loading || notes.length === 0)) return null;
+
   return (
     <Card className="mb-6">
       <CardBody className="space-y-4">
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-          <Lock size={14} /> {t('notes.private')}
-        </p>
-
-        <div className="space-y-2">
-          <Textarea
-            label={t('notes.new')}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void add();
-            }}
-            placeholder={t('notes.placeholder')}
-          />
-          <div className="flex justify-end">
-            <Button loading={adding} disabled={!draft.trim()} onClick={() => void add()}>
-              {t('notes.add')}
-            </Button>
-          </div>
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            {kind === 'public' ? <Eye size={14} /> : <Lock size={14} />}{' '}
+            {kind === 'public' ? t('notes.public') : t('notes.private')}
+          </p>
+          {kind === 'public' && (
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('notes.publicHint')}</p>
+          )}
         </div>
+
+        {!readOnly && (
+          <div className="space-y-2">
+            <Textarea
+              label={t('notes.new')}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void add();
+              }}
+              placeholder={t('notes.placeholder')}
+            />
+            <div className="flex justify-end">
+              <Button loading={adding} disabled={!draft.trim()} onClick={() => void add()}>
+                {t('notes.add')}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {loading && notes.length === 0 ? null : notes.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('notes.empty')}</p>
@@ -128,7 +144,7 @@ export function PrivateNotesCard({
           <ul className="divide-y divide-border rounded-(--radius-md) border border-border">
             {notes.map((n) => (
               <li key={n.id} className="p-3">
-                {editingId === n.id ? (
+                {!readOnly && editingId === n.id ? (
                   <div className="space-y-2">
                     <Textarea
                       label={t('notes.edit')}
@@ -162,25 +178,29 @@ export function PrivateNotesCard({
                           : ''}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(n.id);
-                        setEditText(n.text);
-                      }}
-                      className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
-                      aria-label={t('notes.edit')}
-                    >
-                      <Pencil size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void remove(n)}
-                      className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
-                      aria-label={t('notes.delete')}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    {!readOnly && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(n.id);
+                            setEditText(n.text);
+                          }}
+                          className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
+                          aria-label={t('notes.edit')}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void remove(n)}
+                          className="shrink-0 rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
+                          aria-label={t('notes.delete')}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </li>

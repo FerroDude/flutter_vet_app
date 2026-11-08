@@ -32,6 +32,8 @@ export function userProfileFromFirestore(id: string, data: Data): UserProfile {
     isActive: data.isActive !== false,
     globalType: (data.globalType as string | null) ?? null,
     fcmToken: (data.fcmToken as string | null) ?? null,
+    invitePending: data.invitePending === true,
+    invitedAt: data.invitedAt == null ? null : parseDate(data.invitedAt),
   };
 }
 
@@ -54,5 +56,7 @@ export function userProfileToFirestore(p: UserProfile): Data {
     isActive: p.isActive,
     globalType: p.globalType ?? null,
     fcmToken: p.fcmToken ?? null,
+    invitePending: p.invitePending ?? false,
+    invitedAt: p.invitedAt ? toMillis(p.invitedAt) : null,
   };
 }

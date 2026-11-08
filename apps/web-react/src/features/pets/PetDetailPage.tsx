@@ -130,7 +130,14 @@ export function PetDetailPage() {
         </div>
       </div>
 
-      {isVetView && <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />}
+      {isVetView ? (
+        <>
+          <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />
+          <PrivateNotesCard kind="public" clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />
+        </>
+      ) : (
+        <PrivateNotesCard kind="public" clientId={uid} petId={petId} readOnly />
+      )}
       <PetTagDialog
         open={tagOpen}
         onClose={() => setTagOpen(false)}
@@ -146,7 +153,10 @@ export function PetDetailPage() {
           <p className="mb-4 text-sm font-semibold text-foreground">{t('pets.record')}</p>
           <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
             <Detail label={t('pets.sex')} value={pet.gender === 'Male' ? t('pets.male') : pet.gender === 'Female' ? t('pets.female') : '—'} />
-            <Detail label={t('pets.dob')} value={pet.dateOfBirth ? longDateFmt.format(pet.dateOfBirth) : '—'} />
+            <Detail
+              label={t('pets.dob')}
+              value={pet.dateOfBirth ? `${longDateFmt.format(pet.dateOfBirth)} · ${petAgeLabel(pet.dateOfBirth)}` : '—'}
+            />
             <Detail label={t('pets.weight')} value={pet.weight || '—'} />
             <Detail label={t('pets.color')} value={pet.color || '—'} />
             <Detail label={t('pets.microchip')} value={pet.microchip || '—'} />

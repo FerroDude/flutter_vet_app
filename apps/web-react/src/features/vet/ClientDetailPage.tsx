@@ -12,6 +12,7 @@ import {
   Plus,
   CalendarDays,
   CalendarPlus,
+  Send,
 } from 'lucide-react';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { VetAppointmentDialog } from './VetAppointmentDialog';
@@ -19,7 +20,7 @@ import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { db } from '@/lib/firebase';
 import { useDoc, useCollection } from '@/lib/useFirestore';
-import { clientLabel, mapClient } from '@/lib/clientService';
+import { clientLabel, mapClient, sendClientInvite } from '@/lib/clientService';
 import { dateTimeFmt, errorMessage, eventTitle, fullAddress } from '@/lib/format';
 import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
@@ -30,6 +31,7 @@ import { PetAvatar } from '@/components/ui/PetAvatar';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/Spinner';
+import { useConfirm } from '@/components/ui/Confirm';
 
 export function ClientDetailPage() {
   const { ownerId = '' } = useParams();
@@ -46,6 +48,8 @@ export function ClientDetailPage() {
 
   const [starting, setStarting] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const confirm = useConfirm();
   const { appointments } = useVetAppointments(uid);
   const clientUpcoming = useMemo(() => {
     const now = Date.now();
@@ -68,6 +72,25 @@ export function ClientDetailPage() {
       toast.error(errorMessage(e, t('vet.chatOpenFailed')));
     } finally {
       setStarting(false);
+    }
+  };
+
+  const sendInvite = async () => {
+    if (!owner?.email) return;
+    const ok = await confirm({
+      title: t('vet.clients.inviteTitle'),
+      description: t('vet.clients.inviteDesc', { email: owner.email }),
+      confirmLabel: t('common.send'),
+    });
+    if (!ok) return;
+    setInviting(true);
+    try {
+      await sendClientInvite(owner);
+      toast.success(t('vet.clients.inviteSent'));
+    } catch (e) {
+      toast.error(errorMessage(e, t('vet.clients.inviteFailed')));
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -96,8 +119,13 @@ export function ClientDetailPage() {
                   {(owner.displayName || owner.email || '?').charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-2xl font-bold text-foreground">
-                    {owner.displayName || t('vet.noName')}
+                  <p className="flex items-center gap-2 font-display text-2xl font-bold text-foreground">
+                    <span className="truncate">{owner.displayName || t('vet.noName')}</span>
+                    {owner.invitePending && (
+                      <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {t('vet.clients.notInvited')}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -107,6 +135,14 @@ export function ClientDetailPage() {
                 </Button>
                 <Button variant="outline" onClick={() => setBookOpen(true)}>
                   <CalendarPlus size={16} /> {t('vet.book')}
+                </Button>
+                <Button
+                  variant={owner.invitePending ? 'primary' : 'outline'}
+                  loading={inviting}
+                  onClick={() => void sendInvite()}
+                >
+                  <Send size={16} />{' '}
+                  {owner.invitePending ? t('vet.clients.sendInvite') : t('vet.clients.resendInvite')}
                 </Button>
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
