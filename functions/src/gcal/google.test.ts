@@ -5,7 +5,13 @@ import { deleteEvent, upsertEvent } from './google.js';
 // lazily at call time but the module import itself must not blow up in tests.
 vi.mock('firebase-admin/firestore', () => ({ getFirestore: vi.fn() }));
 
-function fakeFetch(handler: (url: string, init?: RequestInit) => Partial<Response>) {
+interface FakeRes {
+  ok?: boolean;
+  status?: number;
+  json?: unknown;
+}
+
+function fakeFetch(handler: (url: string, init?: RequestInit) => FakeRes) {
   return vi.fn(async (input: unknown, init?: RequestInit) => {
     const res = handler(String(input), init);
     return {
