@@ -27,6 +27,7 @@ export function incomingNotice(input: {
 }
 
 import { t } from '@/i18n';
+import { notificationsMuted } from '@/lib/notifications';
 
 export function incomingTitle(count: number): string {
   return t(count === 1 ? 'chat.newMsg.one' : 'chat.newMsg.other', { count });
@@ -48,6 +49,7 @@ export const CONFIRM_KIND = 'appointment_confirmed';
 
 /** OS notification when the tab is unfocused and permission was granted. */
 export function notifyOs(title: string, body: string, open: () => void): void {
+  if (notificationsMuted()) return;
   if (typeof Notification === 'undefined') return;
   if (Notification.permission !== 'granted') return;
   if (document.hasFocus()) return;

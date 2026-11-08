@@ -34,7 +34,7 @@ Menu: Painel · Animais · Agenda · Chat · Perfil.
 - **Animais**: pet list and search; pet form (create/edit — the birth-date field shows the live age); pet page with record (birth date shown with age), medications (log/undo dose, pause, complete, delete), appointments and symptoms. Public notes written by the vet appear above the record, read-only. Each pet can have a printable QR tag (`/t/:petId`) that opens a public page (photo, name, species/breed, microchip — owner name/phone only when the owner opts in) for anyone who scans it; a "found this pet?" form alerts the owner (dashboard card + notification) without an account — owner/vet get redirected to the in-app pet page instead.
 - **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit (date interval + time of day); the vet confirms only inside that requested window; a confirmation alerts the client ("Consulta confirmada") and sends a chat message. "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat. Upcoming appointments offer an "Adicionar ao calendário" menu (Google Calendar link for gmail addresses, a `.ics` download for everyone).
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
-- **Perfil**: name, phone, address; the vet's contact details; browser-notification permission; sign out.
+- **Perfil**: name, phone, address; the vet's contact details; browser-notification permission with a per-device on/off switch; sign out.
 
 Appointments the vet booked are read-only for the client, except a one-shot cancellation with a reason. The vet gets a dedicated "Consulta cancelada" alert (toast + OS notification) on top of the chat message.
 
@@ -47,7 +47,7 @@ Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 - **Clientes**: list and search; add client (with or without sending the invite email). Client page: contact details, chat, book appointment, send/resend the access invite, upcoming appointments, pets (open a pet page or add a pet).
 - **Pet page (vet view)**: everything the client sees plus **private notes** (a list of notes only the vet can read) and **public notes** (notes the vet writes and the owner reads on their pet page), and booking appointments directly.
 - **Chat**: conversation list + open conversation.
-- **Perfil**: name, phone, address (clients see it for home visits); browser-notification permission; sign out.
+- **Perfil**: name, phone, address (clients see it for home visits); browser-notification permission with a per-device on/off switch; sign out.
 
 ## Data (Firestore)
 

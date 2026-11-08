@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { notificationPermission, requestNotifications } from '@/lib/notifications';
+import {
+  notificationPermission,
+  requestNotifications,
+  setNotificationsMuted,
+} from '@/lib/notifications';
 import { t } from '@/i18n';
 
 const DISMISSED_KEY = 'vetplus.notifPrompt.dismissed';
@@ -38,7 +42,9 @@ export function NotificationPrompt() {
           label: t('notif.enable'),
           onClick: () => {
             dismiss();
-            void requestNotifications();
+            void requestNotifications().then((p) => {
+              if (p === 'granted') setNotificationsMuted(false);
+            });
           },
         },
         cancel: {

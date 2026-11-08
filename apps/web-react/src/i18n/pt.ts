@@ -493,7 +493,7 @@ export const pt = {
   'vet.clients.inviteFailed': 'Não foi possível enviar o convite',
 
   'notif.title': 'Notificações',
-  'notif.granted': 'Ativas neste dispositivo.',
+  'notif.showOnDevice': 'Mostrar notificações neste dispositivo',
   'notif.denied': 'Estão bloqueadas. Ative-as nas definições do site no browser.',
   'notif.enable': 'Ativar notificações',
   'notif.unsupported': 'Este browser não suporta notificações.',

@@ -4,7 +4,12 @@ import { LogOut, Stethoscope } from 'lucide-react';
 import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { getUserProfile } from '@/lib/userService';
-import { notificationPermission, requestNotifications } from '@/lib/notifications';
+import {
+  notificationPermission,
+  notificationsMuted,
+  requestNotifications,
+  setNotificationsMuted,
+} from '@/lib/notifications';
 import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
 import { lang, setLang, t, type Lang } from '@/i18n';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -23,6 +28,7 @@ export function ProfileSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [vet, setVet] = useState<UserProfile | null>(null);
   const [notifPerm, setNotifPerm] = useState(notificationPermission());
+  const [notifMuted, setNotifMuted] = useState(notificationsMuted());
 
   useEffect(() => {
     setName(profile?.displayName ?? '');
@@ -147,11 +153,32 @@ export function ProfileSettingsPage() {
             {notifPerm === 'unsupported' ? (
               <p className="text-sm text-muted-foreground">{t('notif.unsupported')}</p>
             ) : notifPerm === 'granted' ? (
-              <p className="text-sm text-muted-foreground">{t('notif.granted')}</p>
+              <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={!notifMuted}
+                  onChange={(e) => {
+                    setNotificationsMuted(!e.target.checked);
+                    setNotifMuted(!e.target.checked);
+                  }}
+                  className="h-4 w-4 accent-[hsl(var(--primary))]"
+                />
+                {t('notif.showOnDevice')}
+              </label>
             ) : notifPerm === 'denied' ? (
               <p className="text-sm text-muted-foreground">{t('notif.denied')}</p>
             ) : (
-              <Button onClick={() => void requestNotifications().then(setNotifPerm)}>
+              <Button
+                onClick={() =>
+                  void requestNotifications().then((p) => {
+                    if (p === 'granted') {
+                      setNotificationsMuted(false);
+                      setNotifMuted(false);
+                    }
+                    setNotifPerm(p);
+                  })
+                }
+              >
                 {t('notif.enable')}
               </Button>
             )}

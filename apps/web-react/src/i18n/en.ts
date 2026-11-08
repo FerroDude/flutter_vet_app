@@ -494,7 +494,7 @@ export const en: Record<TKey, string> = {
   'vet.clients.inviteFailed': "Couldn't send the invite",
 
   'notif.title': 'Notifications',
-  'notif.granted': 'On for this device.',
+  'notif.showOnDevice': 'Show notifications on this device',
   'notif.denied': "They're blocked. Re-enable them in the browser's site settings.",
   'notif.enable': 'Enable notifications',
   'notif.unsupported': "This browser doesn't support notifications.",

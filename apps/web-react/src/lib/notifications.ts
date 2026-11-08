@@ -1,5 +1,26 @@
-// Browser notifications (tab-open only): permission helpers. The actual
-// notification send lives in features/chat/incomingMessage.ts (notifyOs).
+// Browser notifications (tab-open only): permission helpers plus a per-device
+// app-level mute — browsers don't let JS revoke a granted permission, so
+// "off" is a flag that notifyOs checks. The actual notification send lives in
+// features/chat/incomingMessage.ts (notifyOs).
+
+const MUTED_KEY = 'vetplus.notif.muted';
+
+export function notificationsMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setNotificationsMuted(muted: boolean): void {
+  try {
+    if (muted) localStorage.setItem(MUTED_KEY, '1');
+    else localStorage.removeItem(MUTED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function notificationsSupported(): boolean {
   return typeof Notification !== 'undefined';
