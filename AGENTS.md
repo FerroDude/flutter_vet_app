@@ -32,6 +32,10 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
 - GitHub Pages: `npm run deploy` builds with `--mode ghpages` (base `/flutter_vet_app/`, Firebase config
   from `apps/web-react/.env.local`) and pushes `dist` to the `gh-pages` branch.
 - Live URL: https://ferrodude.github.io/flutter_vet_app/
+- Future domain: yoshivetcare.com (owned by the vet; landing page lives at https://yoshivetcare.com/en/).
+  Moving the app there means updating: Vite base, OAuth JS origins + authorized domains, Firebase Auth
+  authorized domains, `APP_URL` in `functions/src/gcal/sync.ts`, the privacy-page link on the consent
+  screen, and keeping the old GitHub Pages URL redirecting so already-printed QR tags (`/t/:petId`) still work.
 - Router uses `basename={import.meta.env.BASE_URL}`; never hardcode `/` for asset or SW paths.
 
 ## Accounts
