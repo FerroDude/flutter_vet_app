@@ -155,6 +155,8 @@ export const pt = {
     'Consulta cancelada, mas não foi possível avisar a veterinária pelo chat.',
   'appointment.cancelledOk': 'Consulta cancelada. A veterinária foi avisada.',
   'appointment.cancelReasonRequired': 'Indique o motivo do cancelamento.',
+  'appointment.bookedToast': 'Nova consulta marcada',
+  'appointment.rescheduledToast': 'Consulta alterada',
 
   'requests.form.title': 'Pedir marcação',
   'requests.send': 'Enviar pedido',
@@ -373,6 +375,7 @@ export const pt = {
   'notes.private': 'Notas privadas',
   'notes.public': 'Notas para o tutor',
   'notes.publicHint': 'Visível para o tutor',
+  'notes.newToast': 'Nova nota sobre {pet}',
   'notes.fromVet': 'Notas da sua veterinária',
   'notes.new': 'Nova nota',
   'notes.placeholder': 'Observação, diagnóstico, lembrete…',

@@ -15,6 +15,8 @@ import { ProfileSettingsPage } from '@/features/profile/ProfileSettingsPage';
 import { IncomingMessageToast } from '@/features/chat/IncomingMessageToast';
 import { ConfirmedRequestToast } from '@/features/calendar/ConfirmedRequestToast';
 import { FoundReportToast } from '@/features/pets/FoundReportToast';
+import { PublicNoteToast } from '@/features/pets/PublicNoteToast';
+import { VetBookedToast } from '@/features/calendar/VetBookedToast';
 import { NotificationPrompt } from '@/features/notifications/NotificationPrompt';
 
 export function ClientApp() {
@@ -39,6 +41,8 @@ export function ClientApp() {
       <IncomingMessageToast />
       <ConfirmedRequestToast />
       <FoundReportToast />
+      <PublicNoteToast />
+      <VetBookedToast />
       <NotificationPrompt />
       <Routes>
         <Route index element={<ClientDashboard />} />

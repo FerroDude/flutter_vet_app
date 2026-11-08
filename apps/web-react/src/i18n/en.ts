@@ -156,6 +156,8 @@ export const en: Record<TKey, string> = {
   'appointment.cancelWarnFailed': 'Appointment cancelled, but the vet could not be notified in chat.',
   'appointment.cancelledOk': 'Appointment cancelled. The vet has been notified.',
   'appointment.cancelReasonRequired': 'Please give a reason for cancelling.',
+  'appointment.bookedToast': 'New appointment booked',
+  'appointment.rescheduledToast': 'Appointment rescheduled',
 
   'requests.form.title': 'Request appointment',
   'requests.send': 'Send request',
@@ -374,6 +376,7 @@ export const en: Record<TKey, string> = {
   'notes.private': 'Private notes',
   'notes.public': 'Notes for the owner',
   'notes.publicHint': 'Visible to the owner',
+  'notes.newToast': 'New note about {pet}',
   'notes.fromVet': 'Notes from your vet',
   'notes.new': 'New note',
   'notes.placeholder': 'Observation, diagnosis, reminder…',

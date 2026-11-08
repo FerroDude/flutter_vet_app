@@ -33,9 +33,14 @@ export function incomingTitle(count: number): string {
   return t(count === 1 ? 'chat.newMsg.one' : 'chat.newMsg.other', { count });
 }
 
+/** Whitespace-collapsed text clipped with "…" — toast description style. */
+export function clip(text: string, max = 80): string {
+  const s = text.replace(/\s+/g, ' ').trim();
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
 export function incomingBody(senderName: string, content: string): string {
-  const text = content.replace(/\s+/g, ' ').trim();
-  const clipped = text.length > 80 ? `${text.slice(0, 79)}…` : text;
+  const clipped = clip(content);
   const name = senderName.trim();
   if (name && clipped) return `${name}: ${clipped}`;
   return name || clipped || t('chat.newMsg.one');
