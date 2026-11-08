@@ -373,6 +373,7 @@ export const pt = {
   'notes.private': 'Notas privadas',
   'notes.public': 'Notas para o tutor',
   'notes.publicHint': 'Visível para o tutor',
+  'notes.fromVet': 'Notas da sua veterinária',
   'notes.new': 'Nova nota',
   'notes.placeholder': 'Observação, diagnóstico, lembrete…',
   'notes.add': 'Adicionar nota',

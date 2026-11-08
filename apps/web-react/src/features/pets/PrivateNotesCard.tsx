@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Eye, Lock, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Lock, Pencil, Stethoscope, Trash2 } from 'lucide-react';
 import { useCollection } from '@/lib/useFirestore';
 import {
   addPrivateNote,
@@ -111,10 +111,10 @@ export function PrivateNotesCard({
       <CardBody className="space-y-4">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            {kind === 'public' ? <Eye size={14} /> : <Lock size={14} />}{' '}
-            {kind === 'public' ? t('notes.public') : t('notes.private')}
+            {readOnly ? <Stethoscope size={14} /> : kind === 'public' ? <Eye size={14} /> : <Lock size={14} />}{' '}
+            {readOnly ? t('notes.fromVet') : kind === 'public' ? t('notes.public') : t('notes.private')}
           </p>
-          {kind === 'public' && (
+          {kind === 'public' && !readOnly && (
             <p className="mt-0.5 text-xs text-muted-foreground">{t('notes.publicHint')}</p>
           )}
         </div>

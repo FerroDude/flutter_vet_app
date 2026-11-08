@@ -374,6 +374,7 @@ export const en: Record<TKey, string> = {
   'notes.private': 'Private notes',
   'notes.public': 'Notes for the owner',
   'notes.publicHint': 'Visible to the owner',
+  'notes.fromVet': 'Notes from your vet',
   'notes.new': 'New note',
   'notes.placeholder': 'Observation, diagnosis, reminder…',
   'notes.add': 'Add note',
