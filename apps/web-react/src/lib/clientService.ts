@@ -7,7 +7,8 @@ import {
   userProfileToFirestore,
   type UserProfile,
 } from '@vetplus/shared';
-import { auth, db, getSecondaryAuth } from './firebase';
+import { auth, db, functions, getSecondaryAuth } from './firebase';
+import { httpsCallable } from 'firebase/functions';
 import { findOrCreateOneOnOneChat } from './chatService';
 import { t } from '@/i18n';
 
@@ -29,42 +30,19 @@ export const mapClient = (id: string, d: DocumentData): UserProfile => userProfi
 export const clientLabel = (c: Pick<UserProfile, 'displayName' | 'email'>): string =>
   c.displayName?.trim() || c.email || t('common.client');
 
-/**
- * Vet adds a client. Creates the Auth user, writes the profile with vetId,
- * and opens the direct chat room. With sendInvite the set-password email
- * goes out now; without it the profile is marked invitePending and the vet
- * can send the invite later with sendClientInvite.
- * The secondary app keeps the vet's session signed in.
- */
-export async function addClientByEmail(args: {
-  vetId: string;
-  vetName: string;
+function newClientProfile(args: {
+  id: string;
   name: string;
   email: string;
-  sendInvite: boolean;
-}): Promise<string> {
-  const email = args.email.trim().toLowerCase();
-  const name = args.name.trim();
-  if (!email || !name) throw new Error(t('vet.clients.nameEmailRequired'));
-
-  const secondary = getSecondaryAuth();
-  let uid: string;
-  try {
-    const cred = await createUserWithEmailAndPassword(secondary, email, randomPassword());
-    uid = cred.user.uid;
-  } catch (e) {
-    await signOut(secondary).catch(() => {});
-    if (e instanceof FirebaseError && e.code === 'auth/email-already-in-use') {
-      throw new Error(t('vet.clients.emailInUse'));
-    }
-    throw e;
-  }
-
+  vetId: string;
+  invitePending: boolean;
+  invitedAt: Date | null;
+}): UserProfile {
   const now = new Date();
-  const profile: UserProfile = {
-    id: uid,
-    email,
-    displayName: name,
+  return {
+    id: args.id,
+    email: args.email,
+    displayName: args.name,
     userType: UserType.petOwner,
     vetId: args.vetId,
     connectedClinicId: null,
@@ -79,9 +57,71 @@ export async function addClientByEmail(args: {
     isActive: true,
     globalType: null,
     fcmToken: null,
-    invitePending: !args.sendInvite,
-    invitedAt: args.sendInvite ? now : null,
+    invitePending: args.invitePending,
+    invitedAt: args.invitedAt,
   };
+}
+
+/**
+ * Vet adds a client. Email is optional:
+ * - with it, the Auth user is created now (secondary app keeps the vet's
+ *   session signed in) and sendInvite controls the set-password email;
+ * - without it, only the profile (Firestore auto-id) + chat room are created
+ *   and the vet adds the email later via addClientEmail — createClientLogin
+ *   then creates the Auth user with that same uid.
+ */
+export async function addClient(args: {
+  vetId: string;
+  vetName: string;
+  name: string;
+  email?: string;
+  sendInvite: boolean;
+}): Promise<string> {
+  const email = (args.email ?? '').trim().toLowerCase();
+  const name = args.name.trim();
+  if (!name) throw new Error(t('vet.clients.nameRequired'));
+
+  if (!email) {
+    const ref = doc(usersCol());
+    const profile = newClientProfile({
+      id: ref.id,
+      name,
+      email: '',
+      vetId: args.vetId,
+      invitePending: true,
+      invitedAt: null,
+    });
+    await setDoc(ref, userProfileToFirestore(profile));
+    await findOrCreateOneOnOneChat({
+      petOwnerId: ref.id,
+      petOwnerName: name,
+      vetId: args.vetId,
+      vetName: args.vetName,
+    });
+    return ref.id;
+  }
+
+  const secondary = getSecondaryAuth();
+  let uid: string;
+  try {
+    const cred = await createUserWithEmailAndPassword(secondary, email, randomPassword());
+    uid = cred.user.uid;
+  } catch (e) {
+    await signOut(secondary).catch(() => {});
+    if (e instanceof FirebaseError && e.code === 'auth/email-already-in-use') {
+      throw new Error(t('vet.clients.emailInUse'));
+    }
+    throw e;
+  }
+
+  const profile = newClientProfile({
+    id: uid,
+    name,
+    email,
+    vetId: args.vetId,
+    invitePending: !args.sendInvite,
+    invitedAt: args.sendInvite ? new Date() : null,
+  });
 
   try {
     await setDoc(doc(usersCol(), uid), userProfileToFirestore(profile));
@@ -97,6 +137,18 @@ export async function addClientByEmail(args: {
   }
 
   return uid;
+}
+
+/**
+ * Email added later for a client created without one. The callable creates
+ * the Auth user with the same uid; sendClientInvite can then email as usual.
+ */
+export async function addClientEmail(clientId: string, email: string): Promise<void> {
+  const call = httpsCallable<{ clientId: string; email: string }, { ok: true }>(
+    functions,
+    'createClientLogin',
+  );
+  await call({ clientId, email: email.trim().toLowerCase() });
 }
 
 /**

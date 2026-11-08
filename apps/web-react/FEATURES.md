@@ -12,7 +12,7 @@ The UI is available in European Portuguese (`pt-PT`) and English (`en`), chosen 
 
 - No sign-up in the app. Firestore rules refuse self-created profiles.
 - Vets are created with `npm run create-vet` (Admin SDK, see `scripts/create-vet.mjs`).
-- The vet adds a client (Clientes → Adicionar cliente). That creates the Auth user with a random password, writes the profile with `vetId` and opens their chat room. The "Enviar convite por email agora" checkbox (on by default) also sends the set-password email; unchecked, the profile is marked `invitePending` and the vet lands on the new client's page to add pets right away. A "Por convidar" badge shows on the clients list and client page until the invite is sent — from there the vet sends it (button on the client page, also "Reenviar email de acesso" afterwards). If the client signs in anyway (e.g. via "forgot password"), their profile clears the flag itself.
+- The vet adds a client (Clientes → Adicionar cliente). Email is optional: with it, the Auth user is created with a random password, the profile is written with `vetId` and the chat room opens; without it, only the profile (Firestore auto-id, `invitePending`, "Sem email" badge) and chat room exist — "Adicionar email" on the client page calls the `createClientLogin` callable, which creates the Auth user with the same uid so nothing migrates, and the normal invite flow applies from there. The "Enviar convite por email agora" checkbox (on by default) also sends the set-password email; unchecked, the profile is marked `invitePending` and the vet lands on the new client's page to add pets right away. A "Por convidar" badge shows on the clients list and client page until the invite is sent — from there the vet sends it (button on the client page, also "Reenviar email de acesso" afterwards). If the client signs in anyway (e.g. via "forgot password"), their profile clears the flag itself.
 - Login screen: email + password, and "forgot password". No email-verification step.
 
 `RootGate`:
@@ -75,6 +75,7 @@ The vet agenda is a collection-group query on `events` where `bookedByVetId == v
 - `gcalConnect` (callable, max 1): exchanges the GIS authorization code, stores the refresh token, creates/finds the calendar, backfills upcoming events.
 - `gcalSyncAll` (callable, max 1): re-syncs all upcoming vet bookings, or one event.
 - `gcalDisconnect` (callable, max 1): revokes the token and marks the connection off.
+- `createClientLogin` (callable, max 1, no secrets): creates the Auth user for a client added without email, using the profile doc id as uid.
 
 All cold-start free (`minInstances: 0`); Google calls go through plain `fetch` REST endpoints. Secrets: `GOOGLE_OAUTH_CLIENT_SECRET` via `firebase functions:secrets:set`; `GOOGLE_OAUTH_CLIENT_ID` as a functions env param (`.env.vetplus-digital`).
 

@@ -5,7 +5,7 @@ import { ChevronRight, Mail, Phone, Plus, Search, Users } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useClients } from '@/lib/useClients';
 import { useClientPets } from '@/lib/useClientPets';
-import { addClientByEmail, clientLabel } from '@/lib/clientService';
+import { addClient as addClientToDb, clientLabel } from '@/lib/clientService';
 import { errorMessage, normalizeText } from '@/lib/format';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -58,19 +58,22 @@ export function ClientsPage() {
   const addClient = async () => {
     setAdding(true);
     try {
-      const newUid = await addClientByEmail({
+      const newUid = await addClientToDb({
         vetId: uid,
         vetName: profile?.displayName?.trim() || t('common.vet'),
         name,
         email,
         sendInvite,
       });
-      toast.success(t(sendInvite ? 'vet.clients.added' : 'vet.clients.addedNoInvite'));
+      const hasEmail = Boolean(email.trim());
+      toast.success(
+        t(hasEmail && sendInvite ? 'vet.clients.added' : 'vet.clients.addedNoInvite'),
+      );
       setName('');
       setEmail('');
       setSendInvite(true);
       setAddOpen(false);
-      if (!sendInvite) navigate(`/clients/${newUid}`);
+      if (!hasEmail || !sendInvite) navigate(`/clients/${newUid}`);
     } catch (e) {
       toast.error(errorMessage(e, t('vet.clients.addFailed')));
     } finally {
@@ -171,17 +174,19 @@ export function ClientsPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="truncate font-medium text-foreground">{clientLabel(c)}</span>
-                    {c.invitePending && (
+                    {(c.invitePending || !c.email) && (
                       <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {t('vet.clients.notInvited')}
+                        {c.email ? t('vet.clients.notInvited') : t('vet.clients.noEmail')}
                       </span>
                     )}
                   </span>
                   <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                    <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                      <Mail size={12} className="shrink-0" />
-                      <span className="truncate">{c.email}</span>
-                    </span>
+                    {c.email && (
+                      <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                        <Mail size={12} className="shrink-0" />
+                        <span className="truncate">{c.email}</span>
+                      </span>
+                    )}
                     {c.phone && (
                       <span className="inline-flex items-center gap-1">
                         <Phone size={12} /> {c.phone}
@@ -207,7 +212,7 @@ export function ClientsPage() {
               {t('common.cancel')}
             </Button>
             <Button loading={adding} onClick={() => void addClient()}>
-              {sendInvite ? t('vet.clients.invite') : t('vet.clients.add')}
+              {email.trim() && sendInvite ? t('vet.clients.invite') : t('vet.clients.add')}
             </Button>
           </>
         }
@@ -220,16 +225,22 @@ export function ClientsPage() {
           }}
         >
           <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
-          <TextField label={t('common.email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <TextField label={t('vet.clients.emailOptional')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label
+            className={`inline-flex items-center gap-2 text-sm ${email.trim() ? 'text-muted-foreground' : 'cursor-not-allowed text-muted-foreground/50'}`}
+          >
             <input
               type="checkbox"
-              checked={sendInvite}
+              checked={sendInvite && Boolean(email.trim())}
+              disabled={!email.trim()}
               onChange={(e) => setSendInvite(e.target.checked)}
               className="h-4 w-4 accent-[hsl(var(--primary))]"
             />
             {t('vet.clients.sendInviteNow')}
           </label>
+          {!email.trim() && (
+            <p className="text-xs text-muted-foreground">{t('vet.clients.noEmailHint')}</p>
+          )}
           <button type="submit" hidden />
         </form>
       </Dialog>

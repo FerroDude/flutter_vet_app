@@ -12,6 +12,7 @@ import {
   Plus,
   CalendarDays,
   CalendarPlus,
+  MailPlus,
   Send,
 } from 'lucide-react';
 import { useVetAppointments } from '@/lib/useVetAppointments';
@@ -20,7 +21,7 @@ import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { db } from '@/lib/firebase';
 import { useDoc, useCollection } from '@/lib/useFirestore';
-import { clientLabel, mapClient, sendClientInvite } from '@/lib/clientService';
+import { addClientEmail, clientLabel, mapClient, sendClientInvite } from '@/lib/clientService';
 import { dateTimeFmt, errorMessage, eventTitle, fullAddress } from '@/lib/format';
 import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
@@ -32,6 +33,8 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/Spinner';
 import { useConfirm } from '@/components/ui/Confirm';
+import { Dialog } from '@/components/ui/Dialog';
+import { TextField } from '@/components/ui/TextField';
 
 export function ClientDetailPage() {
   const { ownerId = '' } = useParams();
@@ -49,6 +52,10 @@ export function ClientDetailPage() {
   const [starting, setStarting] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailInvite, setEmailInvite] = useState(true);
+  const [savingEmail, setSavingEmail] = useState(false);
   const confirm = useConfirm();
   const { appointments } = useVetAppointments(uid);
   const clientUpcoming = useMemo(() => {
@@ -72,6 +79,30 @@ export function ClientDetailPage() {
       toast.error(errorMessage(e, t('vet.chatOpenFailed')));
     } finally {
       setStarting(false);
+    }
+  };
+
+  const saveEmail = async () => {
+    if (!owner) return;
+    const email = newEmail.trim().toLowerCase();
+    setSavingEmail(true);
+    try {
+      await addClientEmail(owner.id, email);
+      toast.success(t('vet.clients.emailSaved'));
+      setEmailOpen(false);
+      setNewEmail('');
+      if (emailInvite) {
+        try {
+          await sendClientInvite({ id: owner.id, email });
+          toast.success(t('vet.clients.inviteSent'));
+        } catch (e) {
+          toast.error(errorMessage(e, t('vet.clients.inviteFailed')));
+        }
+      }
+    } catch (e) {
+      toast.error(errorMessage(e, t('vet.clients.addFailed')));
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -121,9 +152,9 @@ export function ClientDetailPage() {
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 font-display text-2xl font-bold text-foreground">
                     <span className="truncate">{owner.displayName || t('vet.noName')}</span>
-                    {owner.invitePending && (
+                    {(owner.invitePending || !owner.email) && (
                       <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {t('vet.clients.notInvited')}
+                        {owner.email ? t('vet.clients.notInvited') : t('vet.clients.noEmail')}
                       </span>
                     )}
                   </p>
@@ -136,14 +167,20 @@ export function ClientDetailPage() {
                 <Button variant="outline" onClick={() => setBookOpen(true)}>
                   <CalendarPlus size={16} /> {t('vet.book')}
                 </Button>
-                <Button
-                  variant={owner.invitePending ? 'primary' : 'outline'}
-                  loading={inviting}
-                  onClick={() => void sendInvite()}
-                >
-                  <Send size={16} />{' '}
-                  {owner.invitePending ? t('vet.clients.sendInvite') : t('vet.clients.resendInvite')}
-                </Button>
+                {owner.email ? (
+                  <Button
+                    variant={owner.invitePending ? 'primary' : 'outline'}
+                    loading={inviting}
+                    onClick={() => void sendInvite()}
+                  >
+                    <Send size={16} />{' '}
+                    {owner.invitePending ? t('vet.clients.sendInvite') : t('vet.clients.resendInvite')}
+                  </Button>
+                ) : (
+                  <Button onClick={() => setEmailOpen(true)}>
+                    <MailPlus size={16} /> {t('vet.clients.addEmail')}
+                  </Button>
+                )}
               </div>
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 {owner.email && (
@@ -217,6 +254,48 @@ export function ClientDetailPage() {
           )}
         </>
       )}
+
+      <Dialog
+        open={emailOpen}
+        onClose={() => (savingEmail ? undefined : setEmailOpen(false))}
+        title={t('vet.clients.addEmail')}
+        description={t('vet.clients.addEmailDesc')}
+        footer={
+          <>
+            <Button variant="outline" disabled={savingEmail} onClick={() => setEmailOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button loading={savingEmail} onClick={() => void saveEmail()}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveEmail();
+          }}
+        >
+          <TextField
+            label={t('common.email')}
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+          />
+          <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={emailInvite}
+              onChange={(e) => setEmailInvite(e.target.checked)}
+              className="h-4 w-4 accent-[hsl(var(--primary))]"
+            />
+            {t('vet.clients.sendInviteNow')}
+          </label>
+          <button type="submit" hidden />
+        </form>
+      </Dialog>
 
       <VetAppointmentDialog
         open={bookOpen}

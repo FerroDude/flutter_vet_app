@@ -157,6 +157,19 @@ describe('solo vet rules', () => {
     await assertFails(setDoc(doc(vet, 'users/outro'), { userType: 1, vetId: 'vet' }));
   });
 
+  it('lets the vet create a client with no email (added later)', async () => {
+    const vet = env.authenticatedContext('vet').firestore();
+    await assertSucceeds(
+      setDoc(doc(vet, 'users/newclient'), {
+        userType: 0,
+        vetId: 'vet',
+        email: '',
+        invitePending: true,
+      }),
+    );
+    await assertSucceeds(setDoc(doc(vet, 'users/newclient/pets/rex'), { name: 'Rex' }));
+  });
+
   it('lets a legacy profile without vetId update itself', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users/legacy'), { userType: 1, displayName: 'Old' });

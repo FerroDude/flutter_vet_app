@@ -19,11 +19,13 @@ import {
   revokeToken,
 } from './gcal/google.js';
 import { syncEvent } from './gcal/sync.js';
+import { createClientLogin as createClientLoginFor } from './clients.js';
 
 initializeApp();
 const db = () => getFirestore();
 
-const GOOGLE_CLIENT_ID = defineString('GOOGLE_OAUTH_CLIENT_ID');
+// default '' so `deploy --only functions:createClientLogin` doesn't require it.
+const GOOGLE_CLIENT_ID = defineString('GOOGLE_OAUTH_CLIENT_ID', { default: '' });
 const GOOGLE_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 
 setGlobalOptions({
@@ -185,6 +187,16 @@ export const gcalSyncAll = onCall(
     return { synced };
   },
 );
+
+/**
+ * Email added later for a client created without one: creates the Auth user
+ * with the SAME uid as the profile doc, so nothing migrates. No secrets —
+ * deployable alone with --only functions:createClientLogin.
+ */
+export const createClientLogin = onCall({ maxInstances: 1 }, async (request) => {
+  const uid = await requireVet(request);
+  return createClientLoginFor(uid, request.data, db());
+});
 
 /** Revoke + forget the grant. The Google calendar itself is left alone. */
 export const gcalDisconnect = onCall({ maxInstances: 1 }, async (request) => {
