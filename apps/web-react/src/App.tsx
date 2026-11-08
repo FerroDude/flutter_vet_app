@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import { RootGate } from '@/app/RootGate';
 import { ConfirmProvider } from '@/components/ui/Confirm';
 import { PetTagPage } from '@/features/pets/PetTagPage';
+import { t } from '@/i18n';
 
 export default function App() {
   return (
@@ -14,7 +15,12 @@ export default function App() {
           <Route path="/*" element={<RootGate />} />
         </Routes>
       </ConfirmProvider>
-      <Toaster richColors position="top-center" />
+      <Toaster
+        richColors
+        position="top-center"
+        closeButton
+        toastOptions={{ closeButtonAriaLabel: t('common.close') }}
+      />
     </BrowserRouter>
   );
 }
