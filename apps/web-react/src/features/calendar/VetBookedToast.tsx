@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { eventsQuery, mapEvent, type AppointmentEvent, type CalendarEvent } from '@/lib/eventService';
 import { diffVetBookings } from '@/lib/vetBookings';
 import { dateTimeFmt } from '@/lib/format';
-import { notifyOs } from '@/features/chat/incomingMessage';
+import { showAlert } from '@/features/chat/incomingMessage';
 import { t } from '@/i18n';
 
 /** Always-on alert when the vet books an appointment for the client or moves
@@ -35,25 +34,23 @@ export function VetBookedToast() {
       const title = t('appointment.bookedToast');
       const description = describe(e);
       const open = () => navigate(`/agenda/consultas/${e.id}`);
-      toast(title, {
+      showAlert({
         id: `booked-${e.id}`,
+        title,
         description,
-        duration: 15000,
-        action: { label: t('common.view'), onClick: open },
+        open,
       });
-      notifyOs(title, description, open);
     }
     for (const e of diff.rescheduled) {
       const title = t('appointment.rescheduledToast');
       const description = describe(e);
       const open = () => navigate(`/agenda/consultas/${e.id}`);
-      toast(title, {
+      showAlert({
         id: `resched-${e.id}-${e.dateTime.getTime()}`,
+        title,
         description,
-        duration: 15000,
-        action: { label: t('common.view'), onClick: open },
+        open,
       });
-      notifyOs(title, description, open);
     }
   }, [events, loading, uid, navigate]);
 

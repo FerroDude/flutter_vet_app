@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthProvider';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { dateTimeFmt } from '@/lib/format';
-import { notifyOs } from '@/features/chat/incomingMessage';
+import { showAlert } from '@/features/chat/incomingMessage';
 import { t } from '@/i18n';
 
 /** Always-on alert when a client cancels one of the vet's appointments.
@@ -32,13 +31,13 @@ export function CancelledAppointmentToast() {
       seen.current.add(key);
       const description = `${a.clientName || t('common.client')}${a.petName ? ` · ${a.petName}` : ''} · ${dateTimeFmt.format(a.dateTime)}${a.cancelReason ? ` — ${a.cancelReason}` : ''}`;
       const open = () => navigate('/agenda');
-      toast(t('vet.cancelToast'), {
+      showAlert({
         id: `cancel-${key}`,
+        title: t('vet.cancelToast'),
         description,
-        duration: 15000,
-        action: { label: t('vet.viewAgenda'), onClick: open },
+        actionLabel: t('vet.viewAgenda'),
+        open,
       });
-      notifyOs(t('vet.cancelToast'), description, open);
     }
   }, [appointments, loading, uid, navigate]);
 

@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthProvider';
 import { useFoundReports } from '@/lib/petTagService';
-import { notifyOs } from '@/features/chat/incomingMessage';
+import { showAlert } from '@/features/chat/incomingMessage';
 import { t } from '@/i18n';
 
 /** Always-on alert when someone reports one of the client's pets found.
@@ -29,13 +28,12 @@ export function FoundReportToast() {
         .filter(Boolean)
         .join(' · ');
       const open = () => navigate('/');
-      toast(t('tag.foundToast', { name: r.petName }), {
+      showAlert({
         id: `found-${r.id}`,
+        title: t('tag.foundToast', { name: r.petName }),
         description,
-        duration: 15000,
-        action: { label: t('common.view'), onClick: open },
+        open,
       });
-      notifyOs(t('tag.foundToast', { name: r.petName }), description, open);
     }
   }, [reports, loading, uid, navigate]);
 

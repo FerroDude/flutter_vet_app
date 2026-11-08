@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
 import {
@@ -10,10 +9,9 @@ import {
   incomingBody,
   incomingNotice,
   incomingTitle,
-  notifyOs,
+  showAlert,
 } from './incomingMessage';
 import { chatRoomPath } from './useSelectedChatRoom';
-import { t } from '@/i18n';
 
 /** Toast on the signed-in user when someone else sends a chat message. */
 export function IncomingMessageToast() {
@@ -49,13 +47,13 @@ export function IncomingMessageToast() {
       const title = incomingTitle(notice.count);
       const body = incomingBody(room.lastMessage.senderName, room.lastMessage.content);
       const open = () => navigate(chatRoomPath(room.id));
-      toast(title, {
+      showAlert({
         id: `msg-${room.id}`,
+        title,
         description: body,
         duration: 12000,
-        action: { label: t('common.view'), onClick: open },
+        open,
       });
-      notifyOs(title, body, open);
     }
   }, [rooms, loading, uid, navigate]);
 

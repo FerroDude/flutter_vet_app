@@ -26,8 +26,9 @@ export function incomingNotice(input: {
   return { show, count };
 }
 
+import { toast } from 'sonner';
 import { t } from '@/i18n';
-import { notificationsMuted } from '@/lib/notifications';
+import { alertsMuted, notificationsMuted } from '@/lib/notifications';
 
 export function incomingTitle(count: number): string {
   return t(count === 1 ? 'chat.newMsg.one' : 'chat.newMsg.other', { count });
@@ -68,4 +69,25 @@ export function notifyOs(title: string, body: string, open: () => void): void {
   } catch {
     /* browser blocked it */
   }
+}
+
+/** In-app sonner alert + OS notification. The two switches are independent:
+ *  alertsMuted gates the toast, notificationsMuted stays inside notifyOs. */
+export function showAlert(a: {
+  id: string;
+  title: string;
+  description: string;
+  open: () => void;
+  actionLabel?: string;
+  duration?: number;
+}): void {
+  if (!alertsMuted()) {
+    toast(a.title, {
+      id: a.id,
+      description: a.description,
+      duration: a.duration ?? 15000,
+      action: { label: a.actionLabel ?? t('common.view'), onClick: a.open },
+    });
+  }
+  notifyOs(a.title, a.description, a.open);
 }

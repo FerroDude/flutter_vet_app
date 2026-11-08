@@ -4,6 +4,24 @@
 // features/chat/incomingMessage.ts (notifyOs).
 
 const MUTED_KEY = 'vetplus.notif.muted';
+const ALERTS_KEY = 'vetplus.alerts.muted';
+
+export function alertsMuted(): boolean {
+  try {
+    return localStorage.getItem(ALERTS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setAlertsMuted(muted: boolean): void {
+  try {
+    if (muted) localStorage.setItem(ALERTS_KEY, '1');
+    else localStorage.removeItem(ALERTS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function notificationsMuted(): boolean {
   try {

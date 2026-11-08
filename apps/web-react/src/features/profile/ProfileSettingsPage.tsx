@@ -5,9 +5,11 @@ import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { getUserProfile } from '@/lib/userService';
 import {
+  alertsMuted,
   notificationPermission,
   notificationsMuted,
   requestNotifications,
+  setAlertsMuted,
   setNotificationsMuted,
 } from '@/lib/notifications';
 import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
@@ -29,6 +31,7 @@ export function ProfileSettingsPage() {
   const [vet, setVet] = useState<UserProfile | null>(null);
   const [notifPerm, setNotifPerm] = useState(notificationPermission());
   const [notifMuted, setNotifMuted] = useState(notificationsMuted());
+  const [inAppMuted, setInAppMuted] = useState(alertsMuted());
 
   useEffect(() => {
     setName(profile?.displayName ?? '');
@@ -150,6 +153,18 @@ export function ProfileSettingsPage() {
       <Section title={t('notif.title')}>
         <Card>
           <CardBody className="space-y-2">
+            <label className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={!inAppMuted}
+                onChange={(e) => {
+                  setAlertsMuted(!e.target.checked);
+                  setInAppMuted(!e.target.checked);
+                }}
+                className="h-4 w-4 accent-[hsl(var(--primary))]"
+              />
+              {t('alerts.showInApp')}
+            </label>
             {notifPerm === 'unsupported' ? (
               <p className="text-sm text-muted-foreground">{t('notif.unsupported')}</p>
             ) : notifPerm === 'granted' ? (

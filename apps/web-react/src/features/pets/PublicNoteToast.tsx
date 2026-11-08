@@ -1,11 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { onSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/auth/AuthProvider';
 import { petsQuery, mapPet } from '@/lib/petService';
 import { privateNotesQuery, mapPrivateNote } from '@/lib/privateNotes';
-import { clip, notifyOs } from '@/features/chat/incomingMessage';
+import { clip, showAlert } from '@/features/chat/incomingMessage';
 import { t } from '@/i18n';
 
 /** Always-on alert when the vet adds a public note to one of the client's
@@ -51,13 +50,12 @@ export function PublicNoteToast() {
             const title = t('notes.newToast', { pet: names.get(pid) || t('common.pet') });
             const description = clip(note.text);
             const open = () => navigate(`/pets/${pid}`);
-            toast(title, {
+            showAlert({
               id: `pubnote-${pid}-${note.id}`,
+              title,
               description,
-              duration: 15000,
-              action: { label: t('common.view'), onClick: open },
+              open,
             });
-            notifyOs(title, description, open);
           }
         });
         unsubs.set(pid, unsub);

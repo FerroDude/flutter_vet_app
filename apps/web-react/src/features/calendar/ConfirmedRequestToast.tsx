@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { AppointmentRequestStatus } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useRequests } from '@/lib/appointmentRequestService';
 import { dateTimeFmt } from '@/lib/format';
-import { notifyOs } from '@/features/chat/incomingMessage';
+import { showAlert } from '@/features/chat/incomingMessage';
 import { t } from '@/i18n';
 
 /** Always-on alert when the vet confirms one of the client's requests.
@@ -34,13 +33,12 @@ export function ConfirmedRequestToast() {
           .join(' · ') + (r.responseMessage ? ` — ${r.responseMessage}` : '');
       const open = () =>
         navigate(r.calendarEventId ? `/agenda/consultas/${r.calendarEventId}` : '/agenda');
-      toast(t('requests.confirmToast'), {
+      showAlert({
         id: `confirm-${r.id}`,
+        title: t('requests.confirmToast'),
         description,
-        duration: 15000,
-        action: { label: t('common.view'), onClick: open },
+        open,
       });
-      notifyOs(t('requests.confirmToast'), description, open);
     }
   }, [requests, loading, uid, navigate]);
 
