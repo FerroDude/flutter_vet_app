@@ -13,6 +13,17 @@ export const inputBase =
   'placeholder:text-muted-foreground/70 transition-colors ' +
   'focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring';
 
+/** Keeps password managers (LastPass, 1Password, Bitwarden, Dashlane) off non-credential fields. */
+export const noPasswordManager = {
+  autoComplete: 'off',
+  'data-lpignore': 'true',
+  'data-1p-ignore': 'true',
+  'data-bwignore': 'true',
+  'data-form-type': 'other',
+} as const;
+
+const PICKER_TYPES = new Set(['date', 'time', 'datetime-local', 'month', 'week']);
+
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
   function TextField({ label, error, hint, id, className, type = 'text', ...rest }, ref) {
     const autoId = useId();
@@ -39,6 +50,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
               isPassword && 'pr-11',
               className,
             )}
+            {...(PICKER_TYPES.has(type) ? noPasswordManager : {})}
             {...rest}
           />
           {isPassword && (

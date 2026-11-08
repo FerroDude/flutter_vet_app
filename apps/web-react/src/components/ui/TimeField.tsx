@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { cn } from '@/lib/cn';
-import { inputBase } from './TextField';
+import { inputBase, noPasswordManager } from './TextField';
 import { fieldLabelClasses, selectChevronStyle, selectClasses } from './Select';
 import { t } from '@/i18n';
 
@@ -92,6 +92,7 @@ export function DateTimeField({ label, value, onChange, minuteStep, hint }: Date
           value={date}
           onChange={(e) => onChange(e.target.value ? `${e.target.value}T${time || '09:00'}` : '')}
           className={cn(inputBase, 'min-w-0 border-input')}
+          {...noPasswordManager}
         />
         <TimeField
           value={time || '09:00'}
