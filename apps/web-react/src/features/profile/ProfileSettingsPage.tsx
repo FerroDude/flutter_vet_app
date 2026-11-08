@@ -1,9 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { LogOut, Stethoscope } from 'lucide-react';
+import { CalendarCheck, LogOut, RefreshCw, Stethoscope, Unlink } from 'lucide-react';
 import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { getUserProfile } from '@/lib/userService';
+import {
+  connectGcal,
+  disconnectGcal,
+  gcalEnabled,
+  syncGcal,
+  useGcalStatus,
+} from '@/lib/gcalService';
+import { dateTimeFmt } from '@/lib/format';
+import { useConfirm } from '@/components/ui/Confirm';
 import {
   alertsMuted,
   notificationPermission,
@@ -20,8 +29,11 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 
 export function ProfileSettingsPage() {
-  const { profile, role, updateProfile, signOutUser } = useAuth();
+  const { profile, role, updateProfile, signOutUser, firebaseUser } = useAuth();
   const isClient = role === 'petOwner';
+  const confirm = useConfirm();
+  const { data: gcal } = useGcalStatus(role === 'vet' ? (firebaseUser?.uid ?? '') : '');
+  const [gcalBusy, setGcalBusy] = useState<'' | 'connect' | 'sync' | 'disconnect'>('');
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -203,6 +215,83 @@ export function ProfileSettingsPage() {
           </CardBody>
         </Card>
       </Section>
+
+      {gcalEnabled && !isClient && (
+        <Section title="Google Calendar">
+          <Card>
+            <CardBody className="space-y-3">
+              {!gcal?.connected ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {gcal?.lastError === 'revoked' ? t('gcal.revoked') : t('gcal.hint')}
+                  </p>
+                  <div>
+                    <Button
+                      loading={gcalBusy === 'connect'}
+                      onClick={() => {
+                        setGcalBusy('connect');
+                        void connectGcal()
+                          .then((r) => toast.success(t('gcal.syncedCount', { count: r.synced })))
+                          .catch((e) => toast.error(errorMessage(e)))
+                          .finally(() => setGcalBusy(''));
+                      }}
+                    >
+                      <CalendarCheck size={16} />{' '}
+                      {gcal?.lastError === 'revoked' ? t('gcal.reconnect') : t('gcal.connect')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-foreground">
+                    {t('gcal.connected', { email: gcal.googleEmail || '—' })}
+                  </p>
+                  {gcal.lastSyncAt && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('gcal.lastSync', { date: dateTimeFmt.format(gcal.lastSyncAt) })}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      loading={gcalBusy === 'sync'}
+                      onClick={() => {
+                        setGcalBusy('sync');
+                        void syncGcal()
+                          .then((n) => toast.success(t('gcal.syncedCount', { count: n })))
+                          .catch((e) => toast.error(errorMessage(e)))
+                          .finally(() => setGcalBusy(''));
+                      }}
+                    >
+                      <RefreshCw size={16} /> {t('gcal.syncAll')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      loading={gcalBusy === 'disconnect'}
+                      onClick={() => {
+                        void confirm({
+                          title: t('gcal.disconnectTitle'),
+                          description: t('gcal.disconnectDesc'),
+                          confirmLabel: t('gcal.disconnect'),
+                          danger: true,
+                        }).then((ok) => {
+                          if (!ok) return;
+                          setGcalBusy('disconnect');
+                          void disconnectGcal()
+                            .catch((e) => toast.error(errorMessage(e)))
+                            .finally(() => setGcalBusy(''));
+                        });
+                      }}
+                    >
+                      <Unlink size={16} /> {t('gcal.disconnect')}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        </Section>
+      )}
 
       {isClient && (
         <Section title={t('profile.yourVet')}>

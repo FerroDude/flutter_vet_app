@@ -51,6 +51,8 @@ Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 - **Chat**: conversation list + open conversation.
 - **Perfil**: name, phone, address (clients see it for home visits); browser-notification permission; sign out. Two independent per-device switches live under Notificações: in-app alert toasts and OS notifications.
 
+**Google Calendar sync** (opt-in, configured via `VITE_GOOGLE_OAUTH_CLIENT_ID`): Perfil → Google Calendar connects the vet's Google account (GIS popup consent) and creates a dedicated "Yoshi Vet Care" calendar. Every event she books/edits/cancels/deletes in a client's calendar is mirrored by Cloud Functions — client cancellations show as "CANCELADA · …" (graphite), deletions remove the Google event. Agenda rows show a sync chip (synced / error + retry / syncing) instead of the "Add to calendar" menu while connected. Perfil also offers "Sincronizar tudo" and "Desligar" (revokes the token; the Google calendar is kept for a possible reconnect).
+
 ## Data (Firestore)
 
 | Path | What |
@@ -59,11 +61,22 @@ Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 | `users/{uid}/pets/{petId}` | Pet; `medications/`, `symptoms/` below it |
 | `users/{uid}/pets/{petId}/private/{noteId}` | Vet-only notes |
 | `users/{uid}/pets/{petId}/publicNotes/{noteId}` | Notes the vet writes; the owner can read them |
-| `users/{uid}/events/{eventId}` | Calendar entries. Vet bookings carry `bookedByVetId`, `clientName`, `petName` |
+| `gcalTokens/{vetId}` | Google OAuth refresh token — server only, never readable |
+| `gcalStatus/{vetId}` | Sync connection state; readable by that vet only |
+| `users/{uid}/events/{eventId}` | Calendar entries. Vet bookings carry `bookedByVetId`, `clientName`, `petName`; server-written `gcal` subfield tracks Google sync |
 | `appointmentRequests/{id}` | Client → vet requests (`vetId`, `status`, `bookedDateTime`) |
 | `chatRooms/{id}` + `messages/` | One room per client/vet pair |
 
 The vet agenda is a collection-group query on `events` where `bookedByVetId == vet` (index in `firestore.indexes.json`).
+
+## Functions (`functions/`, us-central1, Node 22, 256MiB)
+
+- `gcalOnEventWrite` (Firestore trigger, max 2 instances): mirrors every write to a vet-booked event into Google Calendar; a `gcal.hash` guard skips its own write-back.
+- `gcalConnect` (callable, max 1): exchanges the GIS authorization code, stores the refresh token, creates/finds the calendar, backfills upcoming events.
+- `gcalSyncAll` (callable, max 1): re-syncs all upcoming vet bookings, or one event.
+- `gcalDisconnect` (callable, max 1): revokes the token and marks the connection off.
+
+All cold-start free (`minInstances: 0`); Google calls go through plain `fetch` REST endpoints. Secrets: `GOOGLE_OAUTH_CLIENT_SECRET` via `firebase functions:secrets:set`; `GOOGLE_OAUTH_CLIENT_ID` as a functions env param (`.env.vetplus-digital`).
 
 ## Not in the app
 

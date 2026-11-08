@@ -56,6 +56,13 @@ export interface AppointmentEvent extends EventCommon {
   cancelledAt?: Date | null;
   cancelledBy?: string | null;
   cancelReason?: string | null;
+  /** Server-side Google Calendar sync state (written by Cloud Functions). */
+  gcal?: {
+    eventId: string;
+    status: 'synced' | 'error';
+    syncedAt: Date | null;
+    error: string | null;
+  } | null;
 }
 
 export interface MedicationEvent extends EventCommon {
@@ -192,6 +199,7 @@ export function mapEvent(id: string, d: DocumentData): CalendarEvent {
         cancelledAt: parseDateOptional(d.cancelledAt) ?? null,
         cancelledBy: (d.cancelledBy as string | null) ?? null,
         cancelReason: (d.cancelReason as string | null) ?? null,
+        gcal: mapGcal(d.gcal),
       };
     case EventType.medication:
       return {
@@ -220,6 +228,17 @@ export function mapEvent(id: string, d: DocumentData): CalendarEvent {
         reminderDateTime: parseDateOptional(d.reminderDateTime) ?? null,
       };
   }
+}
+
+function mapGcal(v: unknown): AppointmentEvent['gcal'] {
+  if (!v || typeof v !== 'object') return null;
+  const g = v as { eventId?: string; status?: string; syncedAt?: unknown; error?: string | null };
+  return {
+    eventId: g.eventId ?? '',
+    status: g.status === 'error' ? 'error' : 'synced',
+    syncedAt: parseDateOptional(g.syncedAt) ?? null,
+    error: g.error ?? null,
+  };
 }
 
 function commonToJson(e: EventCommon, type: EventType): DocumentData {

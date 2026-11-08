@@ -193,6 +193,16 @@ service cloud.firestore {
         && resource.data.status == 0;
     }
 
+    // Google Calendar sync state. Tokens are server-only (Admin SDK); the
+    // status doc is readable by its vet so the app can show the connection.
+    match /gcalTokens/{vetId} {
+      allow read, write: if false;
+    }
+    match /gcalStatus/{vetId} {
+      allow read: if isSelf(vetId) && isVet();
+      allow write: if false;
+    }
+
     // Public pet tags (QR): anyone with the unguessable petId can read one doc.
     // Only the safe public fields are copied here (no medical data, no email).
     match /petTags/{petId} {

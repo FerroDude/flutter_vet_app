@@ -10,6 +10,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { getFunctions, type Functions } from 'firebase/functions';
 import { firebaseEnv, isFirebaseConfigured } from './env';
 
 // Backend: Firestore (data) + Storage (media). No Realtime Database — the mobile
@@ -51,6 +52,7 @@ function createDb(firebaseApp: FirebaseApp): Firestore {
 
 export const db: Firestore = createDb(app);
 export const storage: FirebaseStorage = getStorage(app);
+export const functions: Functions = getFunctions(app, 'us-central1');
 
 const SECONDARY_NAME = 'secondary';
 

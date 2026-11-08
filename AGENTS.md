@@ -15,6 +15,11 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
 - Build: `npm run build`
 - Firestore rules tests (needs Java + firebase-tools):
   `firebase emulators:exec --only firestore --project demo-vetplus "npm run test:rules"`
+- Cloud Functions (`functions/`, standalone package, not in workspaces):
+  `npm --prefix functions run build`, `npm --prefix functions test`
+- Deploy functions: `firebase deploy --only functions`. One-time setup:
+  `firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_SECRET` and
+  `GOOGLE_OAUTH_CLIENT_ID` in `functions/.env.vetplus-digital`.
 - `npm run lint` is broken (eslint not installed).
 
 ## Workflow preference

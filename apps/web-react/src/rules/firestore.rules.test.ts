@@ -439,6 +439,37 @@ describe('client invite rules', () => {
   });
 });
 
+describe('gcal sync rules', () => {
+  const seedStatus = () =>
+    env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'gcalStatus/vet'), { connected: true }),
+    );
+
+  it('lets the vet read her own gcalStatus and nobody else', async () => {
+    await seedStatus();
+    const vet = env.authenticatedContext('vet').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    const client = env.authenticatedContext('client').firestore();
+    await assertSucceeds(getDoc(doc(vet, 'gcalStatus/vet')));
+    await assertFails(getDoc(doc(other, 'gcalStatus/vet')));
+    await assertFails(getDoc(doc(client, 'gcalStatus/vet')));
+  });
+
+  it('blocks all writes to gcalStatus and all access to gcalTokens', async () => {
+    await seedStatus();
+    await env.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), 'gcalTokens/vet'), { refreshToken: 'r' }),
+    );
+    const vet = env.authenticatedContext('vet').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    await assertFails(updateDoc(doc(vet, 'gcalStatus/vet'), { connected: false }));
+    await assertFails(setDoc(doc(vet, 'gcalStatus/x'), { connected: true }));
+    await assertFails(getDoc(doc(vet, 'gcalTokens/vet')));
+    await assertFails(getDoc(doc(other, 'gcalTokens/vet')));
+    await assertFails(setDoc(doc(vet, 'gcalTokens/x'), { refreshToken: 'r' }));
+  });
+});
+
 describe('found report rules', () => {
   const report = () => ({
     ownerId: 'client',

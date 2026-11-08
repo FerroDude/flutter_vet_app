@@ -26,3 +26,6 @@ export const firebaseEnv: FirebaseEnv = {
 export const isFirebaseConfigured = Boolean(
   firebaseEnv.apiKey && firebaseEnv.projectId && firebaseEnv.appId,
 );
+
+/** Public Google OAuth Web client id. Empty → Google Calendar sync hidden. */
+export const googleOAuthClientId = read('VITE_GOOGLE_OAUTH_CLIENT_ID');

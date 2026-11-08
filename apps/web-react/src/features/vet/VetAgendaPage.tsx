@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarDays, MapPin, MessageSquare, PawPrint, Pencil, Plus, Trash2, User } from 'lucide-react';
+import { AlertTriangle, CalendarCheck, CalendarDays, MapPin, MessageSquare, PawPrint, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { AppointmentRequestStatus, MessageType, type AppointmentRequest } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { useVetAppointments } from '@/lib/useVetAppointments';
@@ -40,6 +40,7 @@ import { useConfirm } from '@/components/ui/Confirm';
 import { t } from '@/i18n';
 import { toLocalInput } from '@/features/calendar/EventFormDialog';
 import { AddToCalendar } from '@/features/calendar/AddToCalendar';
+import { syncGcal, useGcalStatus } from '@/lib/gcalService';
 import { VetAppointmentDialog } from './VetAppointmentDialog';
 
 /** Vet agenda: pending requests to answer, the month calendar and upcoming visits. */
@@ -50,6 +51,8 @@ export function VetAgendaPage() {
   const uid = firebaseUser?.uid ?? '';
   const vetName = profile?.displayName?.trim() || profile?.email || t('common.vet');
   const { appointments, error } = useVetAppointments(uid);
+  const { data: gcalStatus } = useGcalStatus(uid);
+  const gcalConnected = Boolean(gcalStatus?.connected);
   const { requests } = useRequests('vetId', uid);
 
   const pending = requests.filter((r) => r.status === AppointmentRequestStatus.pending).reverse();
@@ -193,6 +196,7 @@ export function VetAgendaPage() {
                   <AppointmentRow
                     key={`${a.userId}/${a.id}`}
                     a={a}
+                    gcalConnected={gcalConnected}
                     onClient={() => navigate(`/clients/${a.userId}`)}
                     onEdit={() => {
                       setEditing(a);
@@ -276,16 +280,22 @@ function RequestCard({ request: r, children }: { request: AppointmentRequest; ch
 
 function AppointmentRow({
   a,
+  gcalConnected,
   onClient,
   onEdit,
   onCancel,
 }: {
   a: AppointmentEvent;
+  gcalConnected: boolean;
   onClient: () => void;
   onEdit: () => void;
   onCancel: () => void;
 }) {
   const cancelled = Boolean(a.cancelledAt);
+  const [retrying, setRetrying] = useState(false);
+  const gcalSynced =
+    a.gcal?.status === 'synced' &&
+    (!a.updatedAt || (a.gcal.syncedAt !== null && a.gcal.syncedAt >= a.updatedAt));
   return (
     <Card className={cn('p-3', cancelled && 'opacity-70')}>
       <div className="flex items-start gap-3">
@@ -333,17 +343,44 @@ function AppointmentRow({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {!cancelled && (
-            <AddToCalendar
-              item={{
-                id: a.id,
-                title: `${eventTitle(a.title)} · ${a.clientName || t('common.client')}${a.petName ? ` (${a.petName})` : ''}`,
-                start: a.dateTime,
-                details: a.description,
-                location: a.location ?? undefined,
-              }}
-            />
-          )}
+          {!cancelled &&
+            (gcalConnected ? (
+              a.gcal?.status === 'error' ? (
+                <button
+                  type="button"
+                  disabled={retrying}
+                  onClick={() => {
+                    setRetrying(true);
+                    void syncGcal({ clientId: a.userId, eventId: a.id })
+                      .catch((e) => toast.error(errorMessage(e, t('gcal.failed'))))
+                      .finally(() => setRetrying(false));
+                  }}
+                  aria-label={t('gcal.retry')}
+                  title={a.gcal.error ?? t('gcal.error')}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-destructive hover:bg-secondary"
+                >
+                  <AlertTriangle size={13} /> {t('gcal.error')}
+                </button>
+              ) : gcalSynced ? (
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-primary">
+                  <CalendarCheck size={13} /> {t('gcal.synced')}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground">
+                  {t('gcal.syncing')}
+                </span>
+              )
+            ) : (
+              <AddToCalendar
+                item={{
+                  id: a.id,
+                  title: `${eventTitle(a.title)} · ${a.clientName || t('common.client')}${a.petName ? ` (${a.petName})` : ''}`,
+                  start: a.dateTime,
+                  details: a.description,
+                  location: a.location ?? undefined,
+                }}
+              />
+            ))}
           {!cancelled && (
             <button
               type="button"
