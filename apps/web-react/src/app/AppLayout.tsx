@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LogOut, type LucideIcon } from 'lucide-react';
+import { ExternalLink, LogOut, type LucideIcon } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { cn } from '@/lib/cn';
 import { t } from '@/i18n';
@@ -12,6 +12,14 @@ export interface NavItem {
   end?: boolean;
   /** Count shown on the item (e.g. pending requests). Hidden when 0. */
   badge?: number;
+}
+
+export interface ExternalNavLink {
+  href: string;
+  label: string;
+  /** Accessible name, e.g. full service name + "opens in a new tab". */
+  title: string;
+  icon: LucideIcon;
 }
 
 function Badge({ n, className }: { n?: number; className?: string }) {
@@ -30,6 +38,7 @@ function Badge({ n, className }: { n?: number; className?: string }) {
 
 interface AppLayoutProps {
   nav: NavItem[];
+  externalLinks?: ExternalNavLink[];
   userName: string;
   userSubtitle?: string;
   onSignOut: () => void;
@@ -38,6 +47,7 @@ interface AppLayoutProps {
 
 export function AppLayout({
   nav,
+  externalLinks = [],
   userName,
   userSubtitle,
   onSignOut,
@@ -61,20 +71,55 @@ export function AppLayout({
             <NavItemLink key={item.to} item={item} />
           ))}
         </nav>
+        {externalLinks.length > 0 && (
+          <div className="flex flex-col gap-1 border-t border-border pt-3">
+            {externalLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={link.title}
+                aria-label={link.title}
+                className="flex items-center gap-3 rounded-(--radius-md) px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <link.icon size={18} />
+                {link.label}
+                <ExternalLink size={14} className="ml-auto" aria-hidden />
+              </a>
+            ))}
+          </div>
+        )}
         <UserCard name={userName} subtitle={userSubtitle} onSignOut={onSignOut} />
       </aside>
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur lg:hidden">
         <Logo className="h-6 min-w-0" />
-        <button
-          type="button"
-          onClick={onSignOut}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius-md) text-muted-foreground hover:bg-secondary"
-          aria-label={t('common.signOut')}
-        >
-          <LogOut size={18} />
-        </button>
+        <div className="flex items-center gap-1">
+          {externalLinks.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={link.title}
+              aria-label={link.title}
+              className="inline-flex h-9 items-center gap-1.5 rounded-(--radius-md) px-2 text-xs font-medium text-muted-foreground hover:bg-secondary"
+            >
+              <link.icon size={18} />
+              {link.label}
+            </a>
+          ))}
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius-md) text-muted-foreground hover:bg-secondary"
+            aria-label={t('common.signOut')}
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
       </header>
 
       <div className="flex min-w-0 flex-col">

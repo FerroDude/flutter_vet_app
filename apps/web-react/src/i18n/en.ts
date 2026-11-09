@@ -43,6 +43,8 @@ export const en: Record<TKey, string> = {
   'nav.profile': 'Profile',
   'nav.main': 'Main navigation',
   'nav.skip': 'Skip to content',
+  'nav.pemv': 'PEMV',
+  'nav.pemvTitle': 'PEMV · DGAV (opens in a new tab)',
 
   'auth.tagline': 'Where pets are family',
   'auth.subtitle': 'Sign in to your account to continue.',

@@ -41,6 +41,8 @@ export const pt = {
   'nav.profile': 'Perfil',
   'nav.main': 'Navegação principal',
   'nav.skip': 'Saltar para o conteúdo',
+  'nav.pemv': 'PEMV',
+  'nav.pemvTitle': 'PEMV · DGAV (abre num novo separador)',
 
   'auth.tagline': 'Onde os animais são família',
   'auth.subtitle': 'Aceda à sua conta para continuar.',
