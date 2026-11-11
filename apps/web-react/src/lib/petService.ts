@@ -47,6 +47,8 @@ export interface PetFields {
   medicalNotes: string;
   emergencyContact: string;
   gender: PetGender;
+  /** Sterilised/spayed; null = unknown. */
+  neutered: boolean | null;
   dateOfBirth: Date | null;
 }
 
@@ -77,6 +79,7 @@ export function mapPet(id: string, data: DocumentData): Pet {
     medicalNotes: (data.medicalNotes as string) ?? '',
     emergencyContact: (data.emergencyContact as string) ?? '',
     gender: (data.gender as PetGender) ?? 'Unknown',
+    neutered: data.neutered == null ? null : Boolean(data.neutered),
     dateOfBirth: parseDateOptional(data.dateOfBirth) ?? null,
     order: typeof data.order === 'number' ? data.order : 0,
     photoUrl:
@@ -96,6 +99,7 @@ function fieldsToDoc(fields: PetFields): DocumentData {
     medicalNotes: fields.medicalNotes.trim(),
     emergencyContact: fields.emergencyContact.trim(),
     gender: fields.gender,
+    neutered: fields.neutered ?? null,
     dateOfBirth: fields.dateOfBirth ? Timestamp.fromDate(fields.dateOfBirth) : null,
     updatedAt: serverTimestamp(),
   };

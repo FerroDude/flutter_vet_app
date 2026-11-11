@@ -8,6 +8,7 @@ import {
   type UserProfile,
 } from '@vetplus/shared';
 import { auth, db, functions, getSecondaryAuth } from './firebase';
+import { appLoginUrl } from './authLinks';
 import { httpsCallable } from 'firebase/functions';
 import { findOrCreateOneOnOneChat } from './chatService';
 import { t } from '@/i18n';
@@ -48,8 +49,11 @@ function newClientProfile(args: {
     connectedClinicId: null,
     clinicRole: null,
     phone: null,
+    phone2: null,
     address: null,
     postalCode: null,
+    country: null,
+    nif: null,
     hasSkippedClinicSelection: true,
     mustChangePassword: false,
     createdAt: now,
@@ -125,7 +129,7 @@ export async function addClient(args: {
 
   try {
     await setDoc(doc(usersCol(), uid), userProfileToFirestore(profile));
-    if (args.sendInvite) await sendPasswordResetEmail(secondary, email);
+    if (args.sendInvite) await sendPasswordResetEmail(secondary, email, { url: appLoginUrl(email) });
     await findOrCreateOneOnOneChat({
       petOwnerId: uid,
       petOwnerName: name,
@@ -151,12 +155,26 @@ export async function addClientEmail(clientId: string, email: string): Promise<v
   await call({ clientId, email: email.trim().toLowerCase() });
 }
 
+export interface ClientDetails {
+  phone: string | null;
+  phone2: string | null;
+  address: string | null;
+  postalCode: string | null;
+  country: string | null;
+  nif: string | null;
+}
+
+/** Vet edits a client's contact details (rules allow only these keys). */
+export async function updateClientDetails(clientId: string, fields: ClientDetails): Promise<void> {
+  await updateDoc(doc(usersCol(), clientId), { ...fields, updatedAt: Date.now() });
+}
+
 /**
  * Send (or resend) the set-password email to a client and mark the profile
  * invited. Uses the primary auth — it only emails, it never signs in.
  */
 export async function sendClientInvite(client: Pick<UserProfile, 'id' | 'email'>): Promise<void> {
-  await sendPasswordResetEmail(auth, client.email);
+  await sendPasswordResetEmail(auth, client.email, { url: appLoginUrl(client.email) });
   await updateDoc(doc(usersCol(), client.id), {
     invitePending: false,
     invitedAt: Date.now(),

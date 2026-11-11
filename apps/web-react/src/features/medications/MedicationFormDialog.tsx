@@ -4,7 +4,9 @@ import {
   type Medication,
   type TimeOfDay,
   MedicationFrequency,
+  pastDoseSlots,
 } from '@vetplus/shared';
+import { DoseHistoryGrid } from './DoseHistoryGrid';
 import { frequencyText } from '@/lib/medText';
 import { t } from '@/i18n';
 import {
@@ -79,6 +81,8 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
   const [totalDays, setTotalDays] = useState('7');
   const [instructions, setInstructions] = useState('');
   const [trackDoses, setTrackDoses] = useState(true);
+  const [pastMode, setPastMode] = useState<'all' | 'none' | 'pick'>('all');
+  const [pastUnchecked, setPastUnchecked] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -103,8 +107,32 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
       setTotalDays('7');
       setInstructions('');
       setTrackDoses(true);
+      setPastMode('all');
+      setPastUnchecked(new Set());
     }
   }, [open, existing]);
+
+  // Past slots from the current draft (create only). User unticks survive
+  // start/frequency/time changes as long as the slot key still exists.
+  const [sy, smo, sd] = startDate.split('-').map(Number);
+  const pastSlots =
+    !isEdit && trackDoses && frequency !== MedicationFrequency.asNeeded
+      ? pastDoseSlots({
+          frequency,
+          doseTimes: times.length ? times : [{ hour: 8, minute: 0 }],
+          startDate: new Date(sy || 1970, (smo || 1) - 1, sd || 1),
+          endDate: null,
+          totalDays: ongoing ? null : Math.max(1, parseInt(totalDays, 10) || 1),
+        })
+      : [];
+
+  useEffect(() => {
+    const keys = new Set(pastSlots.map((s) => s.key));
+    setPastUnchecked((prev) => new Set([...prev].filter((k) => keys.has(k))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frequency, startDate, totalDays, ongoing, trackDoses, times, isEdit]);
+
+  const pastChecked = new Set(pastSlots.map((s) => s.key).filter((k) => !pastUnchecked.has(k)));
 
   // Keep the number of dose-time inputs in sync with the frequency.
   useEffect(() => {
@@ -131,6 +159,10 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
       startDate: new Date(y ?? 1970, (mo ?? 1) - 1, d ?? 1),
       totalDays: ongoing ? null : Math.max(1, parseInt(totalDays, 10) || 1),
       trackDoses,
+      takenSlots:
+        pastMode === 'none'
+          ? []
+          : pastSlots.filter((s) => (pastMode === 'all' ? true : pastChecked.has(s.key))).map((s) => s.at),
     };
     setSaving(true);
     try {
@@ -256,6 +288,44 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
           />
           {t('meds.trackDoses')}
         </label>
+
+        {pastSlots.length > 0 && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-sm font-medium text-foreground">{t('meds.pastDoses')}</p>
+            <div className="flex flex-col gap-1.5">
+              {(
+                [
+                  ['all', 'meds.pastAll'],
+                  ['none', 'meds.pastNone'],
+                  ['pick', 'meds.pastPick'],
+                ] as const
+              ).map(([mode, key]) => (
+                <label key={mode} className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="radio"
+                    name="pastDoses"
+                    checked={pastMode === mode}
+                    onChange={() => setPastMode(mode)}
+                    className="h-4 w-4 accent-[hsl(var(--primary))]"
+                  />
+                  {t(key)}
+                </label>
+              ))}
+            </div>
+            {pastMode === 'pick' && (
+              <DoseHistoryGrid
+                slots={pastSlots}
+                checked={pastChecked}
+                onChange={(next) =>
+                  setPastUnchecked(
+                    new Set(pastSlots.map((s) => s.key).filter((k) => !next.has(k))),
+                  )
+                }
+              />
+            )}
+            <p className="text-xs text-muted-foreground">{t('meds.historyNote')}</p>
+          </div>
+        )}
       </div>
     </Dialog>
   );

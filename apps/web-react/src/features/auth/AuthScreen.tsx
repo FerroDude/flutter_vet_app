@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { appLoginUrl } from '@/lib/authLinks';
 import { authErrorMessage } from '@/lib/authErrors';
 import { t } from '@/i18n';
 import { AuthShell } from '@/components/ui/AuthShell';
@@ -32,7 +33,11 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<z.infer<typeof loginSchema>>({ resolver: zodResolver(loginSchema) });
+  } = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    // Back from the reset email: ?email= prefills the login field.
+    defaultValues: { email: new URLSearchParams(window.location.search).get('email') ?? '' },
+  });
 
   const onSubmit = handleSubmit(async (v) => {
     try {
@@ -85,7 +90,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
 
   const send = async (to: string) => {
     try {
-      await sendPasswordResetEmail(auth, to);
+      await sendPasswordResetEmail(auth, to, { url: appLoginUrl(to) });
       return true;
     } catch (e) {
       toast.error(authErrorMessage(e));

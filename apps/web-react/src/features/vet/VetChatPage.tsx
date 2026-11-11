@@ -1,6 +1,9 @@
-import { ArrowLeft, Inbox } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowLeft, Inbox, Search } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
+import { useClients } from '@/lib/useClients';
+import { matchesQuery } from '@/lib/textMatch';
 import { sameDay, shortDateFmt, timeFmt } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import { Conversation } from '@/features/chat/Conversation';
@@ -13,7 +16,20 @@ export function VetChatPage() {
   const { firebaseUser } = useAuth();
   const uid = firebaseUser?.uid ?? '';
   const { rooms } = useRooms('vetId', uid);
+  const { clients } = useClients(uid);
   const [selectedId, setSelectedId] = useSelectedChatRoom();
+  const [search, setSearch] = useState('');
+
+  // Prefer the live displayName over the name stored on the room.
+  const nameOf = useMemo(() => {
+    const byId = new Map(clients.map((c) => [c.id, c.displayName?.trim() || '']));
+    return (petOwnerId: string, fallback: string) => byId.get(petOwnerId) || fallback;
+  }, [clients]);
+
+  const shown = useMemo(
+    () => rooms.filter((r) => matchesQuery(search, nameOf(r.petOwnerId, r.petOwnerName))),
+    [rooms, search, nameOf],
+  );
 
   return (
     <div className={CHAT_PAGE_HEIGHT}>
@@ -25,13 +41,33 @@ export function VetChatPage() {
           )}
         >
           <p className="px-4 pb-1 pt-4 font-display text-lg font-bold text-foreground">{t('chat.rooms')}</p>
+          {rooms.length > 0 && (
+            <div className="relative px-4 pb-2">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-7 top-1/2 -translate-y-[70%] text-muted-foreground"
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('chat.searchName')}
+                aria-label={t('chat.searchName')}
+                className="h-10 w-full rounded-(--radius-md) border border-input bg-card pl-8 pr-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
+              />
+            </div>
+          )}
           {rooms.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
               {t('chat.noRooms')}
             </p>
+          ) : shown.length === 0 ? (
+            <p className="p-6 text-center text-sm text-muted-foreground">
+              {t('chat.noResults')}
+            </p>
           ) : (
             <ul className="divide-y divide-border">
-              {rooms.map((r) => {
+              {shown.map((r) => {
                 const unread = r.unreadCounts[uid] ?? 0;
                 return (
                   <li key={r.id}>
@@ -44,11 +80,11 @@ export function VetChatPage() {
                       )}
                     >
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-light font-semibold text-primary">
-                        {(r.petOwnerName || '?').charAt(0).toUpperCase()}
+                        {(nameOf(r.petOwnerId, r.petOwnerName) || '?').charAt(0).toUpperCase()}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className="truncate font-medium text-foreground">{r.petOwnerName || t('common.client')}</span>
+                          <span className="truncate font-medium text-foreground">{nameOf(r.petOwnerId, r.petOwnerName) || t('common.client')}</span>
                           <span className="shrink-0 text-[11px] text-muted-foreground">
                             {(sameDay(r.updatedAt, new Date()) ? timeFmt : shortDateFmt).format(r.updatedAt)}
                           </span>

@@ -26,8 +26,11 @@ export interface UserProfile {
   vetId?: string | null;
   clinicRole?: ClinicRole | null;
   phone?: string | null;
+  phone2?: string | null;
   address?: string | null;
   postalCode?: string | null;
+  country?: string | null;
+  nif?: string | null;
   hasSkippedClinicSelection: boolean;
   mustChangePassword: boolean;
   createdAt: Date;

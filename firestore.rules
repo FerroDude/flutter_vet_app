@@ -66,7 +66,11 @@ service cloud.firestore {
         || (isVet()
           && resource.data.vetId == request.auth.uid
           && onlyChanges(['invitePending', 'invitedAt', 'updatedAt'])
-          && request.resource.data.invitePending == false);
+          && request.resource.data.invitePending == false)
+        // …or edit the client's optional contact details.
+        || (isVet()
+          && resource.data.vetId == request.auth.uid
+          && onlyChanges(['phone', 'phone2', 'address', 'postalCode', 'country', 'nif', 'updatedAt']));
 
       allow delete: if isSelf(userId);
 

@@ -31,6 +31,11 @@ import {
   canBeExtended,
   extendBy,
   todayDoseStatus,
+  doseSlotKey,
+  pastDoseSlots,
+  matchDoseLogs,
+  applyDoseSlotChanges,
+  BACKFILL_MAX_DAYS,
 } from './medication';
 
 const T8: TimeOfDay = { hour: 8, minute: 0 };
@@ -259,5 +264,200 @@ describe('todayDoseStatus', () => {
     const m = med({ totalDays: 7, frequency: MedicationFrequency.twiceDaily, doseTimes: [{ hour: 8, minute: 0 }, { hour: 20, minute: 0 }], doseHistory: [takenAt(new Date(2026, 0, 1, 8))] });
     // now Jan 1 09:00: expected-to-date = 1, taken = 1 => not behind, 1 of 2 taken today
     expect(todayDoseStatus(m, new Date(2026, 0, 1, 9))).toBe('1 de 2 tomadas hoje');
+  });
+});
+
+describe('doseSlotKey / pastDoseSlots / matchDoseLogs', () => {
+  const log = (id: string, scheduled: Date, taken: Date | null = scheduled): DoseLog => ({
+    id,
+    scheduledTime: scheduled,
+    takenAt: taken,
+    skipped: false,
+    notes: null,
+  });
+
+  it('doseSlotKey is local YYYY-MM-DD HH:mm', () => {
+    expect(doseSlotKey(new Date(2026, 0, 5, 8, 30))).toBe('2026-01-05 08:30');
+  });
+
+  it('asNeeded has no slots', () => {
+    const m = med({ frequency: MedicationFrequency.asNeeded });
+    expect(pastDoseSlots(m, new Date(2026, 0, 10, 12))).toEqual([]);
+  });
+
+  it('once → single slot on the start day', () => {
+    const m = med({ frequency: MedicationFrequency.once, startDate: new Date(2026, 0, 5) });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 10, 12));
+    expect(slots.map((s) => s.key)).toEqual(['2026-01-05 08:00']);
+    // not yet due → empty
+    expect(pastDoseSlots(m, new Date(2026, 0, 5, 7))).toEqual([]);
+  });
+
+  it('weekly → only days 7n from start, at the first dose time', () => {
+    const m = med({
+      frequency: MedicationFrequency.weekly,
+      startDate: new Date(2026, 0, 1),
+      doseTimes: [{ hour: 9, minute: 0 }],
+    });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 20, 12));
+    expect(slots.map((s) => s.key)).toEqual([
+      '2026-01-01 09:00',
+      '2026-01-08 09:00',
+      '2026-01-15 09:00',
+    ]);
+  });
+
+  it('daily 2x → sorted times sliced to 2, today only up to now', () => {
+    const m = med({
+      frequency: MedicationFrequency.twiceDaily,
+      startDate: new Date(2026, 0, 8),
+      doseTimes: [
+        { hour: 20, minute: 0 },
+        { hour: 8, minute: 0 },
+        { hour: 14, minute: 0 },
+      ],
+    });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 10, 12));
+    // sortedTimes(doseTimes).slice(0, 2) → 08:00 + 14:00 (20:00 is the 3rd)
+    expect(slots.map((s) => s.key)).toEqual([
+      '2026-01-08 08:00',
+      '2026-01-08 14:00',
+      '2026-01-09 08:00',
+      '2026-01-09 14:00',
+      '2026-01-10 08:00',
+    ]);
+  });
+
+  it('stops at the course end date', () => {
+    const m = med({ startDate: new Date(2026, 0, 8), totalDays: 2 });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 12, 12));
+    expect(slots.map((s) => s.key)).toEqual(['2026-01-08 08:00', '2026-01-09 08:00']);
+  });
+
+  it('caps history at BACKFILL_MAX_DAYS', () => {
+    const m = med({ startDate: new Date(2026, 0, 1) });
+    const slots = pastDoseSlots(m, new Date(2026, 5, 30, 12));
+    expect(slots.length).toBe(BACKFILL_MAX_DAYS);
+    expect(slots[0]!.key.slice(0, 10)).toBe('2026-05-02'); // Jun 30 − 59 days
+  });
+
+  it('future start → no slots', () => {
+    const m = med({ startDate: new Date(2026, 6, 1) });
+    expect(pastDoseSlots(m, new Date(2026, 0, 10, 12))).toEqual([]);
+  });
+
+  it('matchDoseLogs: exact scheduledTime match wins', () => {
+    const m = med({
+      doseHistory: [log('a', new Date(2026, 0, 8, 8)), log('b', new Date(2026, 0, 9, 8))],
+    });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 10, 12));
+    const matched = matchDoseLogs(m, slots);
+    expect(matched.get('2026-01-08 08:00')).toBe('a');
+    expect(matched.get('2026-01-09 08:00')).toBe('b');
+    expect(matched.size).toBe(2);
+  });
+
+  it('matchDoseLogs: legacy log taken at an arbitrary time fills that day slot', () => {
+    const m = med({
+      doseHistory: [{ ...log('legacy', new Date(2026, 0, 8, 23)), takenAt: new Date(2026, 0, 8, 23, 5) }],
+    });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 10, 12));
+    expect(matchDoseLogs(m, slots).get('2026-01-08 08:00')).toBe('legacy');
+  });
+
+  it('matchDoseLogs: a log is never used twice', () => {
+    const m = med({
+      frequency: MedicationFrequency.twiceDaily,
+      doseTimes: [
+        { hour: 8, minute: 0 },
+        { hour: 20, minute: 0 },
+      ],
+      doseHistory: [log('one', new Date(2026, 0, 8, 8))],
+    });
+    const slots = pastDoseSlots(m, new Date(2026, 0, 8, 22));
+    const matched = matchDoseLogs(m, slots);
+    expect([...matched.values()].filter((v) => v === 'one').length).toBe(1);
+  });
+
+  it('matchDoseLogs: skipped/untaken logs are ignored', () => {
+    const m = med({
+      doseHistory: [log('x', new Date(2026, 0, 8, 8), null)],
+    });
+    expect(matchDoseLogs(m, pastDoseSlots(m, new Date(2026, 0, 10, 12))).size).toBe(0);
+  });
+
+  it('totalDosesTaken ignores logs before the current start day', () => {
+    const m = med({
+      startDate: new Date(2026, 0, 5),
+      doseHistory: [log('old', new Date(2026, 0, 1, 8)), log('new', new Date(2026, 0, 5, 8))],
+    });
+    expect(totalDosesTaken(m)).toBe(1);
+  });
+});
+
+describe('applyDoseSlotChanges', () => {
+  const NOW = new Date(2026, 0, 10, 12);
+  const log = (id: string, scheduled: Date, taken: Date | null = scheduled): DoseLog => ({
+    id,
+    scheduledTime: scheduled,
+    takenAt: taken,
+    skipped: false,
+    notes: null,
+  });
+  const twice = () =>
+    med({
+      frequency: MedicationFrequency.twiceDaily,
+      startDate: new Date(2026, 0, 8),
+      doseTimes: [
+        { hour: 8, minute: 0 },
+        { hour: 20, minute: 0 },
+      ],
+    });
+
+  it('legacy day-matched log + new tick → 2 taken logs', () => {
+    // Jan 8 has slots 08:00 & 20:00; one legacy log at 21:05 → dialog ticks 08:00.
+    const m = twice();
+    m.doseHistory = [{ ...log('legacy', new Date(2026, 0, 8, 21, 5)) }];
+    const next = applyDoseSlotChanges(m, [{ at: new Date(2026, 0, 8, 20), taken: true }], NOW);
+    const taken = next.filter((l) => l.takenAt != null);
+    expect(taken.length).toBe(2);
+    expect(taken.map((l) => l.id)).toContain('legacy');
+    // the appended log matches the 20:00 slot exactly
+    expect(next.some((l) => l.id !== 'legacy' && doseSlotKey(l.scheduledTime) === '2026-01-08 20:00')).toBe(true);
+  });
+
+  it('untick removes the legacy-matched log', () => {
+    const m = twice();
+    m.doseHistory = [{ ...log('legacy', new Date(2026, 0, 8, 21, 5)) }];
+    const next = applyDoseSlotChanges(m, [{ at: new Date(2026, 0, 8, 8), taken: false }], NOW);
+    expect(next.filter((l) => l.takenAt != null).length).toBe(0);
+  });
+
+  it('untick removes an exact-matched log', () => {
+    const m = twice();
+    m.doseHistory = [log('exact', new Date(2026, 0, 8, 8))];
+    const next = applyDoseSlotChanges(m, [{ at: new Date(2026, 0, 8, 8), taken: false }], NOW);
+    expect(next.filter((l) => l.takenAt != null).length).toBe(0);
+  });
+
+  it('ticking an already-matched slot is a no-op', () => {
+    const m = twice();
+    m.doseHistory = [log('exact', new Date(2026, 0, 8, 8))];
+    const next = applyDoseSlotChanges(m, [{ at: new Date(2026, 0, 8, 8), taken: true }], NOW);
+    expect(next.filter((l) => l.takenAt != null).length).toBe(1);
+    expect(next[0]!.id).toBe('exact');
+  });
+
+  it('a change outside the slot set appends on tick, no-ops on untick', () => {
+    const m = twice();
+    const outside = new Date(2025, 11, 1, 8); // beyond the 60-day window
+    const added = applyDoseSlotChanges(m, [{ at: outside, taken: true }], NOW);
+    expect(added.filter((l) => l.takenAt != null).length).toBe(1);
+    const removed = applyDoseSlotChanges(
+      { ...m, doseHistory: added },
+      [{ at: outside, taken: false }],
+      NOW,
+    );
+    expect(removed.filter((l) => l.takenAt != null).length).toBe(1);
   });
 });

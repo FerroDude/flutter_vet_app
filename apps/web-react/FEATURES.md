@@ -31,10 +31,10 @@ The UI is available in European Portuguese (`pt-PT`) and English (`en`), chosen 
 Menu: Painel · Animais · Agenda · Chat · Perfil.
 
 - **Painel**: greeting, unread messages, upcoming appointments (next 3), up to 3 active medications, today's entries. Pets live only in the Animais tab.
-- **Animais**: pet list and search; pet form (create/edit — the birth-date field shows the live age); pet page with record (birth date shown with age), medications (log/undo dose, pause, complete, delete), appointments and symptoms. Public notes written by the vet appear above the record, read-only. Each pet can have a printable QR tag (`/t/:petId`) that opens a public page (photo, name, species/breed, microchip — owner name/phone only when the owner opts in) for anyone who scans it; a "found this pet?" form alerts the owner (dashboard card + notification) without an account — owner/vet get redirected to the in-app pet page instead.
+- **Animais**: pet list and search; pet form (create/edit — the birth-date field shows the live age; optional "Esterilizado" flag); pet page with record (birth date shown with age), medications (log/undo dose, past-dose history editor, pause, complete, delete), appointments and symptoms. Public notes written by the vet appear above the record, read-only. Each pet can have a printable QR tag (`/t/:petId`) that opens a public page (photo, name, species/breed, microchip — owner name/phone only when the owner opts in) for anyone who scans it; a "found this pet?" form alerts the owner (dashboard card + notification) without an account — owner/vet get redirected to the in-app pet page instead.
 - **Agenda**: appointment requests (pending ones can be cancelled; answers from the last 30 days stay visible), month calendar, the selected day (medication doses, events, symptoms) and upcoming appointments. "Pedir marcação" asks the vet for a visit (date interval + time of day); the vet confirms only inside that requested window; a confirmation alerts the client ("Consulta confirmada") and sends a chat message. "Adicionar" adds a reminder, a medication or a symptom. Each appointment opens its own page (`agenda/consultas/:id`); for vet-booked ones the client can cancel once, with a mandatory reason — the vet is notified in chat. Upcoming appointments offer an "Adicionar ao calendário" menu (Google Calendar link for gmail addresses, a `.ics` download for everyone).
 - **Chat**: the single conversation with the vet (text, photos/videos/files, voice, replies, reactions, delete own message).
-- **Perfil**: name, phone, address; the vet's contact details; browser-notification permission; sign out. Two independent per-device switches live under Notificações: in-app alert toasts and OS notifications.
+- **Perfil**: name and the full optional contact block (phone, phone 2, address, postal code, country, NIF — editable by the client and by the vet); the vet's contact details; browser-notification permission; sign out. Two independent per-device switches live under Notificações: in-app alert toasts and OS notifications.
 
 While the app is open, the client also gets a toast (+ OS notification when permitted and unmuted) when the vet adds a public note to a pet or books/reschedules an appointment.
 
@@ -46,9 +46,9 @@ Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 
 - **Painel**: pending requests, unread messages, client count, upcoming appointments, and "Canceladas recentemente" (client cancellations from the last 7 days, with the reason).
 - **Agenda**: pending requests (confirm with a time → booked into the client's calendar in one batch; deny with a reason; open chat), month calendar with appointment counts, the selected day (client-cancelled appointments shown struck through and removable), and the handled-requests history. "Nova consulta" books an appointment for any client/pet (warns about clashes within 30 minutes); edit and cancel from the list. Each non-cancelled appointment also has the "Adicionar ao calendário" menu.
-- **Clientes**: list and search; add client (with or without sending the invite email). Client page: contact details, chat, book appointment, send/resend the access invite, upcoming appointments, pets (open a pet page or add a pet).
+- **Clientes**: list and search; add client (with or without sending the invite email). Client page: contact details (with "Editar dados" for the optional phone/address/country/NIF fields), chat, book appointment, send/resend the access invite, upcoming appointments, pets (open a pet page or add a pet).
 - **Pet page (vet view)**: everything the client sees plus **private notes** (a list of notes only the vet can read) and **public notes** (notes the vet writes and the owner reads on their pet page), and booking appointments directly.
-- **Chat**: conversation list + open conversation.
+- **Chat**: conversation list (searchable by client name, accent-insensitive) + open conversation.
 - **Perfil**: name, phone, address (clients see it for home visits); browser-notification permission; sign out. Two independent per-device switches live under Notificações: in-app alert toasts and OS notifications.
 
 **Google Calendar sync** (opt-in, configured via `VITE_GOOGLE_OAUTH_CLIENT_ID`): Perfil → Google Calendar connects the vet's Google account (GIS popup consent) and creates a dedicated "Yoshi Vet Care" calendar. Every event she books/edits/cancels/deletes in a client's calendar is mirrored by Cloud Functions — client cancellations show as "CANCELADA · …" (graphite), deletions remove the Google event. Agenda rows show a sync chip (synced / error + retry / syncing) instead of the "Add to calendar" menu while connected. Perfil also offers "Sincronizar tudo" and "Desligar" (revokes the token; the Google calendar is kept for a possible reconnect).
@@ -57,7 +57,7 @@ Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 
 | Path | What |
 |---|---|
-| `users/{uid}` | Profile. `userType` 0 client / 1 vet, `vetId` on clients; `invitePending`/`invitedAt` track the access invite |
+| `users/{uid}` | Profile. `userType` 0 client / 1 vet, `vetId` on clients; `invitePending`/`invitedAt` track the access invite; optional `phone`, `phone2`, `address`, `postalCode`, `country`, `nif` (client and vet can edit) |
 | `users/{uid}/pets/{petId}` | Pet; `medications/`, `symptoms/` below it |
 | `users/{uid}/pets/{petId}/private/{noteId}` | Vet-only notes |
 | `users/{uid}/pets/{petId}/publicNotes/{noteId}` | Notes the vet writes; the owner can read them |
@@ -69,6 +69,8 @@ Menu: Painel · Agenda (badge = pending requests) · Clientes · Chat · Perfil.
 
 The vet agenda is a collection-group query on `events` where `bookedByVetId == vet` (index in `firestore.indexes.json`).
 
+Medication doses: scheduled slots go back up to 60 days (`pastDoseSlots`); taken doses are recorded in `doseHistory` and matched to slots by scheduled time (`matchDoseLogs`, with a day-level fallback for legacy logs). Creating a medication with a past start offers "Doses anteriores" (all / none / pick); the card's "Histórico de doses" menu edits them later — both go through one transaction.
+
 ## Functions (`functions/`, us-central1, Node 22, 256MiB)
 
 - `gcalOnEventWrite` (Firestore trigger, max 2 instances): mirrors every write to a vet-booked event into Google Calendar; a `gcal.hash` guard skips its own write-back.
@@ -78,6 +80,16 @@ The vet agenda is a collection-group query on `events` where `bookedByVetId == v
 - `createClientLogin` (callable, max 1, no secrets): creates the Auth user for a client added without email, using the profile doc id as uid.
 
 All cold-start free (`minInstances: 0`); Google calls go through plain `fetch` REST endpoints. Secrets: `GOOGLE_OAUTH_CLIENT_SECRET` via `firebase functions:secrets:set`; `GOOGLE_OAUTH_CLIENT_ID` as a functions env param (`.env.vetplus-digital`).
+
+## Backlog
+
+- Contact-consent checkbox for SMS/email reminders (waiting on the vet's wording/details).
+- Vaccines and deworming section on the pet record (waiting on details).
+- Email reminders via Resend — needs DNS records on yoshivetcare.com, an API key, and a scheduled function.
+- SMS reminders — paid per message.
+- Owner alert when the vet cancels an appointment.
+- FCM push notifications when the app is closed.
+- Move the app to app.yoshivetcare.com.
 
 ## Not in the app
 

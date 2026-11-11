@@ -13,6 +13,7 @@ import {
   CalendarDays,
   CalendarPlus,
   MailPlus,
+  Pencil,
   Send,
 } from 'lucide-react';
 import { useVetAppointments } from '@/lib/useVetAppointments';
@@ -21,7 +22,19 @@ import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
 import { db } from '@/lib/firebase';
 import { useDoc, useCollection } from '@/lib/useFirestore';
-import { addClientEmail, clientLabel, mapClient, sendClientInvite } from '@/lib/clientService';
+import {
+  addClientEmail,
+  clientLabel,
+  mapClient,
+  sendClientInvite,
+  updateClientDetails,
+} from '@/lib/clientService';
+import {
+  ClientDetailsFields,
+  detailsFromDraft,
+  draftFromProfile,
+  type ClientDetailsDraft,
+} from '@/features/profile/ClientDetailsFields';
 import { dateTimeFmt, errorMessage, eventTitle, fullAddress } from '@/lib/format';
 import { petsQuery, mapPet, petAgeLabel, type Pet } from '@/lib/petService';
 import { findOrCreateOneOnOneChat } from '@/lib/chatService';
@@ -56,6 +69,9 @@ export function ClientDetailPage() {
   const [newEmail, setNewEmail] = useState('');
   const [emailInvite, setEmailInvite] = useState(true);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsDraft, setDetailsDraft] = useState<ClientDetailsDraft>(() => draftFromProfile(null));
+  const [savingDetails, setSavingDetails] = useState(false);
   const confirm = useConfirm();
   const { appointments } = useVetAppointments(uid);
   const clientUpcoming = useMemo(() => {
@@ -103,6 +119,20 @@ export function ClientDetailPage() {
       toast.error(errorMessage(e, t('vet.clients.addFailed')));
     } finally {
       setSavingEmail(false);
+    }
+  };
+
+  const saveDetails = async () => {
+    if (!owner) return;
+    setSavingDetails(true);
+    try {
+      await updateClientDetails(owner.id, detailsFromDraft(detailsDraft));
+      toast.success(t('vet.clients.detailsSaved'));
+      setDetailsOpen(false);
+    } catch (e) {
+      toast.error(errorMessage(e, t('profile.updateFailed')));
+    } finally {
+      setSavingDetails(false);
     }
   };
 
@@ -167,6 +197,15 @@ export function ClientDetailPage() {
                 <Button variant="outline" onClick={() => setBookOpen(true)}>
                   <CalendarPlus size={16} /> {t('vet.book')}
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDetailsDraft(draftFromProfile(owner));
+                    setDetailsOpen(true);
+                  }}
+                >
+                  <Pencil size={16} /> {t('vet.clients.editDetails')}
+                </Button>
                 {owner.email ? (
                   <Button
                     variant={owner.invitePending ? 'primary' : 'outline'}
@@ -199,6 +238,17 @@ export function ClientDetailPage() {
                   >
                     <Phone size={15} className="shrink-0" /> {owner.phone}
                   </a>
+                )}
+                {owner.phone2 && (
+                  <a
+                    href={`tel:${owner.phone2}`}
+                    className="flex min-w-0 items-center gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Phone size={15} className="shrink-0" /> {owner.phone2}
+                  </a>
+                )}
+                {owner.nif && (
+                  <span className="min-w-0 truncate text-muted-foreground">NIF {owner.nif}</span>
                 )}
                 {fullAddress(owner) && (
                   <span className="flex min-w-0 items-start gap-2 text-muted-foreground">
@@ -254,6 +304,24 @@ export function ClientDetailPage() {
           )}
         </>
       )}
+
+      <Dialog
+        open={detailsOpen}
+        onClose={() => (savingDetails ? undefined : setDetailsOpen(false))}
+        title={t('vet.clients.editDetails')}
+        footer={
+          <>
+            <Button variant="outline" disabled={savingDetails} onClick={() => setDetailsOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button loading={savingDetails} onClick={() => void saveDetails()}>
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <ClientDetailsFields draft={detailsDraft} onChange={setDetailsDraft} />
+      </Dialog>
 
       <Dialog
         open={emailOpen}

@@ -35,6 +35,7 @@ const schema = z.object({
   species: z.string().trim().min(1, t('pets.speciesRequired')),
   breed: z.string().trim().min(1, t('pets.breedRequired')),
   gender: z.enum(['Male', 'Female', 'Unknown']),
+  neutered: z.enum(['', 'yes', 'no']).optional(),
   dateOfBirth: z.string().optional(),
   weight: z.string().optional(),
   color: z.string().optional(),
@@ -80,7 +81,7 @@ export function PetForm() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { gender: 'Unknown' },
+    defaultValues: { gender: 'Unknown', neutered: '' },
   });
 
   const [hydrated, setHydrated] = useState(false);
@@ -95,6 +96,7 @@ export function PetForm() {
         species: existing.species,
         breed: existing.breed,
         gender: existing.gender,
+        neutered: existing.neutered === true ? 'yes' : existing.neutered === false ? 'no' : '',
         dateOfBirth: toDateInput(existing.dateOfBirth),
         weight: existing.weight,
         color: existing.color,
@@ -115,6 +117,7 @@ export function PetForm() {
       species: values.species,
       breed: values.breed,
       gender: values.gender,
+      neutered: values.neutered === 'yes' ? true : values.neutered === 'no' ? false : null,
       dateOfBirth: fromDateInput(values.dateOfBirth),
       weight: values.weight ?? '',
       color: values.color ?? '',
@@ -221,6 +224,11 @@ export function PetForm() {
                 <option value="Male">{t('pets.male')}</option>
                 <option value="Female">{t('pets.female')}</option>
                 <option value="Unknown">{t('pets.unknownGender')}</option>
+              </Select>
+              <Select label={t('pets.neutered')} {...register('neutered')}>
+                <option value="">{t('pets.noInfo')}</option>
+                <option value="yes">{t('common.yes')}</option>
+                <option value="no">{t('common.no')}</option>
               </Select>
               <TextField
                 label={t('pets.dob')}

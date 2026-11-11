@@ -12,9 +12,9 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  getDoc,
   query,
   orderBy,
+  runTransaction,
   type DocumentData,
 } from 'firebase/firestore';
 import {
@@ -23,6 +23,7 @@ import {
   type TimeOfDay,
   MedicationFrequency,
   MedicationStatus,
+  applyDoseSlotChanges,
   parseDate,
   parseDateOptional,
 } from '@vetplus/shared';
@@ -137,6 +138,8 @@ export interface MedicationInput {
   startDate: Date;
   totalDays?: number | null;
   trackDoses: boolean;
+  /** Past slots already given (picked in the form); logged at create time. */
+  takenSlots?: Date[];
 }
 
 export async function createMedication(
@@ -158,7 +161,13 @@ export async function createMedication(
     totalDays: input.totalDays ?? null,
     status: MedicationStatus.active,
     trackDoses: input.trackDoses,
-    doseHistory: [],
+    doseHistory: (input.takenSlots ?? []).map((at) => ({
+      id: crypto.randomUUID(),
+      scheduledTime: at,
+      takenAt: at,
+      skipped: false,
+      notes: null,
+    })),
     remindersEnabled: true,
     createdAt: now,
     updatedAt: now,
@@ -218,19 +227,21 @@ export async function logDoseTaken(
   notes?: string,
 ): Promise<void> {
   const ref = medDoc(uid, petId, medId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error(t('errors.medNotFound'));
-  const med = mapMedication(snap.id, snap.data());
-  const newLog: DoseLog = {
-    id: crypto.randomUUID(),
-    scheduledTime,
-    takenAt: scheduledTime, // taken time = scheduled (supports logging past doses)
-    skipped: false,
-    notes: notes ?? null,
-  };
-  await updateDoc(ref, {
-    doseHistory: [...med.doseHistory, newLog].map(doseLogToJson),
-    updatedAt: Date.now(),
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(t('errors.medNotFound'));
+    const med = mapMedication(snap.id, snap.data());
+    const newLog: DoseLog = {
+      id: crypto.randomUUID(),
+      scheduledTime,
+      takenAt: scheduledTime, // taken time = scheduled (supports logging past doses)
+      skipped: false,
+      notes: notes ?? null,
+    };
+    tx.update(ref, {
+      doseHistory: [...med.doseHistory, newLog].map(doseLogToJson),
+      updatedAt: Date.now(),
+    });
   });
 }
 
@@ -240,24 +251,50 @@ export async function undoLastDose(
   medId: string,
 ): Promise<boolean> {
   const ref = medDoc(uid, petId, medId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error(t('errors.medNotFound'));
-  const med = mapMedication(snap.id, snap.data());
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(t('errors.medNotFound'));
+    const med = mapMedication(snap.id, snap.data());
 
-  let mostRecentIndex = -1;
-  let mostRecent = -Infinity;
-  med.doseHistory.forEach((d, i) => {
-    if (d.takenAt != null && d.takenAt.getTime() > mostRecent) {
-      mostRecent = d.takenAt.getTime();
-      mostRecentIndex = i;
-    }
-  });
-  if (mostRecentIndex === -1) return false;
+    let mostRecentIndex = -1;
+    let mostRecent = -Infinity;
+    med.doseHistory.forEach((d, i) => {
+      if (d.takenAt != null && d.takenAt.getTime() > mostRecent) {
+        mostRecent = d.takenAt.getTime();
+        mostRecentIndex = i;
+      }
+    });
+    if (mostRecentIndex === -1) return false;
 
-  const next = med.doseHistory.filter((_, i) => i !== mostRecentIndex);
-  await updateDoc(ref, {
-    doseHistory: next.map(doseLogToJson),
-    updatedAt: Date.now(),
+    const next = med.doseHistory.filter((_, i) => i !== mostRecentIndex);
+    tx.update(ref, {
+      doseHistory: next.map(doseLogToJson),
+      updatedAt: Date.now(),
+    });
+    return true;
   });
-  return true;
+}
+
+/**
+ * Tick/untick past dose slots in bulk (the "Histórico de doses" editor).
+ * `changes` carries the diff only; matching uses the full slot set so it
+ * mirrors what the dialog showed (see applyDoseSlotChanges).
+ */
+export async function setDoseSlots(
+  uid: string,
+  petId: string,
+  medId: string,
+  changes: { at: Date; taken: boolean }[],
+): Promise<void> {
+  if (changes.length === 0) return;
+  const ref = medDoc(uid, petId, medId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(t('errors.medNotFound'));
+    const med = mapMedication(snap.id, snap.data());
+    tx.update(ref, {
+      doseHistory: applyDoseSlotChanges(med, changes).map(doseLogToJson),
+      updatedAt: Date.now(),
+    });
+  });
 }

@@ -28,6 +28,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useConfirm } from '@/components/ui/Confirm';
 import { MedicationCard } from '@/features/medications/MedicationCard';
 import { MedicationFormDialog } from '@/features/medications/MedicationFormDialog';
+import { DoseHistoryDialog } from '@/features/medications/DoseHistoryDialog';
 import { SymptomFormDialog } from '@/features/symptoms/SymptomFormDialog';
 import { EventFormDialog } from '@/features/calendar/EventFormDialog';
 import { RequestFormDialog } from '@/features/calendar/RequestFormDialog';
@@ -72,6 +73,7 @@ export function PetDetailPage() {
 
   const [symptomOpen, setSymptomOpen] = useState(false);
   const [medForm, setMedForm] = useState<{ existing: Medication | null } | null>(null);
+  const [historyMed, setHistoryMed] = useState<Medication | null>(null);
   const [apptOpen, setApptOpen] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -154,6 +156,10 @@ export function PetDetailPage() {
           <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
             <Detail label={t('pets.sex')} value={pet.gender === 'Male' ? t('pets.male') : pet.gender === 'Female' ? t('pets.female') : '—'} />
             <Detail
+              label={t('pets.neutered')}
+              value={pet.neutered === true ? t('common.yes') : pet.neutered === false ? t('common.no') : '—'}
+            />
+            <Detail
               label={t('pets.dob')}
               value={pet.dateOfBirth ? `${longDateFmt.format(pet.dateOfBirth)} · ${petAgeLabel(pet.dateOfBirth)}` : '—'}
             />
@@ -192,6 +198,7 @@ export function PetDetailPage() {
                   )
                 }
                 onEdit={() => setMedForm({ existing: m })}
+                onHistory={() => setHistoryMed(m)}
                 onDelete={() => void remove(m.name, () => deleteMedication(uid, pet.id, m.id))}
                 onSetStatus={(s) => void run(setMedicationStatus(uid, pet.id, m.id, s))}
               />
@@ -302,6 +309,15 @@ export function PetDetailPage() {
         petId={pet.id}
         existing={medForm?.existing ?? null}
       />
+      {historyMed && (
+        <DoseHistoryDialog
+          open
+          onClose={() => setHistoryMed(null)}
+          uid={uid}
+          petId={pet.id}
+          med={historyMed}
+        />
+      )}
 
       {isVetView ? (
         <VetAppointmentDialog

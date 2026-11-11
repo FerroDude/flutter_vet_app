@@ -452,6 +452,34 @@ describe('client invite rules', () => {
   });
 });
 
+describe('client details rules', () => {
+  it('lets the vet update contact fields on her own client only', async () => {
+    const vet = env.authenticatedContext('vet').firestore();
+    const other = env.authenticatedContext('other').firestore();
+    const fields = {
+      phone: '911',
+      phone2: '922',
+      address: 'Rua X',
+      postalCode: '1000-001',
+      country: 'Portugal',
+      nif: '123',
+      updatedAt: 2,
+    };
+    await assertSucceeds(updateDoc(doc(vet, 'users/client'), fields));
+    await assertFails(updateDoc(doc(vet, 'users/client'), { ...fields, displayName: 'X' }));
+    await assertFails(updateDoc(doc(vet, 'users/client'), { ...fields, email: 'x@x.pt' }));
+    await assertFails(updateDoc(doc(vet, 'users/client'), { vetId: 'other', phone: '911' }));
+    await assertFails(updateDoc(doc(other, 'users/client'), fields));
+  });
+
+  it('lets the client update their own new fields', async () => {
+    const client = env.authenticatedContext('client').firestore();
+    await assertSucceeds(
+      updateDoc(doc(client, 'users/client'), { phone2: '922', country: 'Espanha', nif: '1', updatedAt: 2 }),
+    );
+  });
+});
+
 describe('gcal sync rules', () => {
   const seedStatus = () =>
     env.withSecurityRulesDisabled((ctx) =>

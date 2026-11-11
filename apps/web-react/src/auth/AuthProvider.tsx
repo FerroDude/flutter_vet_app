@@ -20,8 +20,11 @@ export type Role = 'vet' | 'petOwner' | 'unknown';
 interface ProfileUpdate {
   displayName?: string;
   phone?: string | null;
+  phone2?: string | null;
   address?: string | null;
   postalCode?: string | null;
+  country?: string | null;
+  nif?: string | null;
 }
 
 interface AuthState {
@@ -118,8 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...profile,
         displayName: fields.displayName ?? profile.displayName,
         phone: fields.phone !== undefined ? fields.phone : profile.phone,
+        phone2: fields.phone2 !== undefined ? fields.phone2 : profile.phone2,
         address: fields.address !== undefined ? fields.address : profile.address,
         postalCode: fields.postalCode !== undefined ? fields.postalCode : profile.postalCode,
+        country: fields.country !== undefined ? fields.country : profile.country,
+        nif: fields.nif !== undefined ? fields.nif : profile.nif,
         updatedAt: new Date(),
       };
       await updateUserProfile(updated);

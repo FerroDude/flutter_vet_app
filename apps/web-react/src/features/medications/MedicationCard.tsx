@@ -1,6 +1,7 @@
-import { Pill, Check, Undo2, Pencil, MoreVertical, Trash2 } from 'lucide-react';
+import { History, Pill, Check, Undo2, Pencil, MoreVertical, Trash2 } from 'lucide-react';
 import {
   type Medication,
+  MedicationFrequency,
   MedicationStatus,
   progress,
   isActive,
@@ -22,6 +23,8 @@ interface Props {
   onEdit: () => void;
   onDelete: () => void;
   onSetStatus: (s: MedicationStatus) => void;
+  /** When set (and the med tracks a schedule), shows "Histórico de doses". */
+  onHistory?: () => void;
 }
 
 const statusKey: Record<MedicationStatus, TKey> = {
@@ -39,6 +42,7 @@ export function MedicationCard({
   onEdit,
   onDelete,
   onSetStatus,
+  onHistory,
 }: Props) {
   const active = isActive(med);
   const p = progress(med);
@@ -66,6 +70,9 @@ export function MedicationCard({
               trigger={<MoreVertical size={16} />}
               items={[
                 { label: t('common.edit'), icon: <Pencil size={14} />, onClick: onEdit },
+                ...(onHistory && med.trackDoses && med.frequency !== MedicationFrequency.asNeeded
+                  ? [{ label: t('meds.history'), icon: <History size={14} />, onClick: onHistory }]
+                  : []),
                 active
                   ? { label: t('meds.pause'), onClick: () => onSetStatus(MedicationStatus.paused) }
                   : { label: t('meds.resume'), onClick: () => onSetStatus(MedicationStatus.active) },

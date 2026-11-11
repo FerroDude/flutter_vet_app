@@ -11,7 +11,7 @@
 // differences between midnight-floored dates.
 
 import { MedicationFrequency, MedicationStatus } from './enums';
-import type { Medication, TimeOfDay } from './types';
+import type { DoseLog, Medication, TimeOfDay } from './types';
 
 /* ------------------------------- date helpers ------------------------------ */
 
@@ -142,7 +142,11 @@ export function totalExpectedDoses(m: Medication): number | null {
 }
 
 export function totalDosesTaken(m: Medication): number {
-  return m.doseHistory.filter((d) => d.takenAt != null).length;
+  // Logs dated before the current start day don't count: moving the start
+  // later abandons them instead of inflating adherence.
+  return m.doseHistory.filter(
+    (d) => d.takenAt != null && diffDays(d.takenAt, m.startDate) >= 0,
+  ).length;
 }
 
 export function totalExpectedDosesToDate(
@@ -332,6 +336,154 @@ export function dosesRemainingToday(m: Medication, now: Date = new Date()): numb
   if (m.frequency === MedicationFrequency.once) return totalDosesTaken(m) >= 1 ? 0 : 1;
   const remaining = dosesExpectedToday(m, now) - dosesTakenToday(m, now);
   return remaining < 0 ? 0 : remaining;
+}
+
+/* ------------------------------- dose slots -------------------------------- */
+
+export interface DoseSlot {
+  day: Date;
+  time: TimeOfDay;
+  at: Date;
+  key: string; // doseSlotKey(at)
+}
+
+export const BACKFILL_MAX_DAYS = 60;
+
+const pad2 = (n: number): string => `${n}`.padStart(2, '0');
+
+/** Local 'YYYY-MM-DD HH:mm' — stable identity for a scheduled slot. */
+export function doseSlotKey(at: Date): string {
+  return `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())} ${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
+}
+
+/**
+ * Every scheduled dose slot from max(start day, today-(maxDays-1)) to today,
+ * keeping only slots already due (at <= now) and not past the course end.
+ * Chronological order. asNeeded has no slots.
+ */
+export function pastDoseSlots(
+  m: Pick<Medication, 'frequency' | 'doseTimes' | 'startDate' | 'endDate' | 'totalDays'>,
+  now: Date = new Date(),
+  maxDays: number = BACKFILL_MAX_DAYS,
+): DoseSlot[] {
+  if (m.frequency === MedicationFrequency.asNeeded) return [];
+  const firstTime = sortedTimes(m.doseTimes)[0];
+  if (!firstTime) return [];
+
+  const today = startOfDay(now);
+  const startDay = startOfDay(m.startDate);
+  const start =
+    diffDays(today, startDay) > maxDays - 1 ? addDaysKeepTime(today, -(maxDays - 1)) : startDay;
+  const end = calculatedEndDate(m as Medication);
+  const lastDay = end != null && diffDays(today, startOfDay(end)) > 0 ? startOfDay(end) : today;
+  if (diffDays(lastDay, start) < 0) return [];
+
+  const perDay =
+    m.frequency === MedicationFrequency.once || m.frequency === MedicationFrequency.weekly
+      ? [firstTime]
+      : sortedTimes(m.doseTimes).slice(0, dosesPerDay(m.frequency));
+
+  const slots: DoseSlot[] = [];
+  for (let day = start; diffDays(day, lastDay) <= 0; day = addDaysKeepTime(day, 1)) {
+    if (m.frequency === MedicationFrequency.once && diffDays(day, startDay) !== 0) continue;
+    if (m.frequency === MedicationFrequency.weekly && diffDays(day, startDay) % 7 !== 0) continue;
+    for (const time of perDay) {
+      const at = atTime(day, time);
+      if (at.getTime() <= now.getTime()) {
+        slots.push({ day, time, at, key: doseSlotKey(at) });
+      }
+    }
+  }
+  return slots;
+}
+
+/**
+ * slotKey -> DoseLog.id. Pass 1 exact-matches scheduledTime; pass 2 assigns
+ * leftover logs (legacy entries logged at arbitrary times) to that day's
+ * remaining slots, both in time order. Each log is used once.
+ */
+export function matchDoseLogs(m: Medication, slots: DoseSlot[]): Map<string, string> {
+  const result = new Map<string, string>();
+  const used = new Set<string>();
+  const logs = m.doseHistory.filter((d) => d.takenAt != null);
+  const open: DoseSlot[] = [];
+
+  for (const slot of slots) {
+    const log = logs.find((l) => !used.has(l.id) && l.scheduledTime && doseSlotKey(l.scheduledTime) === slot.key);
+    if (log) {
+      result.set(slot.key, log.id);
+      used.add(log.id);
+    } else {
+      open.push(slot);
+    }
+  }
+
+  const logsByDay = new Map<string, DoseLog[]>();
+  for (const l of logs) {
+    if (used.has(l.id)) continue;
+    const day = doseSlotKey(l.takenAt!).slice(0, 10);
+    (logsByDay.get(day) ?? logsByDay.set(day, []).get(day)!).push(l);
+  }
+  for (const list of logsByDay.values()) {
+    list.sort((a, b) => a.takenAt!.getTime() - b.takenAt!.getTime());
+  }
+
+  const slotsByDay = new Map<string, DoseSlot[]>();
+  for (const s of open) {
+    const day = s.key.slice(0, 10);
+    (slotsByDay.get(day) ?? slotsByDay.set(day, []).get(day)!).push(s);
+  }
+  for (const list of slotsByDay.values()) {
+    list.sort((a, b) => a.at.getTime() - b.at.getTime());
+  }
+
+  for (const [day, daySlots] of slotsByDay) {
+    const dayLogs = logsByDay.get(day) ?? [];
+    for (let i = 0; i < daySlots.length && i < dayLogs.length; i++) {
+      result.set(daySlots[i]!.key, dayLogs[i]!.id);
+    }
+  }
+  return result;
+}
+
+/**
+ * Pure version of the dose-history editor's save. Matching runs over the FULL
+ * past slot set (exactly what the dialog rendered), so legacy day-fallback
+ * matches stay identical to what the user saw. `changes` is the diff only.
+ * Returns the new doseHistory (does not touch `m`).
+ */
+export function applyDoseSlotChanges(
+  m: Medication,
+  changes: { at: Date; taken: boolean }[],
+  now: Date = new Date(),
+): DoseLog[] {
+  const slots = pastDoseSlots(m, now);
+  const slotKeys = new Set(slots.map((s) => s.key));
+  const matched = matchDoseLogs(m, slots);
+
+  let history = [...m.doseHistory];
+  const appended = new Set<string>();
+  for (const c of changes) {
+    const key = doseSlotKey(c.at);
+    const matchedId = slotKeys.has(key) ? matched.get(key) : undefined;
+    if (!c.taken) {
+      if (matchedId) history = history.filter((l) => l.id !== matchedId);
+      continue;
+    }
+    if (matchedId || appended.has(key)) continue;
+    appended.add(key);
+    history = [
+      ...history,
+      {
+        id: crypto.randomUUID(),
+        scheduledTime: c.at,
+        takenAt: c.at,
+        skipped: false,
+        notes: null,
+      },
+    ];
+  }
+  return history;
 }
 
 /* --------------------------------- next dose ------------------------------- */

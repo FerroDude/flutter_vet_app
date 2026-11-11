@@ -22,6 +22,12 @@ import {
   setNotificationsMuted,
 } from '@/lib/notifications';
 import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
+import {
+  ClientDetailsFields,
+  detailsFromDraft,
+  draftFromProfile,
+  type ClientDetailsDraft,
+} from './ClientDetailsFields';
 import { lang, setLang, t, type Lang } from '@/i18n';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -39,6 +45,7 @@ export function ProfileSettingsPage() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [details, setDetails] = useState<ClientDetailsDraft>(() => draftFromProfile(null));
   const [saving, setSaving] = useState(false);
   const [vet, setVet] = useState<UserProfile | null>(null);
   const [notifPerm, setNotifPerm] = useState(notificationPermission());
@@ -50,6 +57,7 @@ export function ProfileSettingsPage() {
     setPhone(profile?.phone ?? '');
     setAddress(profile?.address ?? '');
     setPostalCode(profile?.postalCode ?? '');
+    setDetails(draftFromProfile(profile));
   }, [profile]);
 
   // Clients see their vet's contact details (address for home visits).
@@ -65,9 +73,11 @@ export function ProfileSettingsPage() {
 
   const dirty =
     name.trim() !== (profile?.displayName ?? '') ||
-    phone.trim() !== (profile?.phone ?? '') ||
-    address.trim() !== (profile?.address ?? '') ||
-    postalCode.trim() !== (profile?.postalCode ?? '');
+    (isClient
+      ? JSON.stringify(details) !== JSON.stringify(draftFromProfile(profile))
+      : phone.trim() !== (profile?.phone ?? '') ||
+        address.trim() !== (profile?.address ?? '') ||
+        postalCode.trim() !== (profile?.postalCode ?? ''));
 
   const displayName = profile?.displayName?.trim() || profile?.email || t('common.user');
 
@@ -76,9 +86,13 @@ export function ProfileSettingsPage() {
     try {
       await updateProfile({
         displayName: name.trim(),
-        phone: phone.trim(),
-        address: address.trim(),
-        postalCode: postalCode.trim(),
+        ...(isClient
+          ? detailsFromDraft(details)
+          : {
+              phone: phone.trim(),
+              address: address.trim(),
+              postalCode: postalCode.trim(),
+            }),
       });
       toast.success(t('profile.updated'));
     } catch (e) {
@@ -110,26 +124,32 @@ export function ProfileSettingsPage() {
         <Card>
           <CardBody className="space-y-4">
             <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label={t('common.phone')} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-              <TextField
-                label={t('profile.address')}
-                autoComplete="street-address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                hint={isClient ? undefined : t('profile.addressHint')}
-              />
-              <TextField
-                label={t('profile.postalCode')}
-                placeholder="1000-001"
-                maxLength={12}
-                autoComplete="postal-code"
-                value={postalCode}
-                onChange={(e) => setPostalCode(e.target.value)}
-              />
-            </div>
+            {isClient ? (
+              <ClientDetailsFields draft={details} onChange={setDetails} />
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField label={t('common.phone')} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                  <TextField
+                    label={t('profile.address')}
+                    autoComplete="street-address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    hint={t('profile.addressHint')}
+                  />
+                  <TextField
+                    label={t('profile.postalCode')}
+                    placeholder="1000-001"
+                    maxLength={12}
+                    autoComplete="postal-code"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs text-muted-foreground">
                 {profile?.createdAt ? t('profile.since', { date: longDateFmt.format(profile.createdAt) }) : ''}
