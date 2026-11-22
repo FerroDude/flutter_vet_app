@@ -1,10 +1,12 @@
-# Yoshi Vet Care web — feature register
+# VetTempo web — feature register
 
 What the React app in `apps/web-react` does. Shared types and medication math live in `packages/shared`.
 
 ## Product
 
 One vet and her clients. A client profile stores `vetId` (the vet's uid); one client belongs to one vet. There are no clinics, receptionists or app owners.
+
+**Branding**: VetTempo is the platform shell (login, error/gate screens, public QR pet page, favicon, fonts, neutrals). Inside the signed-in apps the clinic brand applies — currently the Yoshi Vet Care brand is hardcoded (`YOSHI_CLINIC` in `src/lib/brand.ts`) until clinics exist in Firestore.
 
 The UI is available in European Portuguese (`pt-PT`) and English (`en`), chosen per device on the login screen (PT | EN) or in Profile → Language; switching reloads the app.
 

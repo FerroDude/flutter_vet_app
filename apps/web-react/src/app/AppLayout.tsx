@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ExternalLink, LogOut, type LucideIcon } from 'lucide-react';
-import { Logo } from '@/components/ui/Logo';
+import { ClinicLogo, VetTempoMark } from '@/components/ui/Logo';
 import { cn } from '@/lib/cn';
 import { t } from '@/i18n';
 
@@ -37,6 +37,8 @@ function Badge({ n, className }: { n?: number; className?: string }) {
 }
 
 interface AppLayoutProps {
+  /** Signed-in clinic whose brand fills the shell (logo + primary colour). */
+  clinic: { name: string; logoWide: string; logoMark: string };
   nav: NavItem[];
   externalLinks?: ExternalNavLink[];
   userName: string;
@@ -46,6 +48,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({
+  clinic,
   nav,
   externalLinks = [],
   userName,
@@ -64,7 +67,7 @@ export function AppLayout({
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 py-6 lg:flex">
         <div className="px-2">
-          <Logo className="h-7" />
+          <ClinicLogo src={clinic.logoWide} name={clinic.name} className="h-7" />
         </div>
         <nav aria-label={t('nav.main')} className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((item) => (
@@ -91,11 +94,15 @@ export function AppLayout({
           </div>
         )}
         <UserCard name={userName} subtitle={userSubtitle} onSignOut={onSignOut} />
+        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <VetTempoMark className="h-4" />
+          <span>VetTempo</span>
+        </div>
       </aside>
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur lg:hidden">
-        <Logo className="h-6 min-w-0" />
+        <ClinicLogo src={clinic.logoWide} name={clinic.name} className="h-6 min-w-0" />
         <div className="flex items-center gap-1">
           {externalLinks.map((link) => (
             <a

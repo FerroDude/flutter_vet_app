@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { useVetPendingRequests } from '@/lib/appointmentRequestService';
 import { useRooms } from '@/lib/chatService';
 import { AppLayout, type ExternalNavLink, type NavItem } from './AppLayout';
+import { useBrand, YOSHI_CLINIC } from '@/lib/brand';
 import { t } from '@/i18n';
 import { VetDashboard } from '@/features/vet/VetDashboard';
 import { VetAgendaPage } from '@/features/vet/VetAgendaPage';
@@ -23,6 +24,7 @@ export function VetApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
   const pending = useVetPendingRequests(firebaseUser?.uid ?? '');
   const { unread } = useRooms('vetId', firebaseUser?.uid ?? '');
+  useBrand(YOSHI_CLINIC.brand);
 
   const nav: NavItem[] = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
@@ -38,6 +40,7 @@ export function VetApp() {
 
   return (
     <AppLayout
+      clinic={YOSHI_CLINIC}
       nav={nav}
       externalLinks={externalLinks}
       userName={profile?.displayName?.trim() || profile?.email || t('common.vet')}

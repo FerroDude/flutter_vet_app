@@ -60,7 +60,7 @@ describe('icsContent', () => {
     expect(ics).toContain('\r\n');
     expect(ics.replace(/\r\n/g, '')).not.toContain('\n');
     expect(ics).toContain('VERSION:2.0');
-    expect(ics).toContain('PRODID:-//Yoshi Vet Care//PT');
+    expect(ics).toContain('PRODID:-//VetTempo//PT');
     expect(ics).toContain('CALSCALE:GREGORIAN');
     expect(ics).toContain('METHOD:PUBLISH');
     expect(ics).toContain('UID:abc123@yoshivetcare');

@@ -3,6 +3,7 @@ import { LayoutDashboard, PawPrint, CalendarDays, MessageCircle, User } from 'lu
 import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
+import { useBrand, YOSHI_CLINIC } from '@/lib/brand';
 import { t } from '@/i18n';
 import { ClientDashboard } from '@/features/dashboard/ClientDashboard';
 import { PetsPage } from '@/features/pets/PetsPage';
@@ -22,6 +23,7 @@ import { NotificationPrompt } from '@/features/notifications/NotificationPrompt'
 export function ClientApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
   const { unread } = useRooms('petOwnerId', firebaseUser?.uid ?? '');
+  useBrand(YOSHI_CLINIC.brand);
 
   const nav: NavItem[] = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
@@ -33,6 +35,7 @@ export function ClientApp() {
 
   return (
     <AppLayout
+      clinic={YOSHI_CLINIC}
       nav={nav}
       userName={profile?.displayName?.trim() || profile?.email || t('common.client')}
       userSubtitle={t('common.client')}

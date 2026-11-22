@@ -46,7 +46,8 @@ export const en: Record<TKey, string> = {
   'nav.pemv': 'PEMV',
   'nav.pemvTitle': 'PEMV · DGAV (opens in a new tab)',
 
-  'auth.tagline': 'Where pets are family',
+  'auth.slogan': 'Closer. Faster.',
+  'auth.sloganAccent': 'The future.',
   'auth.subtitle': 'Sign in to your account to continue.',
   'auth.password': 'Password',
   'auth.forgot': 'Forgot your password?',

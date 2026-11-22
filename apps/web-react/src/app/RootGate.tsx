@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { useAuth, needsDisplayName } from '@/auth/AuthProvider';
 import { PageSpinner } from '@/components/Spinner';
 import { Button } from '@/components/ui/Button';
+import { VetTempoLogo } from '@/components/ui/Logo';
 import { isFirebaseConfigured } from '@/lib/env';
 import { t } from '@/i18n';
 import { AuthScreen } from '@/features/auth/AuthScreen';
@@ -51,7 +52,7 @@ export function RootGate() {
 function Message({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <span className="text-[0.8125rem] font-semibold uppercase tracking-[0.06em] text-primary">Yoshi Vet Care</span>
+      <VetTempoLogo className="text-xl" />
       <h1 className="mt-2 font-display text-2xl font-bold text-foreground">{title}</h1>
       <div className="mt-2 text-sm text-muted-foreground">{children}</div>
     </div>

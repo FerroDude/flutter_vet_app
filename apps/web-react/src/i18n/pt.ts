@@ -44,7 +44,8 @@ export const pt = {
   'nav.pemv': 'PEMV',
   'nav.pemvTitle': 'PEMV · DGAV (abre num novo separador)',
 
-  'auth.tagline': 'Onde os animais são família',
+  'auth.slogan': 'Mais próximo. Mais rápido.',
+  'auth.sloganAccent': 'O futuro.',
   'auth.subtitle': 'Aceda à sua conta para continuar.',
   'auth.password': 'Palavra-passe',
   'auth.forgot': 'Esqueceu-se da palavra-passe?',

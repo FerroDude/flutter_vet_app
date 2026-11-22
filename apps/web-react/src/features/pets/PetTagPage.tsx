@@ -10,7 +10,7 @@ import { PetAvatar } from '@/components/ui/PetAvatar';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { Textarea } from '@/components/ui/Textarea';
-import { Logo } from '@/components/ui/Logo';
+import { VetTempoLogo } from '@/components/ui/Logo';
 import { LangToggle } from '@/components/ui/AuthShell';
 import { PageSpinner } from '@/components/Spinner';
 import { t } from '@/i18n';
@@ -54,7 +54,7 @@ export function PetTagPage() {
         className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-light to-transparent"
       />
       <div className="relative flex w-full max-w-md flex-col items-center">
-        <Logo className="h-10" />
+        <VetTempoLogo className="text-3xl" />
 
         <div className="mt-8 w-full rounded-(--radius-lg) border border-border bg-card p-6 text-center shadow-(--shadow-md) sm:p-7">
           {!tag ? (

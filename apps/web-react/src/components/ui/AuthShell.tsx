@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { Logo } from './Logo';
+import { VetTempoLogo } from './Logo';
 import { lang, setLang, t, type Lang } from '@/i18n';
 
 interface AuthShellProps {
@@ -19,8 +19,11 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
         className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-light to-transparent"
       />
       <div className="relative flex w-full max-w-md flex-col items-center">
-        <Logo className="h-10" />
-        <p className="mt-3 text-center text-sm font-medium text-muted-foreground">{t('auth.tagline')}</p>
+        <VetTempoLogo className="text-4xl" />
+        <p className="mt-3 text-center text-sm font-normal text-muted-foreground">
+          {t('auth.slogan')}{' '}
+          <span className="font-semibold text-vt-teal">{t('auth.sloganAccent')}</span>
+        </p>
 
         <div className="mt-8 w-full rounded-(--radius-lg) border border-border bg-card p-6 shadow-(--shadow-md) sm:p-7">
           {title && (
@@ -55,7 +58,7 @@ export function LangToggle() {
     </button>
   );
   return (
-    <div className="absolute right-4 top-4 flex items-center gap-1.5 text-sm" aria-label={t('auth.language')}>
+    <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 text-sm" aria-label={t('auth.language')}>
       {option('pt', 'PT')}
       <span className="text-muted-foreground/50">|</span>
       {option('en', 'EN')}

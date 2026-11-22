@@ -52,7 +52,7 @@ export function icsContent(item: CalendarItem, now = new Date()): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Yoshi Vet Care//PT',
+    'PRODID:-//VetTempo//PT',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
