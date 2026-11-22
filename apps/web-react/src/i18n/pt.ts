@@ -41,6 +41,7 @@ export const pt = {
   'nav.profile': 'Perfil',
   'nav.main': 'Navegação principal',
   'nav.skip': 'Saltar para o conteúdo',
+  'nav.poweredBy': 'Com tecnologia',
   'nav.pemv': 'PEMV',
   'nav.pemvTitle': 'PEMV · DGAV (abre num novo separador)',
 

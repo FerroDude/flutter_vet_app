@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ExternalLink, LogOut, type LucideIcon } from 'lucide-react';
-import { ClinicLogo, VetTempoMark } from '@/components/ui/Logo';
+import { ClinicLogo, VetTempoLogo } from '@/components/ui/Logo';
 import { cn } from '@/lib/cn';
 import { t } from '@/i18n';
 
@@ -94,9 +94,9 @@ export function AppLayout({
           </div>
         )}
         <UserCard name={userName} subtitle={userSubtitle} onSignOut={onSignOut} />
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-          <VetTempoMark className="h-4" />
-          <span>VetTempo</span>
+        <div className="mt-4 flex items-center gap-2 border-t border-border px-3 pt-3">
+          <span className="text-[11px] text-muted-foreground">{t('nav.poweredBy')}</span>
+          <VetTempoLogo className="text-sm" />
         </div>
       </aside>
 

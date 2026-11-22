@@ -43,6 +43,7 @@ export const en: Record<TKey, string> = {
   'nav.profile': 'Profile',
   'nav.main': 'Main navigation',
   'nav.skip': 'Skip to content',
+  'nav.poweredBy': 'Powered by',
   'nav.pemv': 'PEMV',
   'nav.pemvTitle': 'PEMV · DGAV (opens in a new tab)',
 
