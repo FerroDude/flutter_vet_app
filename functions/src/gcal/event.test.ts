@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGoogleEvent, googleEventId, syncHash, toMs } from './event.js';
+import { buildGoogleEvent, googleEventId, resolveVetId, syncHash, toMs } from './event.js';
 
 const base = {
   title: 'Consulta — Luna',
@@ -93,5 +93,16 @@ describe('buildGoogleEvent', () => {
       ids,
     );
     expect(ev.start.dateTime).toBe('2026-06-10T14:30:00.000Z');
+  });
+});
+
+describe('resolveVetId', () => {
+  it('prefers the assigned vetId, then bookedByVetId, then before', () => {
+    expect(resolveVetId({ vetId: 'v2', bookedByVetId: 'v1' })).toBe('v2');
+    expect(resolveVetId({ bookedByVetId: 'v1' })).toBe('v1');
+    expect(resolveVetId(undefined, { vetId: 'v3', bookedByVetId: 'v1' })).toBe('v3');
+    expect(resolveVetId(undefined, { bookedByVetId: 'v1' })).toBe('v1');
+    expect(resolveVetId({ vetId: null as never, bookedByVetId: 'v1' })).toBe('v1');
+    expect(resolveVetId({}, {})).toBeUndefined();
   });
 });

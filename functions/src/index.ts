@@ -9,7 +9,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { defineSecret, defineString } from 'firebase-functions/params';
-import { syncHash, toMs, type EventDoc } from './gcal/event.js';
+import { resolveVetId, syncHash, toMs, type EventDoc } from './gcal/event.js';
 import {
   accessToken,
   calendarExists,
@@ -20,6 +20,13 @@ import {
 } from './gcal/google.js';
 import { syncEvent } from './gcal/sync.js';
 import { createClientLogin as createClientLoginFor } from './clients.js';
+import {
+  addClinicClient as addClinicClientFor,
+  createClinicVet as createClinicVetFor,
+  respondClinicLink as respondClinicLinkFor,
+  updateClinicMember as updateClinicMemberFor,
+} from './clinics.js';
+import { getAuth } from 'firebase-admin/auth';
 
 initializeApp();
 const db = () => getFirestore();
@@ -60,7 +67,7 @@ async function syncCtx(vetId: string) {
 async function backfill(ctx: { vetId: string; token: string; calendarId: string }): Promise<number> {
   const snap = await db()
     .collectionGroup('events')
-    .where('bookedByVetId', '==', ctx.vetId)
+    .where('vetId', '==', ctx.vetId)
     .get();
   const since = Date.now() - DAY_MS;
   let synced = 0;
@@ -93,7 +100,7 @@ export const gcalOnEventWrite = onDocumentWritten(
   async (event) => {
     const before = event.data?.before.data() as EventDoc | undefined;
     const after = event.data?.after.data() as EventDoc | undefined;
-    const vetId = (after ?? before)?.bookedByVetId as string | undefined;
+    const vetId = resolveVetId(after, before);
     if (!vetId) return;
     if (after && after.gcal?.hash && after.gcal.hash === syncHash(after)) return;
 
@@ -176,7 +183,7 @@ export const gcalSyncAll = onCall(
     if (clientId && eventId) {
       const snap = await db().doc(`users/${clientId}/events/${eventId}`).get();
       const data = snap.data() as EventDoc | undefined;
-      if (!snap.exists || data?.bookedByVetId !== uid) {
+      if (!snap.exists || resolveVetId(data) !== uid) {
         throw new HttpsError('not-found', 'Consulta não encontrada.');
       }
       await syncEvent(ctx, clientId, eventId, data!);
@@ -196,6 +203,38 @@ export const gcalSyncAll = onCall(
 export const createClientLogin = onCall({ maxInstances: 1 }, async (request) => {
   const uid = await requireVet(request);
   return createClientLoginFor(uid, request.data, db());
+});
+
+/* ------------------------------- Clinics ---------------------------------- */
+
+function requireAuth(request: { auth?: { uid?: string } | null }): string {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Inicie sessão.');
+  return uid;
+}
+
+/** A clinic member adds a client (pending link when the account exists). */
+export const addClinicClient = onCall({ maxInstances: 1 }, async (request) => {
+  const uid = requireAuth(request);
+  return addClinicClientFor(uid, request.data, db(), getAuth());
+});
+
+/** The client accepts/declines a pending clinic link. */
+export const respondClinicLink = onCall({ maxInstances: 1 }, async (request) => {
+  const uid = requireAuth(request);
+  return respondClinicLinkFor(uid, request.data, db());
+});
+
+/** An owner adds a vet/owner to the clinic. */
+export const createClinicVet = onCall({ maxInstances: 1 }, async (request) => {
+  const uid = requireAuth(request);
+  return createClinicVetFor(uid, request.data, db(), getAuth());
+});
+
+/** An owner edits role/active of a member; deactivation releases the pool. */
+export const updateClinicMember = onCall({ maxInstances: 1 }, async (request) => {
+  const uid = requireAuth(request);
+  return updateClinicMemberFor(uid, request.data, db());
 });
 
 /** Revoke + forget the grant. The Google calendar itself is left alone. */

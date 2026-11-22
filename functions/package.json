@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run"
+    "test": "vitest run src",
+    "test:emu": "vitest run test-emu"
   },
   "dependencies": {
     "firebase-admin": "~14.5.0",

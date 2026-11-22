@@ -6,6 +6,21 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
 
+    // Clinic branding (logos): public read — used on login-adjacent and QR
+    // pages. Only an active OWNER member of the clinic may write; images < 2 MB.
+    match /clinics/{clinicId}/branding/{file} {
+      allow read: if true;
+      function isClinicOwner() {
+        return request.auth != null
+          && firestore.get(/databases/(default)/documents/clinics/$(clinicId)/members/$(request.auth.uid)).data.role == 'owner'
+          && firestore.get(/databases/(default)/documents/clinics/$(clinicId)/members/$(request.auth.uid)).data.active == true;
+      }
+      allow create, update: if isClinicOwner()
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 2 * 1024 * 1024;
+      allow delete: if isClinicOwner();
+    }
+
     // Pet profile photos: pets/{ownerId}/{petId}/{file}. Only the pet's owner
     // uploads or deletes; images only, max 5 MB. Signed-in users can read
     // (the vet sees her clients' pets; <img> uses tokenised download URLs).

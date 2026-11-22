@@ -2,8 +2,13 @@
 // fromJson/toJson methods exactly so web and mobile stay interoperable:
 // dates are millisecondsSinceEpoch integers, enums are integer indices.
 
-import { parseDate, toMillis } from './converters';
-import type { UserProfile } from './types';
+import { parseDate, parseDateOptional, toMillis } from './converters';
+import type {
+  Clinic,
+  ClinicClientLink,
+  ClinicMember,
+  UserProfile,
+} from './types';
 import type { ClinicRole } from './enums';
 
 type Data = Record<string, unknown>;
@@ -37,6 +42,8 @@ export function userProfileFromFirestore(id: string, data: Data): UserProfile {
     fcmToken: (data.fcmToken as string | null) ?? null,
     invitePending: data.invitePending === true,
     invitedAt: data.invitedAt == null ? null : parseDate(data.invitedAt),
+    memberOf: Array.isArray(data.memberOf) ? (data.memberOf as string[]) : [],
+    clientOf: Array.isArray(data.clientOf) ? (data.clientOf as string[]) : [],
   };
 }
 
@@ -64,5 +71,58 @@ export function userProfileToFirestore(p: UserProfile): Data {
     fcmToken: p.fcmToken ?? null,
     invitePending: p.invitePending ?? false,
     invitedAt: p.invitedAt ? toMillis(p.invitedAt) : null,
+  };
+}
+
+/* --------------------------------- Clinic --------------------------------- */
+
+export function clinicFromFirestore(id: string, data: Data): Clinic {
+  const brand = (data.brand ?? {}) as Data;
+  const contact = (data.contact ?? {}) as Data;
+  return {
+    id,
+    name: (data.name as string) ?? '',
+    isActive: data.isActive !== false,
+    brand: {
+      primary: (brand.primary as string) ?? '',
+      accent: (brand.accent as string | null) ?? null,
+      logoWideUrl: (brand.logoWideUrl as string | null) ?? null,
+      logoMarkUrl: (brand.logoMarkUrl as string | null) ?? null,
+    },
+    contact: {
+      phone: (contact.phone as string | null) ?? null,
+      address: (contact.address as string | null) ?? null,
+      postalCode: (contact.postalCode as string | null) ?? null,
+    },
+    createdAt: parseDate(data.createdAt),
+    updatedAt: parseDate(data.updatedAt),
+  };
+}
+
+/* ------------------------------ ClinicMember ------------------------------ */
+
+export function clinicMemberFromFirestore(data: Data): ClinicMember {
+  return {
+    role: data.role === 'owner' ? 'owner' : 'vet',
+    displayName: (data.displayName as string) ?? '',
+    email: (data.email as string) ?? '',
+    active: data.active !== false,
+    joinedAt: parseDate(data.joinedAt),
+  };
+}
+
+/* ---------------------------- ClinicClientLink ---------------------------- */
+
+export function clinicClientLinkFromFirestore(data: Data): ClinicClientLink {
+  return {
+    clientId: (data.clientId as string) ?? '',
+    clientName: (data.clientName as string) ?? '',
+    clinicName: (data.clinicName as string) ?? '',
+    status:
+      data.status === 'active' || data.status === 'declined' ? data.status : 'pending',
+    addedBy: (data.addedBy as string) ?? '',
+    addedByName: (data.addedByName as string) ?? '',
+    addedAt: parseDate(data.addedAt),
+    respondedAt: parseDateOptional(data.respondedAt) ?? null,
   };
 }

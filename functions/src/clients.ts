@@ -36,7 +36,11 @@ export async function createClientLogin(
   const ref = db.doc(`users/${clientId}`);
   const profile = (await ref.get()).data();
   if (!profile) throw new HttpsError('not-found', 'Cliente não encontrado.');
-  if (profile.userType !== 0 || profile.vetId !== caller) {
+  // The caller must be staff of a clinic the client is actively linked to.
+  const callerClinics = ((await db.doc(`users/${caller}`).get()).data()?.memberOf ??
+    []) as string[];
+  const clientClinics = (profile.clientOf ?? []) as string[];
+  if (profile.userType !== 0 || !clientClinics.some((c) => callerClinics.includes(c))) {
     throw new HttpsError('permission-denied', 'Cliente não encontrado.');
   }
 

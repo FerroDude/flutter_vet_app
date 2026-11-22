@@ -3,6 +3,60 @@
 // per-feature converters that use helpers in converters.ts.
 
 import { ClinicRole, UserType } from './enums';
+
+/* ----------------------------- Clinics (VetTempo) --------------------------- */
+
+/** Role of a staff member inside one clinic. String union — NOT the legacy
+ *  numeric ClinicRole enum on UserProfile. An owner is also a vet. */
+export type ClinicMemberRole = 'owner' | 'vet';
+
+export interface ClinicBrand {
+  primary: string;
+  accent?: string | null;
+  logoWideUrl?: string | null;
+  logoMarkUrl?: string | null;
+}
+
+export interface ClinicContact {
+  phone?: string | null;
+  address?: string | null;
+  postalCode?: string | null;
+}
+
+export interface Clinic {
+  id: string;
+  name: string;
+  isActive: boolean;
+  brand: ClinicBrand;
+  contact: ClinicContact;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** clinics/{c}/members/{uid} — server-written only. */
+export interface ClinicMember {
+  role: ClinicMemberRole;
+  displayName: string;
+  email: string;
+  active: boolean;
+  joinedAt: Date;
+}
+
+export type ClinicClientLinkStatus = 'pending' | 'active' | 'declined';
+
+/** clinics/{c}/clients/{uid} — the link between a client and a clinic.
+ *  'pending' links share nothing until the client accepts. */
+export interface ClinicClientLink {
+  clientId: string;
+  clientName: string;
+  clinicName: string;
+  status: ClinicClientLinkStatus;
+  addedBy: string;
+  addedByName: string;
+  addedAt: Date;
+  respondedAt?: Date | null;
+}
+
 import type {
   MessageType,
   MessageStatus,
@@ -42,6 +96,10 @@ export interface UserProfile {
   invitePending?: boolean;
   /** When the invite (set-password email) was last sent. */
   invitedAt?: Date | null;
+  /** Server-only: clinic ids where this staff user is an active member. */
+  memberOf?: string[];
+  /** Server-only: clinic ids where this client has an ACTIVE link. */
+  clientOf?: string[];
 }
 
 export interface Pet {
@@ -131,12 +189,15 @@ export interface ChatMessage {
 
 export interface ChatRoom {
   id: string;
-  /** Legacy clinic key. New rooms are addressed by vetId. */
+  /** Clinic this room belongs to. */
   clinicId?: string | null;
   petOwnerId: string;
   petOwnerName: string;
-  vetId: string;
-  vetName: string;
+  /** Assigned vet. null = the room sits in the clinic's pool ("any vet"). */
+  vetId: string | null;
+  vetName: string | null;
+  /** Vet the client asked for; null = "any vet" (pool). */
+  requestedVetId?: string | null;
   petIds: string[];
   lastMessage?: ChatMessage | null;
   unreadCounts: Record<string, number>;
@@ -152,10 +213,12 @@ export interface ChatRoom {
 
 export interface AppointmentRequest {
   id: string;
-  /** Vet who receives this request. New writes use this, not clinicId. */
-  vetId: string;
-  /** Legacy clinic key. Old documents may still have it. New writes omit it. */
+  /** Assigned vet. null = pooled for the whole clinic ("any vet"). */
+  vetId: string | null;
+  /** Clinic this request belongs to. */
   clinicId?: string | null;
+  /** Vet the client asked for; null = "any vet" (pool). */
+  requestedVetId?: string | null;
   petOwnerId: string;
   petOwnerName: string;
   petId: string;

@@ -9,29 +9,66 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(userId);
     }
 
-    function userData(userId) {
-      return get(userPath(userId)).data;
+    function memberPath(clinicId, uid) {
+      return /databases/$(database)/documents/clinics/$(clinicId)/members/$(uid);
     }
 
-    function isVet() {
-      return signedIn() && userData(request.auth.uid).userType == 1;
+    // My profile ({} when absent so .get() never throws).
+    function me() {
+      return exists(userPath(request.auth.uid))
+        ? get(userPath(request.auth.uid)).data
+        : {};
+    }
+
+    function userData(userId) {
+      return exists(userPath(userId)) ? get(userPath(userId)).data : {};
+    }
+
+    function memberOf() {
+      return me().get('memberOf', []);
+    }
+
+    function clientOf() {
+      return me().get('clientOf', []);
+    }
+
+    function isStaff() {
+      return signedIn() && me().get('userType', -1) == 1;
+    }
+
+    function isMemberOf(clinicId) {
+      return isStaff() && clinicId in memberOf();
+    }
+
+    // Active OWNER member doc of the clinic (the arrays alone don't carry roles).
+    function isOwnerOf(clinicId) {
+      return isMemberOf(clinicId)
+        && exists(memberPath(clinicId, request.auth.uid))
+        && get(memberPath(clinicId, request.auth.uid)).data.role == 'owner'
+        && get(memberPath(clinicId, request.auth.uid)).data.active == true;
+    }
+
+    // uid is an ACTIVE member of clinicId (validates a chosen/assigned vet).
+    function isClinicMemberDoc(clinicId, uid) {
+      return exists(memberPath(clinicId, uid))
+        && get(memberPath(clinicId, uid)).data.active == true;
+    }
+
+    // I'm staff in at least one clinic the client is ACTIVELY linked to.
+    function isClientsStaff(clientId) {
+      return isStaff() && userData(clientId).get('clientOf', []).hasAny(memberOf());
     }
 
     function isOwner(userId) {
       return signedIn() && request.auth.uid == userId;
     }
 
-    // The signed-in vet is the vet stored on this client.
-    function isClientsVet(clientId) {
-      return isVet() && userData(clientId).vetId == request.auth.uid;
-    }
-
     function isSelf(userId) {
-      return signedIn() && request.auth.uid == userId;
+      return isOwner(userId);
     }
 
     function vetBooked(event) {
-      return event.bookedByVetId != null && event.bookedByVetId != '';
+      return event.get('bookedByVetId', null) != null && event.bookedByVetId != '';
     }
 
     // Field unchanged by this write. Missing on both sides counts as unchanged.
@@ -45,53 +82,68 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if signedIn() && (
-        isSelf(userId) ||
-        resource.data.vetId == request.auth.uid ||
-        userData(request.auth.uid).vetId == userId
+        isSelf(userId)
+        // staff: a client of one of my clinics, or a colleague (shared clinic)
+        || (isStaff() && (
+          resource.data.get('clientOf', []).hasAny(memberOf())
+          || resource.data.get('memberOf', []).hasAny(memberOf())))
+        // client: a staff member of one of my clinics
+        || resource.data.get('memberOf', []).hasAny(clientOf())
       );
 
-      // Nobody creates their own profile. Vets are provisioned with the Admin
-      // SDK (scripts/create-vet.mjs); a vet creates the profiles of her clients.
-      allow create: if isVet()
-        && !isSelf(userId)
-        && request.resource.data.vetId == request.auth.uid
-        && request.resource.data.userType == 0;
+      // Nobody creates profiles client-side — all profiles come from the
+      // Admin SDK / Cloud Functions.
+      allow create: if false;
 
       allow update: if (isSelf(userId)
         && unchanged('vetId')
         && unchanged('userType')
         && unchanged('clinicRole')
-        && unchanged('globalType'))
-        // The vet may mark a client invited after sending the invite email.
-        || (isVet()
-          && resource.data.vetId == request.auth.uid
+        && unchanged('globalType')
+        && unchanged('memberOf')
+        && unchanged('clientOf'))
+        // Clinic staff may mark a client invited after sending the invite email.
+        || (isClientsStaff(userId)
           && onlyChanges(['invitePending', 'invitedAt', 'updatedAt'])
           && request.resource.data.invitePending == false)
         // …or edit the client's optional contact details.
-        || (isVet()
-          && resource.data.vetId == request.auth.uid
+        || (isClientsStaff(userId)
           && onlyChanges(['phone', 'phone2', 'address', 'postalCode', 'country', 'nif', 'updatedAt']));
 
       allow delete: if isSelf(userId);
 
       match /pets/{petId} {
-        allow read, write: if isOwner(userId) || isClientsVet(userId);
+        allow read, write: if isOwner(userId) || isClientsStaff(userId);
 
         match /medications/{medId} {
-          allow read, write: if isOwner(userId) || isClientsVet(userId);
+          allow read, write: if isOwner(userId) || isClientsStaff(userId);
         }
 
         match /symptoms/{symId} {
-          allow read, write: if isOwner(userId) || isClientsVet(userId);
+          allow read, write: if isOwner(userId) || isClientsStaff(userId);
         }
 
+        // Vet-only notes, scoped per clinic. Lists filter where('clinicId','==',c).
         match /private/{docId} {
-          allow read, write: if isClientsVet(userId);
+          allow read, delete: if isClientsStaff(userId)
+            && resource.data.get('clinicId', '') in memberOf();
+          allow create: if isClientsStaff(userId)
+            && request.resource.data.get('clinicId', '') in memberOf()
+            && request.resource.data.get('clinicId', '') in userData(userId).get('clientOf', []);
+          allow update: if isClientsStaff(userId)
+            && resource.data.get('clinicId', '') in memberOf()
+            && unchanged('clinicId');
         }
 
         match /publicNotes/{noteId} {
-          allow read: if isOwner(userId) || isClientsVet(userId);
-          allow write: if isClientsVet(userId);
+          allow read: if isOwner(userId)
+            || (isClientsStaff(userId) && resource.data.get('clinicId', '') in memberOf());
+          allow create: if isClientsStaff(userId)
+            && request.resource.data.get('clinicId', '') in memberOf()
+            && request.resource.data.get('clinicId', '') in userData(userId).get('clientOf', []);
+          allow update, delete: if isClientsStaff(userId)
+            && resource.data.get('clinicId', '') in memberOf()
+            && unchanged('clinicId');
         }
       }
 
@@ -108,20 +160,38 @@ service cloud.firestore {
             && request.resource.data.cancelReason.size() > 0;
         }
 
-        allow read: if isOwner(userId) || isClientsVet(userId);
-        allow create: if isOwner(userId) || isClientsVet(userId);
-        allow update: if isClientsVet(userId)
+        // Personal events (no clinicId) are visible to staff of EVERY linked
+        // clinic; clinic events only to that clinic's staff.
+        allow read: if isOwner(userId)
+          || (isClientsStaff(userId)
+            && (resource.data.get('clinicId', null) == null
+              || resource.data.clinicId in memberOf()));
+
+        allow create: if (isOwner(userId)
+          && request.resource.data.get('clinicId', null) == null
+          && request.resource.data.get('bookedByVetId', null) == null)
+          || (isStaff()
+            && request.resource.data.get('clinicId', '') in memberOf()
+            && request.resource.data.get('clinicId', '') in userData(userId).get('clientOf', [])
+            && request.resource.data.bookedByVetId == request.auth.uid
+            && isClinicMemberDoc(request.resource.data.clinicId, request.resource.data.vetId));
+
+        allow update: if (isClientsStaff(userId)
+            && resource.data.get('clinicId', '') in memberOf()
+            && unchanged('clinicId'))
           || (isOwner(userId) && !vetBooked(resource.data))
           || clientCancels();
-        allow delete: if isClientsVet(userId)
+        allow delete: if (isClientsStaff(userId)
+            && resource.data.get('clinicId', '') in memberOf())
           || (isOwner(userId) && !vetBooked(resource.data));
       }
     }
 
-    // Vet agenda: collection-group read of the appointments she booked in
-    // her clients' calendars. Writes still go through users/{id}/events.
+    // Clinic agenda: collection-group read of the clinic's events across
+    // clients. Queried with where('clinicId','==',c) and optionally
+    // where('vetId','==',x). Unfiltered queries fail.
     match /{path=**}/events/{eventId} {
-      allow read: if signedIn() && resource.data.bookedByVetId == request.auth.uid;
+      allow read: if isStaff() && resource.data.get('clinicId', '') in memberOf();
     }
 
     // Owner's "found" alerts across all of their pet tags.
@@ -129,30 +199,107 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
-    match /chatRooms/{roomId} {
-      function inRoom() {
-        return signedIn() && (
-          request.auth.uid == resource.data.petOwnerId ||
-          request.auth.uid == resource.data.vetId
-        );
+    // Client reads their own clinic-link docs (pending invites included) with
+    // where('clientId','==',me).
+    match /{path=**}/clients/{linkId} {
+      allow read: if signedIn() && resource.data.clientId == request.auth.uid;
+    }
+
+    match /clinics/{clinicId} {
+      // Members and actively-linked clients can fetch their clinic. Listing
+      // all clinics is never allowed (ids stay opaque).
+      allow get: if isMemberOf(clinicId) || clinicId in clientOf();
+      allow list: if false;
+      allow update: if isOwnerOf(clinicId)
+        && onlyChanges(['name', 'brand', 'contact', 'updatedAt']);
+      allow create, delete: if false;
+
+      // Roster: staff + linked clients (clients pick a vet from it).
+      match /members/{uid} {
+        allow read: if isMemberOf(clinicId) || clinicId in clientOf();
+        allow write: if false;
       }
 
-      allow read: if inRoom();
+      // Client links: staff see all; a client sees their own.
+      match /clients/{uid} {
+        allow read: if isMemberOf(clinicId) || uid == request.auth.uid;
+        allow write: if false;
+      }
+    }
 
-      allow create: if isVet()
-        && request.resource.data.vetId == request.auth.uid
-        && userData(request.resource.data.petOwnerId).vetId == request.auth.uid;
+    match /chatRooms/{roomId} {
+      // petOwner, assigned vet, or any vet of the clinic while the room sits
+      // in the pool (vetId == null).
+      function inRoom() {
+        return signedIn() && (
+          request.auth.uid == resource.data.petOwnerId
+          || request.auth.uid == resource.data.get('vetId', null));
+      }
 
-      // Participants only touch activity fields. Who is in the room never changes.
-      allow update: if inRoom()
-        && onlyChanges(['lastMessage', 'unreadCounts', 'updatedAt', 'isActive', 'status']);
+      function poolVisible() {
+        return signedIn()
+          && resource.data.get('vetId', null) == null
+          && resource.data.get('clinicId', '') in memberOf();
+      }
+
+      allow read: if inRoom() || poolVisible();
+
+      allow create: if (
+        // Client: pool ("any vet") or a directed room to a clinic vet.
+        (request.resource.data.petOwnerId == request.auth.uid
+          && request.resource.data.get('clinicId', '') in clientOf()
+          && request.resource.data.get('requestedVetId', null) == request.resource.data.get('vetId', null)
+          && ((request.resource.data.get('vetId', null) == null
+                && request.resource.data.status == 0)
+            || (isClinicMemberDoc(request.resource.data.clinicId, request.resource.data.vetId)
+                && request.resource.data.status == 1)))
+      ) || (
+        // Staff room for a client actively linked to a clinic of mine.
+        isStaff()
+          && request.resource.data.vetId == request.auth.uid
+          && request.resource.data.get('clinicId', '') in memberOf()
+          && request.resource.data.get('clinicId', '') in userData(request.resource.data.petOwnerId).get('clientOf', [])
+      );
+
+      function claims() {
+        return resource.data.get('vetId', null) == null
+          && resource.data.get('clinicId', '') in memberOf()
+          && request.resource.data.vetId == request.auth.uid
+          && request.resource.data.status == 1
+          && onlyChanges(['vetId', 'vetName', 'status', 'updatedAt', 'claimedAt']);
+      }
+
+      function releases() {
+        return resource.data.vetId == request.auth.uid
+          && request.resource.data.get('vetId', 'x') == null
+          && request.resource.data.get('vetName', 'x') == null
+          && request.resource.data.status == 0
+          && onlyChanges(['vetId', 'vetName', 'status', 'updatedAt', 'releasedAt']);
+      }
+
+      // Participants only touch activity fields. Claim/release are the only
+      // ways vetId changes (a claimant must beat the race on vetId == null).
+      allow update: if (inRoom()
+          && onlyChanges(['lastMessage', 'unreadCounts', 'updatedAt', 'isActive', 'status']))
+        || claims()
+        || releases();
 
       match /messages/{messageId} {
+        function room() {
+          return get(/databases/$(database)/documents/chatRooms/$(roomId)).data;
+        }
+
+        // petOwner, assigned vet, or pool vets (read-only until they claim).
         function inParent() {
           return signedIn() && (
-            request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.petOwnerId ||
-            request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.vetId
-          );
+            request.auth.uid == room().petOwnerId
+            || request.auth.uid == room().get('vetId', null));
+        }
+
+        function poolReads() {
+          return signedIn()
+            && room().get('vetId', null) == null
+            && room().get('clinicId', '') in memberOf();
         }
 
         function isSender() {
@@ -169,7 +316,7 @@ service cloud.firestore {
           );
         }
 
-        allow read: if inParent();
+        allow read: if inParent() || poolReads();
         allow create: if inParent() && request.resource.data.senderId == request.auth.uid;
         allow update: if inParent() && (
           (isSender() && onlyChanges(['isDeleted', 'deletedAt'])) ||
@@ -180,17 +327,52 @@ service cloud.firestore {
     }
 
     match /appointmentRequests/{requestId} {
+      // Pool (vetId null) or directed to an active member of the clinic.
       allow create: if signedIn()
         && request.resource.data.petOwnerId == request.auth.uid
-        && request.resource.data.vetId == userData(request.auth.uid).vetId
-        && request.resource.data.status == 0;
+        && request.resource.data.get('clinicId', '') in clientOf()
+        && request.resource.data.status == 0
+        && request.resource.data.get('requestedVetId', null) == request.resource.data.get('vetId', null)
+        && (request.resource.data.get('vetId', null) == null
+          || isClinicMemberDoc(request.resource.data.clinicId, request.resource.data.vetId));
 
       allow read: if signedIn() && (
-        resource.data.petOwnerId == request.auth.uid ||
-        resource.data.vetId == request.auth.uid
+        resource.data.petOwnerId == request.auth.uid
+        || resource.data.get('vetId', null) == request.auth.uid
+        || (resource.data.get('vetId', null) == null
+          && resource.data.get('clinicId', '') in memberOf())
       );
 
-      allow update: if isVet() && resource.data.vetId == request.auth.uid;
+      // Assignee handling (incl. release back to the pool while pending), or
+      // claiming a pooled request by confirming/denying it. A second vet
+      // racing fails: resource.status is no longer 0 / vetId no longer null.
+      allow update: if isStaff() && (
+        (resource.data.vetId == request.auth.uid
+          && unchanged('clinicId')
+          && unchanged('petOwnerId')
+          && unchanged('requestedVetId')
+          && onlyChanges(['status', 'handledBy', 'handledByName', 'handledAt',
+              'responseMessage', 'calendarEventId', 'bookedDateTime',
+              'linkedChatRoomId', 'updatedAt', 'vetId', 'vetName', 'releasedAt', 'claimedAt'])
+          && (unchanged('vetId')
+            || (resource.data.status == 0
+              && request.resource.data.get('vetId', 'x') == null
+              && request.resource.data.status == 0)))
+      ) || (
+        isStaff()
+          && resource.data.get('vetId', 'x') == null
+          && resource.data.status == 0
+          && resource.data.get('clinicId', '') in memberOf()
+          && request.resource.data.vetId == request.auth.uid
+          && request.resource.data.status in [1, 2]
+          && request.resource.data.handledBy == request.auth.uid
+          && unchanged('clinicId')
+          && unchanged('petOwnerId')
+          && unchanged('requestedVetId')
+          && onlyChanges(['status', 'handledBy', 'handledByName', 'handledAt',
+              'responseMessage', 'calendarEventId', 'bookedDateTime',
+              'linkedChatRoomId', 'updatedAt', 'vetId', 'vetName', 'releasedAt', 'claimedAt'])
+      );
 
       allow delete: if signedIn()
         && resource.data.petOwnerId == request.auth.uid
@@ -203,7 +385,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /gcalStatus/{vetId} {
-      allow read: if isSelf(vetId) && isVet();
+      allow read: if isSelf(vetId) && isStaff();
       allow write: if false;
     }
 
@@ -212,10 +394,10 @@ service cloud.firestore {
     match /petTags/{petId} {
       allow get: if true;
       allow list: if false;
-      // The client's vet may write the tag's pet fields so a vet-printed QR
-      // always resolves — but never the owner's contact choice.
+      // The client's clinic staff may write the tag's pet fields so a
+      // clinic-printed QR always resolves — but never the owner's contact choice.
       function vetTagWrite() {
-        return isClientsVet(request.resource.data.ownerId)
+        return isClientsStaff(request.resource.data.ownerId)
           && exists(/databases/$(database)/documents/users/$(request.resource.data.ownerId)/pets/$(petId));
       }
       allow create: if request.resource.data.petId == petId && (
@@ -227,7 +409,7 @@ service cloud.firestore {
             && request.resource.data.get('contactPhone', null) == null));
       allow update: if unchanged('ownerId') && unchanged('petId') && (
           isOwner(resource.data.ownerId)
-          || (isClientsVet(resource.data.ownerId)
+          || (isClientsStaff(resource.data.ownerId)
               && onlyChanges(['petName','species','breed','microchip','photoUrl','updatedAt'])));
       allow delete: if isOwner(resource.data.ownerId);
 

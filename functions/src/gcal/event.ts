@@ -6,6 +6,10 @@ import { createHash } from 'node:crypto';
 
 /** Loose shape of users/{uid}/events/{id} as read by the functions. */
 export type EventDoc = Record<string, unknown> & {
+  /** Assigned vet (clinic model). Old docs only have bookedByVetId. */
+  vetId?: string;
+  bookedByVetId?: string;
+  clinicId?: string;
   title?: string;
   description?: string;
   location?: string | null;
@@ -41,6 +45,14 @@ export function toMs(v: unknown): number | null {
  */
 export function googleEventId(clientId: string, eventId: string): string {
   return createHash('sha256').update(`${clientId}/${eventId}`).digest('hex').slice(0, 40);
+}
+
+/** Which vet's Google calendar an event write belongs to: the assigned vet,
+ *  falling back to the staff member who booked it (legacy docs). */
+export function resolveVetId(after?: EventDoc, before?: EventDoc): string | undefined {
+  return (after?.vetId ?? after?.bookedByVetId ?? before?.vetId ?? before?.bookedByVetId) as
+    | string
+    | undefined;
 }
 
 /** Hash of only the fields the Google event mirrors — used as loop guard. */
