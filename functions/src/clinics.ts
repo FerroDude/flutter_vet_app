@@ -10,7 +10,13 @@
 
 import { randomBytes } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
-import { FieldValue, type Firestore } from 'firebase-admin/firestore';
+import {
+  FieldValue,
+  type DocumentData,
+  type DocumentReference,
+  type Firestore,
+  type UpdateData,
+} from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import { normalizeEmail } from './clients.js';
 
@@ -391,7 +397,7 @@ export async function updateClinicMember(
   }
 
   const batch = db.batch();
-  const update: Data = {};
+  const update: UpdateData<DocumentData> = {};
   if (role !== undefined) update.role = nextRole;
   if (active !== undefined) update.active = nextActive;
   batch.update(memberRef, update);
@@ -426,7 +432,7 @@ export async function updateClinicMember(
         .get(),
     ]);
     const now = Date.now();
-    const releases: { ref: FirebaseFirestore.DocumentReference; data: Data }[] = [
+    const releases: { ref: DocumentReference; data: UpdateData<DocumentData> }[] = [
       ...rooms.docs.map((d) => ({
         ref: d.ref,
         data: { vetId: null, vetName: null, status: 0, releasedAt: now, updatedAt: now },
