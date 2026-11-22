@@ -88,7 +88,11 @@ export function AppLayout({
               >
                 <link.icon size={18} />
                 {link.label}
-                <ExternalLink size={13} className="-ml-1.5 opacity-70" aria-hidden />
+                {/* 30px box centers the 14px icon on the same axis as the
+                    sign-out button in the user card below. */}
+                <span aria-hidden className="ml-auto grid w-[30px] place-items-center opacity-60">
+                  <ExternalLink size={14} />
+                </span>
               </a>
             ))}
           </div>
