@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { dateTimeFmt } from '@/lib/format';
 import { showAlert } from '@/features/chat/incomingMessage';
@@ -13,7 +14,10 @@ export function CancelledAppointmentToast() {
   const { firebaseUser } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const { appointments, loading } = useVetAppointments(uid);
+  const { clinicId } = useActiveClinic();
+  const { appointments: all, loading } = useVetAppointments(clinicId);
+  // Cancellation alert is only for the assigned vet.
+  const appointments = all.filter((a) => (a.vetId ?? a.bookedByVetId) === uid);
   const seen = useRef<Set<string> | null>(null);
 
   useEffect(() => {

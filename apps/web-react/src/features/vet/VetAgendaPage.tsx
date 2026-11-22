@@ -4,9 +4,15 @@ import { toast } from 'sonner';
 import { AlertTriangle, CalendarCheck, CalendarDays, MapPin, MessageSquare, PawPrint, Pencil, Plus, Trash2, User } from 'lucide-react';
 import { AppointmentRequestStatus, MessageType, type AppointmentRequest } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useVetAppointments } from '@/lib/useVetAppointments';
 import { deleteEvent, type AppointmentEvent } from '@/lib/eventService';
-import { confirmRequest, denyRequest, useRequests } from '@/lib/appointmentRequestService';
+import {
+  confirmRequest,
+  denyRequest,
+  releaseRequest,
+  useClinicRequests,
+} from '@/lib/appointmentRequestService';
 import { findOrCreateOneOnOneChat, sendMessage } from '@/lib/chatService';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import {
@@ -50,14 +56,34 @@ export function VetAgendaPage() {
   const confirm = useConfirm();
   const uid = firebaseUser?.uid ?? '';
   const vetName = profile?.displayName?.trim() || profile?.email || t('common.vet');
-  const { appointments, error } = useVetAppointments(uid);
+  const { clinicId, members } = useActiveClinic();
+  const { appointments: allAppointments, error } = useVetAppointments(clinicId);
   const { data: gcalStatus } = useGcalStatus(uid);
   const gcalConnected = Boolean(gcalStatus?.connected);
-  const { requests } = useRequests('vetId', uid);
+  const { mine: myRequests, pool: poolRequests } = useClinicRequests(clinicId, uid);
 
-  const pending = requests.filter((r) => r.status === AppointmentRequestStatus.pending).reverse();
-  const handled = requests.filter(
-    (r) => r.status === AppointmentRequestStatus.confirmed || r.status === AppointmentRequestStatus.denied,
+  // Agenda scope: mine (default), everyone, or one vet of the clinic.
+  const [scope, setScope] = useState('mine');
+  const vets = useMemo(
+    () => [...members].filter((m) => m.active).sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [members],
+  );
+  const appointments = useMemo(() => {
+    if (scope === 'all') return allAppointments;
+    const who = scope === 'mine' ? uid : scope;
+    return allAppointments.filter((a) => (a.vetId ?? a.bookedByVetId) === who);
+  }, [allAppointments, scope, uid]);
+
+  const myPending = myRequests
+    .filter((r) => r.status === AppointmentRequestStatus.pending)
+    .reverse();
+  const poolPending = poolRequests
+    .filter((r) => r.status === AppointmentRequestStatus.pending)
+    .reverse();
+  const handled = myRequests.filter(
+    (r) =>
+      r.status === AppointmentRequestStatus.confirmed ||
+      r.status === AppointmentRequestStatus.denied,
   );
 
   const today = startOfDay(new Date());
@@ -109,6 +135,7 @@ export function VetAgendaPage() {
   const openChat = async (r: AppointmentRequest) => {
     try {
       const roomId = await findOrCreateOneOnOneChat({
+        clinicId,
         petOwnerId: r.petOwnerId,
         petOwnerName: r.petOwnerName,
         vetId: uid,
@@ -119,6 +146,56 @@ export function VetAgendaPage() {
       toast.error(errorMessage(e, t('vet.chatOpenFailed')));
     }
   };
+
+  const passRequest = async (r: AppointmentRequest) => {
+    const ok = await confirm({
+      title: t('requests.passTitle'),
+      description: t('requests.passDesc'),
+      confirmLabel: t('chat.pass'),
+    });
+    if (!ok) return;
+    try {
+      await releaseRequest(r.id);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  };
+
+  const requestButtons = (r: AppointmentRequest, isPool: boolean) => (
+    <>
+      {isPool ? (
+        <span className="mr-auto rounded-full bg-secondary px-2 py-1 text-xs font-medium text-muted-foreground">
+          {t('requests.anyVet')}
+        </span>
+      ) : (
+        <span className="mr-auto flex items-center gap-2">
+          <span className="rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary">
+            {t('requests.forYou')}
+          </span>
+          <button
+            type="button"
+            onClick={() => void passRequest(r)}
+            className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline"
+          >
+            {t('chat.pass')}
+          </button>
+        </span>
+      )}
+      <Button variant="ghost" className="h-9" onClick={() => void openChat(r)}>
+        <MessageSquare size={15} /> Chat
+      </Button>
+      <Button
+        variant="outline"
+        className="h-9"
+        onClick={() => setAnswering({ request: r, mode: 'deny' })}
+      >
+        {t('vetAgenda.deny')}
+      </Button>
+      <Button className="h-9" onClick={() => setAnswering({ request: r, mode: 'confirm' })}>
+        {t('common.confirm')}
+      </Button>
+    </>
+  );
 
   return (
     <div>
@@ -139,27 +216,46 @@ export function VetAgendaPage() {
         </p>
       )}
 
-      {pending.length > 0 && (
+      {(myPending.length > 0 || poolPending.length > 0) && (
         <section className="mb-6">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('vetAgenda.pending', { count: pending.length })}
+            {t('vetAgenda.pending', { count: myPending.length + poolPending.length })}
           </h2>
           <div className="space-y-2">
-            {pending.map((r) => (
+            {myPending.map((r) => (
               <RequestCard key={r.id} request={r}>
-                <Button variant="ghost" className="h-9" onClick={() => void openChat(r)}>
-                  <MessageSquare size={15} /> Chat
-                </Button>
-                <Button variant="outline" className="h-9" onClick={() => setAnswering({ request: r, mode: 'deny' })}>
-                  {t('vetAgenda.deny')}
-                </Button>
-                <Button className="h-9" onClick={() => setAnswering({ request: r, mode: 'confirm' })}>
-                  {t('common.confirm')}
-                </Button>
+                {requestButtons(r, false)}
+              </RequestCard>
+            ))}
+            {poolPending.map((r) => (
+              <RequestCard key={r.id} request={r}>
+                {requestButtons(r, true)}
               </RequestCard>
             ))}
           </div>
         </section>
+      )}
+
+      {vets.length > 1 && (
+        <div className="mb-4 flex items-center gap-2">
+          <label htmlFor="agenda-scope" className="text-sm text-muted-foreground">
+            {t('vetAgenda.showAppts')}
+          </label>
+          <select
+            id="agenda-scope"
+            value={scope}
+            onChange={(e) => setScope(e.target.value)}
+            className="h-9 rounded-(--radius-md) border border-input bg-card px-2 text-sm text-foreground focus-visible:border-ring focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-ring"
+          >
+            <option value="mine">{t('vetAgenda.mine')}</option>
+            <option value="all">{t('vetAgenda.all')}</option>
+            {vets.map((m) => (
+              <option key={m.uid} value={m.uid}>
+                {m.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -196,6 +292,7 @@ export function VetAgendaPage() {
                   <AppointmentRow
                     key={`${a.userId}/${a.id}`}
                     a={a}
+                    showVet={scope !== 'mine'}
                     gcalConnected={gcalConnected}
                     onClient={() => navigate(`/clients/${a.userId}`)}
                     onEdit={() => {
@@ -239,12 +336,19 @@ export function VetAgendaPage() {
         }}
         vetId={uid}
         vetName={vetName}
+        clinicId={clinicId}
         defaultDay={day}
         existing={editing}
         others={appointments.filter((a) => !a.cancelledAt)}
       />
 
-      <AnswerDialog answering={answering} onClose={() => setAnswering(null)} vetId={uid} vetName={vetName} />
+      <AnswerDialog
+        answering={answering}
+        onClose={() => setAnswering(null)}
+        clinicId={clinicId}
+        vetId={uid}
+        vetName={vetName}
+      />
     </div>
   );
 }
@@ -280,12 +384,15 @@ function RequestCard({ request: r, children }: { request: AppointmentRequest; ch
 
 function AppointmentRow({
   a,
+  showVet = false,
   gcalConnected,
   onClient,
   onEdit,
   onCancel,
 }: {
   a: AppointmentEvent;
+  /** Clinic-wide view: whose appointment this is. */
+  showVet?: boolean;
   gcalConnected: boolean;
   onClient: () => void;
   onEdit: () => void;
@@ -329,6 +436,9 @@ function AppointmentRow({
               <span className="inline-flex items-center gap-1">
                 <MapPin size={12} /> {a.location}
               </span>
+            )}
+            {showVet && a.vetName && (
+              <span className="inline-flex items-center gap-1">{a.vetName}</span>
             )}
           </p>
           {cancelled && (
@@ -409,11 +519,13 @@ function AppointmentRow({
 function AnswerDialog({
   answering,
   onClose,
+  clinicId,
   vetId,
   vetName,
 }: {
   answering: { request: AppointmentRequest; mode: 'confirm' | 'deny' } | null;
   onClose: () => void;
+  clinicId: string;
   vetId: string;
   vetName: string;
 }) {
@@ -450,9 +562,10 @@ function AnswerDialog({
         const werr = requestWindowError(r, dateTime);
         if (werr) throw new Error(werr);
         const note = message.trim() || null;
-        await confirmRequest({ request: r, vetId, vetName, dateTime, message: note });
+        await confirmRequest({ request: r, clinicId, vetId, vetName, dateTime, message: note });
         try {
           const roomId = await findOrCreateOneOnOneChat({
+            clinicId,
             petOwnerId: r.petOwnerId,
             petOwnerName: r.petOwnerName,
             vetId,

@@ -27,6 +27,7 @@ import {
   type PetSymptom,
 } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { eventsQuery, mapEvent, deleteEvent, setEventCompleted, isCancelled, type CalendarEvent } from '@/lib/eventService';
 import { petsQuery, mapPet, deleteSymptom, type Pet } from '@/lib/petService';
@@ -71,8 +72,8 @@ export function AgendaPage() {
   const { firebaseUser, profile } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const vetId = profile?.vetId ?? '';
   const confirm = useConfirm();
+  const { clinicId } = useActiveClinic();
 
   const eq = useMemo(() => (uid ? eventsQuery(uid) : null), [uid]);
   const { data: allEvents } = useCollection<CalendarEvent>(eq, mapEvent);
@@ -85,7 +86,11 @@ export function AgendaPage() {
 
   const activeMeds = useAllMedications(uid).filter(isActive);
   const symptoms = useAllSymptoms(uid);
-  const { requests } = useRequests('petOwnerId', uid);
+  const { requests: allRequests } = useRequests('petOwnerId', uid);
+  const requests = useMemo(
+    () => allRequests.filter((r) => r.clinicId === clinicId),
+    [allRequests, clinicId],
+  );
 
   const today = startOfDay(new Date());
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -177,7 +182,7 @@ export function AgendaPage() {
             <Button variant="outline" onClick={() => setAddOpen(true)}>
               <Plus size={16} /> {t('agenda.add')}
             </Button>
-            {vetId && (
+            {clinicId && (
               <Button onClick={() => setRequestOpen(true)}>
                 <CalendarClock size={16} /> {t('agenda.request')}
               </Button>
@@ -306,11 +311,11 @@ export function AgendaPage() {
         petName={form?.petId ? petName.get(form.petId) : undefined}
         defaultDate={day}
       />
-      {vetId && (
+      {clinicId && (
         <RequestFormDialog
           open={requestOpen}
           onClose={() => setRequestOpen(false)}
-          vetId={vetId}
+          clinicId={clinicId}
           petOwnerId={uid}
           petOwnerName={profile?.displayName?.trim() || profile?.email || ''}
           pets={pets}

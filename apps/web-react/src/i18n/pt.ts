@@ -449,7 +449,6 @@ export const pt = {
   'profile.updated': 'Perfil atualizado',
   'profile.updateFailed': 'Não foi possível atualizar o perfil',
   'profile.since': 'Conta desde {date}',
-  'profile.yourVet': 'A sua veterinária',
   'profile.language': 'Idioma',
 
   'symptoms.log': 'Registar sintoma',
@@ -514,7 +513,6 @@ export const pt = {
   'vet.clients.addedNoInvite': 'Cliente adicionado. Pode enviar o convite mais tarde.',
   'vet.clients.addFailed': 'Não foi possível adicionar o cliente',
   'vet.clients.nameRequired': 'O nome é obrigatório',
-  'vet.clients.emailInUse': 'Esse email já tem conta.',
   'vet.clients.notInvited': 'Por convidar',
   'vet.clients.noEmail': 'Sem email',
   'vet.clients.addEmail': 'Adicionar email',
@@ -629,6 +627,45 @@ export const pt = {
   'vetDash.upcoming': 'Próximas consultas',
   'vetDash.noAppointments': 'Sem consultas marcadas.',
   'vetDash.recentCancels': 'Canceladas recentemente',
+
+
+  // Clinics (multi-clinic platform)
+  'clinic.loading': 'A carregar as suas clínicas…',
+  'clinic.none.title': 'Sem clínica',
+  'clinic.none.body': 'Esta conta ainda não pertence a nenhuma clínica. Peça à clínica para a adicionar.',
+  'clinic.pick.title': 'Escolha a clínica',
+  'clinic.pick.body': 'Pertence a várias clínicas. Escolha com qual quer trabalhar.',
+  'clinic.switch': 'Mudar de clínica',
+
+  'chat.unassigned': 'Por atribuir',
+  'chat.anyVet': 'Qualquer veterinário',
+  'chat.waitingVet': 'À espera de um veterinário',
+  'chat.poolBanner': '{name} pediu para falar com qualquer veterinário.',
+  'chat.accept': 'Aceitar conversa',
+  'chat.pass': 'Passar à clínica',
+  'chat.passTitle': 'Passar à clínica?',
+  'chat.passDesc': 'A conversa volta à lista por atribuir e qualquer veterinário a pode aceitar.',
+  'chat.start': 'Iniciar conversa',
+  'chat.alreadyClaimed': '{name} já aceitou esta conversa.',
+  'chat.gone': 'A conversa já não existe.',
+
+  'requests.anyVet': 'Qualquer veterinário',
+  'requests.forYou': 'Para si',
+  'requests.passTitle': 'Passar à clínica?',
+  'requests.passDesc': 'O pedido volta à lista por atribuir e qualquer veterinário o pode tratar.',
+  'requests.alreadyHandled': '{name} já tratou este pedido.',
+
+  'vet.clients.linkRequested':
+    'Este email já tem conta VetTempo. Enviámos um pedido de ligação ao cliente.',
+  'vet.clients.pendingLinks': 'Pedidos de ligação pendentes',
+  'vet.clients.awaitingClient': 'à espera do cliente',
+
+  'vetAgenda.showAppts': 'Consultas',
+  'vetAgenda.mine': 'Os meus',
+  'vetAgenda.all': 'Todos',
+  'vetAppt.vet': 'Veterinário',
+
+  'profile.yourClinic': 'A sua clínica',
 
   'monthgrid.prev': 'Mês anterior',
   'monthgrid.next': 'Mês seguinte',

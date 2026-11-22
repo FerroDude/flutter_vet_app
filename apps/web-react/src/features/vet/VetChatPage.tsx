@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Inbox, Search } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
-import { useRooms } from '@/lib/chatService';
+import { useActiveClinic } from '@/app/ClinicProvider';
+import { useClinicRooms } from '@/lib/chatService';
 import { useClients } from '@/lib/useClients';
 import { matchesQuery } from '@/lib/textMatch';
 import { sameDay, shortDateFmt, timeFmt } from '@/lib/format';
@@ -15,8 +16,9 @@ import { t } from '@/i18n';
 export function VetChatPage() {
   const { firebaseUser } = useAuth();
   const uid = firebaseUser?.uid ?? '';
-  const { rooms } = useRooms('vetId', uid);
-  const { clients } = useClients(uid);
+  const { clinicId } = useActiveClinic();
+  const { mine: rooms, pool } = useClinicRooms(clinicId, uid);
+  const { clients } = useClients(clinicId);
   const [selectedId, setSelectedId] = useSelectedChatRoom();
   const [search, setSearch] = useState('');
 
@@ -57,7 +59,45 @@ export function VetChatPage() {
               />
             </div>
           )}
-          {rooms.length === 0 ? (
+          {pool.length > 0 && (
+            <>
+              <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('chat.unassigned')}
+              </p>
+              <ul className="divide-y divide-border">
+                {pool.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(r.id)}
+                      className={cn(
+                        'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary',
+                        r.id === selectedId && 'bg-secondary',
+                      )}
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary font-semibold text-muted-foreground">
+                        {(nameOf(r.petOwnerId, r.petOwnerName) || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="truncate font-medium text-foreground">
+                          {nameOf(r.petOwnerId, r.petOwnerName) || t('common.client')}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {t('chat.anyVet')} · {r.lastMessage?.content || t('chat.noMessages')}
+                        </span>
+                      </span>
+                      {(r.unreadCounts.pool ?? 0) > 0 && (
+                        <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+                          {r.unreadCounts.pool}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {rooms.length === 0 && pool.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
               {t('chat.noRooms')}
             </p>

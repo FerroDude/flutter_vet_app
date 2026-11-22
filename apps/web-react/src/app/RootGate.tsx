@@ -7,6 +7,7 @@ import { isFirebaseConfigured } from '@/lib/env';
 import { t } from '@/i18n';
 import { AuthScreen } from '@/features/auth/AuthScreen';
 import { DisplayNameScreen } from '@/features/auth/DisplayNameScreen';
+import { ClinicProvider } from './ClinicProvider';
 import { ClientApp } from './ClientApp';
 import { VetApp } from './VetApp';
 
@@ -46,7 +47,15 @@ export function RootGate() {
 
   if (profileLoading || !profile) return <PageSpinner />;
   if (needsDisplayName(profile)) return <DisplayNameScreen />;
-  return role === 'vet' ? <VetApp /> : <ClientApp />;
+  return role === 'vet' ? (
+    <ClinicProvider kind="staff" clinicIds={profile.memberOf ?? []}>
+      <VetApp />
+    </ClinicProvider>
+  ) : (
+    <ClinicProvider kind="client" clinicIds={profile.clientOf ?? []}>
+      <ClientApp />
+    </ClinicProvider>
+  );
 }
 
 function Message({ title, children }: { title: string; children: ReactNode }) {

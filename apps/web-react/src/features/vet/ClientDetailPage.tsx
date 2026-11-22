@@ -17,6 +17,7 @@ import {
   Send,
 } from 'lucide-react';
 import { useVetAppointments } from '@/lib/useVetAppointments';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { VetAppointmentDialog } from './VetAppointmentDialog';
 import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
@@ -73,7 +74,8 @@ export function ClientDetailPage() {
   const [detailsDraft, setDetailsDraft] = useState<ClientDetailsDraft>(() => draftFromProfile(null));
   const [savingDetails, setSavingDetails] = useState(false);
   const confirm = useConfirm();
-  const { appointments } = useVetAppointments(uid);
+  const { clinicId } = useActiveClinic();
+  const { appointments } = useVetAppointments(clinicId);
   const clientUpcoming = useMemo(() => {
     const now = Date.now();
     return appointments.filter((a) => a.userId === ownerId && a.dateTime.getTime() >= now);
@@ -85,6 +87,7 @@ export function ClientDetailPage() {
     setStarting(true);
     try {
       const roomId = await findOrCreateOneOnOneChat({
+        clinicId,
         petOwnerId: ownerId,
         petOwnerName: clientLabel(owner),
         vetId: uid,
@@ -370,6 +373,7 @@ export function ClientDetailPage() {
         onClose={() => setBookOpen(false)}
         vetId={uid}
         vetName={staffName}
+        clinicId={clinicId}
         defaultDay={bookDay}
         presetClientId={ownerId}
         others={appointments}

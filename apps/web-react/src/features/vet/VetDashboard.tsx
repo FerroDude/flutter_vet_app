@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { CalendarClock, CheckCircle2, ChevronRight, Clock, MessageCircle, PawPrint, Users } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
+import { AppointmentRequestStatus } from '@vetplus/shared';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useClients } from '@/lib/useClients';
-import { useRooms } from '@/lib/chatService';
+import { useClinicRooms } from '@/lib/chatService';
 import { useVetAppointments } from '@/lib/useVetAppointments';
-import { useVetPendingRequests } from '@/lib/appointmentRequestService';
+import { useClinicRequests } from '@/lib/appointmentRequestService';
 import { dateTimeFmt, dayHeadFmt, dayShortFmt, eventTitle, greeting, sameDay, timeFmt } from '@/lib/format';
 import { chatRoomPath } from '@/features/chat/useSelectedChatRoom';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -18,15 +20,21 @@ export function VetDashboard() {
   const uid = firebaseUser?.uid ?? '';
   const firstName = (profile?.displayName?.trim() || '').split(' ')[0];
 
-  const pending = useVetPendingRequests(uid);
-  const { clients } = useClients(uid);
-  const { rooms, unread } = useRooms('vetId', uid);
-  const { appointments } = useVetAppointments(uid);
+  const { clinicId } = useActiveClinic();
+  const { mine, pool } = useClinicRequests(clinicId, uid);
+  const pendingCount =
+    mine.filter((r) => r.status === AppointmentRequestStatus.pending).length +
+    pool.filter((r) => r.status === AppointmentRequestStatus.pending).length;
+  const { clients } = useClients(clinicId);
+  const { mine: rooms, unread } = useClinicRooms(clinicId, uid);
+  const { appointments } = useVetAppointments(clinicId);
+  const isMine = (a: { vetId?: string | null; bookedByVetId?: string | null }) =>
+    (a.vetId ?? a.bookedByVetId) === uid;
   const upcoming = appointments
-    .filter((a) => !a.cancelledAt && a.dateTime.getTime() >= Date.now())
+    .filter((a) => isMine(a) && !a.cancelledAt && a.dateTime.getTime() >= Date.now())
     .slice(0, 5);
   const recentCancels = appointments
-    .filter((a) => a.cancelledAt && Date.now() - a.cancelledAt.getTime() < 7 * 86_400_000)
+    .filter((a) => isMine(a) && a.cancelledAt && Date.now() - a.cancelledAt.getTime() < 7 * 86_400_000)
     .sort((a, b) => b.cancelledAt!.getTime() - a.cancelledAt!.getTime())
     .slice(0, 5);
 
@@ -49,8 +57,8 @@ export function VetDashboard() {
         <StatCard
           icon={<CalendarClock size={20} />}
           title={t('vetDash.requests')}
-          alert={pending.length}
-          caption={t(pending.length === 1 ? 'vetDash.pending.one' : 'vetDash.pending.other', { count: pending.length })}
+          alert={pendingCount}
+          caption={t(pendingCount === 1 ? 'vetDash.pending.one' : 'vetDash.pending.other', { count: pendingCount })}
           onClick={() => navigate('/agenda')}
         />
         <StatCard

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppointmentRequestStatus } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useRequests } from '@/lib/appointmentRequestService';
 import { dateTimeFmt } from '@/lib/format';
 import { showAlert } from '@/features/chat/incomingMessage';
@@ -14,7 +15,9 @@ export function ConfirmedRequestToast() {
   const { firebaseUser } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const { requests, loading } = useRequests('petOwnerId', uid);
+  const { clinicId } = useActiveClinic();
+  const { requests: all, loading } = useRequests('petOwnerId', uid);
+  const requests = all.filter((r) => r.clinicId === clinicId);
   const seen = useRef<Set<string> | null>(null);
 
   useEffect(() => {

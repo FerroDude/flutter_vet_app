@@ -1,10 +1,7 @@
 // Firebase initialization for the web app.
 //
-// - Primary app: the normal authenticated session.
-// - Secondary app: a second initialized app instance used to create invited
-//   staff/admin Auth accounts WITHOUT disturbing the current admin's session
-//   (mirrors the Flutter "secondary" app pattern in UserProvider). Auth on the
-//   secondary app is created lazily when needed.
+// Primary app only. Account provisioning (client logins, clinic vets) happens
+// in Cloud Functions via the Admin SDK — no secondary app needed.
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
@@ -53,12 +50,3 @@ function createDb(firebaseApp: FirebaseApp): Firestore {
 export const db: Firestore = createDb(app);
 export const storage: FirebaseStorage = getStorage(app);
 export const functions: Functions = getFunctions(app, 'us-central1');
-
-const SECONDARY_NAME = 'secondary';
-
-/** Get (or lazily create) the secondary app + its Auth, for provisioning users. */
-export function getSecondaryAuth(): Auth {
-  const existing = getApps().find((a) => a.name === SECONDARY_NAME);
-  const secondaryApp = existing ?? initializeApp(firebaseConfig, SECONDARY_NAME);
-  return getAuth(secondaryApp);
-}

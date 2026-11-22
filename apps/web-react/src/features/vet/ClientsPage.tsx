@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ChevronRight, Mail, Phone, Plus, Search, Users } from 'lucide-react';
-import { useAuth } from '@/auth/AuthProvider';
-import { useClients } from '@/lib/useClients';
+import { useActiveClinic } from '@/app/ClinicProvider';
+import { useClinicClients, addClinicClient } from '@/lib/clinicService';
 import { useClientPets } from '@/lib/useClientPets';
-import { addClient as addClientToDb, clientLabel } from '@/lib/clientService';
+import { clientLabel, sendClientInvite } from '@/lib/clientService';
 import { errorMessage, normalizeText } from '@/lib/format';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -18,10 +18,9 @@ import { Spinner } from '@/components/Spinner';
 import { t } from '@/i18n';
 
 export function ClientsPage() {
-  const { firebaseUser, profile } = useAuth();
   const navigate = useNavigate();
-  const uid = firebaseUser?.uid ?? '';
-  const { clients, error } = useClients(uid);
+  const { clinicId } = useActiveClinic();
+  const { clients, pending, error, loading } = useClinicClients(clinicId);
 
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -58,22 +57,28 @@ export function ClientsPage() {
   const addClient = async () => {
     setAdding(true);
     try {
-      const newUid = await addClientToDb({
-        vetId: uid,
-        vetName: profile?.displayName?.trim() || t('common.vet'),
+      const res = await addClinicClient({
+        clinicId,
         name,
-        email,
-        sendInvite,
+        email: email.trim() ? email.trim() : undefined,
       });
-      const hasEmail = Boolean(email.trim());
-      toast.success(
-        t(hasEmail && sendInvite ? 'vet.clients.added' : 'vet.clients.addedNoInvite'),
-      );
+      if (res.status === 'pending') {
+        // Existing account in another clinic: link request went to the client.
+        toast.success(t('vet.clients.linkRequested'));
+      } else if (res.created) {
+        const hasEmail = Boolean(email.trim());
+        if (hasEmail && sendInvite) {
+          await sendClientInvite({ id: res.clientId, email: email.trim() });
+        }
+        toast.success(
+          t(hasEmail && sendInvite ? 'vet.clients.added' : 'vet.clients.addedNoInvite'),
+        );
+      }
       setName('');
       setEmail('');
       setSendInvite(true);
       setAddOpen(false);
-      if (!hasEmail || !sendInvite) navigate(`/clients/${newUid}`);
+      if (res.status !== 'pending') navigate(`/clients/${res.clientId}`);
     } catch (e) {
       toast.error(errorMessage(e, t('vet.clients.addFailed')));
     } finally {
@@ -94,6 +99,22 @@ export function ClientsPage() {
         }
       />
 
+      {pending.length > 0 && (
+        <Card className="mb-5 p-4">
+          <p className="mb-2 text-sm font-semibold text-foreground">
+            {t('vet.clients.pendingLinks')}
+          </p>
+          <ul className="space-y-1.5">
+            {pending.map((l) => (
+              <li key={l.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{l.clientName || l.id}</span>
+                <span>· {t('vet.clients.awaitingClient')}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {clients.length > 0 && (
         <div className="relative mb-5 max-w-sm">
           <Search
@@ -113,7 +134,8 @@ export function ClientsPage() {
 
       {error ? (
         <EmptyState icon={<Users size={36} />} title={t('vet.clients.loadFailed')} description={t('vet.clients.tryAgain')} />
-      ) : q && shown.length === 0 && shownPets.length === 0 && petsLoading ? (
+      ) : (loading && clients.length === 0) ||
+        (q && shown.length === 0 && shownPets.length === 0 && petsLoading) ? (
         <div className="flex justify-center py-10">
           <Spinner />
         </div>

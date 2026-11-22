@@ -48,6 +48,11 @@ export interface AppointmentEvent extends EventCommon {
   isConfirmed: boolean;
   contactInfo?: string | null;
   appointmentRequestId?: string | null;
+  /** Clinic this appointment belongs to (null = personal client event). */
+  clinicId?: string | null;
+  /** Assigned vet. */
+  vetId?: string | null;
+  /** Staff member who booked it (kept for client-cancel attribution). */
   bookedByVetId?: string | null;
   /** Shown on the vet's agenda without reading the client profile. */
   clientName?: string | null;
@@ -100,8 +105,10 @@ export function eventsQuery(uid: string) {
 
 /** Every appointment a vet booked, across all her clients' calendars.
  *  Needs the collection-group index on events.bookedByVetId (firestore.indexes.json). */
-export function vetAppointmentsQuery(vetId: string) {
-  return query(collectionGroup(db, 'events'), where('bookedByVetId', '==', vetId));
+/** Clinic agenda: every appointment of a clinic, across clients' calendars.
+ *  Needs the collection-group index on events.clinicId (firestore.indexes.json). */
+export function clinicAppointmentsQuery(clinicId: string) {
+  return query(collectionGroup(db, 'events'), where('clinicId', '==', clinicId));
 }
 
 export const appointmentTitle = (petName?: string | null): string =>
@@ -114,8 +121,12 @@ export interface VetAppointmentInput {
   clientName: string;
   petId: string | null;
   petName: string | null;
+  clinicId: string;
+  /** Assigned vet (whose agenda row it appears under). */
   vetId: string;
   vetName: string;
+  /** Staff member who booked it (may differ from the assigned vet). */
+  bookedByVetId: string;
   title: string;
   description: string;
   location: string | null;
@@ -145,7 +156,9 @@ export function vetAppointmentWrite(a: VetAppointmentInput) {
     location: a.location,
     isConfirmed: true,
     appointmentRequestId: a.appointmentRequestId ?? null,
-    bookedByVetId: a.vetId,
+    clinicId: a.clinicId,
+    vetId: a.vetId,
+    bookedByVetId: a.bookedByVetId,
     clientName: a.clientName,
     petName: a.petName,
   });
@@ -193,6 +206,8 @@ export function mapEvent(id: string, d: DocumentData): CalendarEvent {
         isConfirmed: Boolean(d.isConfirmed),
         contactInfo: (d.contactInfo as string | null) ?? null,
         appointmentRequestId: (d.appointmentRequestId as string | null) ?? null,
+        clinicId: (d.clinicId as string | null) ?? null,
+        vetId: (d.vetId as string | null) ?? null,
         bookedByVetId: (d.bookedByVetId as string | null) ?? null,
         clientName: (d.clientName as string | null) ?? null,
         petName: (d.petName as string | null) ?? null,
@@ -271,6 +286,8 @@ export function eventToJson(e: CalendarEvent): DocumentData {
         isConfirmed: e.isConfirmed,
         contactInfo: e.contactInfo ?? null,
         appointmentRequestId: e.appointmentRequestId ?? null,
+        clinicId: e.clinicId ?? null,
+        vetId: e.vetId ?? null,
         bookedByVetId: e.bookedByVetId ?? null,
         clientName: e.clientName ?? null,
         petName: e.petName ?? null,

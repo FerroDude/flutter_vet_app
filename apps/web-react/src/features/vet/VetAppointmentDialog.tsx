@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useCollection } from '@/lib/useFirestore';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useClients } from '@/lib/useClients';
 import { clientLabel } from '@/lib/clientService';
 import { errorMessage, eventTitle } from '@/lib/format';
@@ -31,6 +32,7 @@ interface Props {
   onClose: () => void;
   vetId: string;
   vetName: string;
+  clinicId: string;
   defaultDay: Date;
   /** Edit this appointment. The client can't be changed when editing. */
   existing?: AppointmentEvent | null;
@@ -46,6 +48,7 @@ export function VetAppointmentDialog({
   onClose,
   vetId,
   vetName,
+  clinicId,
   defaultDay,
   existing,
   presetClientId,
@@ -54,7 +57,12 @@ export function VetAppointmentDialog({
 }: Props) {
   const isEdit = Boolean(existing);
 
-  const { clients } = useClients(vetId);
+  const { members } = useActiveClinic();
+  const vets = useMemo(
+    () => [...members].filter((m) => m.active).sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [members],
+  );
+  const { clients } = useClients(clinicId);
 
   const [clientId, setClientId] = useState('');
   const [petId, setPetId] = useState('');
@@ -64,6 +72,7 @@ export function VetAppointmentDialog({
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  const [assignedVet, setAssignedVet] = useState(vetId);
 
   useEffect(() => {
     if (!open) return;
@@ -75,7 +84,9 @@ export function VetAppointmentDialog({
       setTitleTouched(true);
       setLocation(existing.location ?? '');
       setDescription(existing.description ?? '');
+      setAssignedVet(existing.vetId ?? vetId);
     } else {
+      setAssignedVet(vetId);
       setClientId(presetClientId ?? '');
       setPetId(presetPetId ?? '');
       setWhen(toLocalInput(defaultStart(defaultDay)));
@@ -106,7 +117,9 @@ export function VetAppointmentDialog({
     dateTime && !Number.isNaN(dateTime.getTime())
       ? others.find(
           (o) =>
-            o.id !== existing?.id && Math.abs(o.dateTime.getTime() - dateTime.getTime()) < 30 * 60_000,
+            o.id !== existing?.id &&
+            (o.vetId ?? o.bookedByVetId) === assignedVet &&
+            Math.abs(o.dateTime.getTime() - dateTime.getTime()) < 30 * 60_000,
         )
       : undefined;
 
@@ -127,8 +140,10 @@ export function VetAppointmentDialog({
         clientName: client ? clientLabel(client) : existing?.clientName || t('common.client'),
         petId: petId || null,
         petName: pet?.name ?? (petId ? existing?.petName ?? null : null),
-        vetId,
-        vetName,
+        clinicId,
+        vetId: assignedVet,
+        vetName: vets.find((m) => m.uid === assignedVet)?.displayName ?? vetName,
+        bookedByVetId: vetId,
         title: effectiveTitle.trim() || t('event.appointmentName'),
         description: description.trim(),
         location: location.trim() || null,
@@ -197,6 +212,20 @@ export function VetAppointmentDialog({
             ))}
           </Select>
         </div>
+
+        {vets.length > 1 && (
+          <Select
+            label={t('vetAppt.vet')}
+            value={assignedVet}
+            onChange={(e) => setAssignedVet(e.target.value)}
+          >
+            {vets.map((m) => (
+              <option key={m.uid} value={m.uid}>
+                {m.displayName}
+              </option>
+            ))}
+          </Select>
+        )}
 
         <DateTimeField
           label={t('appointment.dateTime')}

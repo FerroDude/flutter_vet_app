@@ -450,7 +450,6 @@ export const en: Record<TKey, string> = {
   'profile.updated': 'Profile updated',
   'profile.updateFailed': "Couldn't update the profile",
   'profile.since': 'Member since {date}',
-  'profile.yourVet': 'Your vet',
   'profile.language': 'Language',
 
   'symptoms.log': 'Log symptom',
@@ -514,7 +513,6 @@ export const en: Record<TKey, string> = {
   'vet.clients.addedNoInvite': 'Client added. You can send the invite later.',
   'vet.clients.addFailed': "Couldn't add the client",
   'vet.clients.nameRequired': 'Name is required',
-  'vet.clients.emailInUse': 'That email already has an account.',
   'vet.clients.notInvited': 'Not invited yet',
   'vet.clients.noEmail': 'No email',
   'vet.clients.addEmail': 'Add email',
@@ -627,6 +625,45 @@ export const en: Record<TKey, string> = {
   'vetDash.upcoming': 'Upcoming appointments',
   'vetDash.noAppointments': 'No appointments booked.',
   'vetDash.recentCancels': 'Recently cancelled',
+
+
+  // Clinics (multi-clinic platform)
+  'clinic.loading': 'Loading your clinics…',
+  'clinic.none.title': 'No clinic',
+  'clinic.none.body': 'This account does not belong to a clinic yet. Ask the clinic to add you.',
+  'clinic.pick.title': 'Pick a clinic',
+  'clinic.pick.body': 'You belong to several clinics. Pick which one to work with.',
+  'clinic.switch': 'Switch clinic',
+
+  'chat.unassigned': 'Unassigned',
+  'chat.anyVet': 'Any vet',
+  'chat.waitingVet': 'Waiting for a vet',
+  'chat.poolBanner': '{name} asked to talk to any vet.',
+  'chat.accept': 'Accept conversation',
+  'chat.pass': 'Pass to clinic',
+  'chat.passTitle': 'Pass to clinic?',
+  'chat.passDesc': 'The conversation goes back to unassigned and any vet can accept it.',
+  'chat.start': 'Start conversation',
+  'chat.alreadyClaimed': '{name} already accepted this conversation.',
+  'chat.gone': 'This conversation no longer exists.',
+
+  'requests.anyVet': 'Any vet',
+  'requests.forYou': 'For you',
+  'requests.passTitle': 'Pass to clinic?',
+  'requests.passDesc': 'The request goes back to unassigned and any vet can handle it.',
+  'requests.alreadyHandled': '{name} already handled this request.',
+
+  'vet.clients.linkRequested':
+    'This email already has a VetTempo account. We sent the client a link request.',
+  'vet.clients.pendingLinks': 'Pending link requests',
+  'vet.clients.awaitingClient': 'waiting for the client',
+
+  'vetAgenda.showAppts': 'Appointments',
+  'vetAgenda.mine': 'Mine',
+  'vetAgenda.all': 'All',
+  'vetAppt.vet': 'Vet',
+
+  'profile.yourClinic': 'Your clinic',
 
   'monthgrid.prev': 'Previous month',
   'monthgrid.next': 'Next month',

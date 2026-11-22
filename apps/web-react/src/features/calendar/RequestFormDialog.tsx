@@ -33,7 +33,7 @@ function addDays(days: number): Date {
 interface Props {
   open: boolean;
   onClose: () => void;
-  vetId: string;
+  clinicId: string;
   petOwnerId: string;
   petOwnerName: string;
   pets: Pet[];
@@ -42,7 +42,7 @@ interface Props {
 export function RequestFormDialog({
   open,
   onClose,
-  vetId,
+  clinicId,
   petOwnerId,
   petOwnerName,
   pets,
@@ -86,7 +86,7 @@ export function RequestFormDialog({
     setError(null);
     try {
       await createRequest({
-        vetId,
+        clinicId,
         petOwnerId,
         petOwnerName,
         petId: pet.id,

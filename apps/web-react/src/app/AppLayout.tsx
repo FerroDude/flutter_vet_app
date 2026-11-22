@@ -37,8 +37,10 @@ function Badge({ n, className }: { n?: number; className?: string }) {
 }
 
 interface AppLayoutProps {
-  /** Signed-in clinic whose brand fills the shell (logo + primary colour). */
-  clinic: { name: string; logoWide: string; logoMark: string };
+  /** Active clinic whose brand fills the shell (logo + primary colour). */
+  clinic: { name: string; logoWideUrl?: string | null };
+  /** Clinic switcher, rendered under the logo (desktop only). */
+  clinicSwitcher?: ReactNode;
   nav: NavItem[];
   externalLinks?: ExternalNavLink[];
   userName: string;
@@ -49,6 +51,7 @@ interface AppLayoutProps {
 
 export function AppLayout({
   clinic,
+  clinicSwitcher,
   nav,
   externalLinks = [],
   userName,
@@ -67,7 +70,8 @@ export function AppLayout({
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 pt-6 pb-4 lg:flex">
         <div className="px-2">
-          <ClinicLogo src={clinic.logoWide} name={clinic.name} className="h-7" />
+          <ClinicLogo src={clinic.logoWideUrl} name={clinic.name} className="h-7" />
+          {clinicSwitcher}
         </div>
         <nav aria-label={t('nav.main')} className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((item) => (
@@ -106,7 +110,7 @@ export function AppLayout({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur lg:hidden">
-        <ClinicLogo src={clinic.logoWide} name={clinic.name} className="h-6 min-w-0" />
+        <ClinicLogo src={clinic.logoWideUrl} name={clinic.name} className="h-6 min-w-0" />
         <div className="flex items-center gap-1">
           {externalLinks.map((link) => (
             <a

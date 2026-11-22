@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyBrand,
-  brandVars,
-  contrastRatio,
-  hexToHslTriple,
-  YOSHI_CLINIC,
-} from './brand';
+import { applyBrand, brandVars, contrastRatio, hexToHslTriple } from './brand';
+
+const YOSHI = { primary: '#FA5119', accent: '#EA9374' };
 
 describe('hexToHslTriple', () => {
   it('converts brand hexes to H S% L% triples', () => {
@@ -28,7 +24,7 @@ describe('contrastRatio', () => {
 
 describe('brandVars', () => {
   it('Yoshi orange keeps a white primary-foreground and 95% primary-light', () => {
-    const vars = brandVars(YOSHI_CLINIC.brand);
+    const vars = brandVars(YOSHI);
     expect(vars['--primary']).toBe('15 96% 54%');
     expect(vars['--ring']).toBe(vars['--primary']);
     expect(vars['--primary-light']).toBe('15 96% 95%');
@@ -54,7 +50,7 @@ describe('applyBrand', () => {
     document.head.appendChild(meta);
     const style = document.documentElement.style;
 
-    applyBrand(YOSHI_CLINIC.brand);
+    applyBrand(YOSHI);
     expect(style.getPropertyValue('--primary')).toBe('15 96% 54%');
     expect(style.getPropertyValue('--ring')).toBe('15 96% 54%');
     expect(style.getPropertyValue('--primary-light')).toBe('15 96% 95%');

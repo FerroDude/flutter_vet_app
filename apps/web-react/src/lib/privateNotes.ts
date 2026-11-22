@@ -10,6 +10,7 @@ import {
   doc,
   query,
   updateDoc,
+  where,
   type DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -18,6 +19,7 @@ export type NoteKind = 'private' | 'public';
 
 export interface PrivateNote {
   id: string;
+  clinicId: string | null;
   text: string;
   createdAt: Date | null;
   updatedAt: Date | null;
@@ -27,8 +29,18 @@ export interface PrivateNote {
 const notesCol = (clientId: string, petId: string, kind: NoteKind = 'private') =>
   collection(db, 'users', clientId, 'pets', petId, kind === 'public' ? 'publicNotes' : 'private');
 
-export function privateNotesQuery(clientId: string, petId: string, kind: NoteKind = 'private') {
-  return query(notesCol(clientId, petId, kind));
+/**
+ * Notes on a pet. With a clinicId (staff view) only that clinic's notes come
+ * back; without it (client's public view) all public notes do.
+ */
+export function privateNotesQuery(
+  clientId: string,
+  petId: string,
+  kind: NoteKind = 'private',
+  clinicId?: string,
+) {
+  const col = notesCol(clientId, petId, kind);
+  return clinicId ? query(col, where('clinicId', '==', clinicId)) : query(col);
 }
 
 function toDate(v: unknown): Date | null {
@@ -43,6 +55,7 @@ export function mapPrivateNote(id: string, data: DocumentData): PrivateNote {
   const updatedAt = toDate(data.updatedAt);
   return {
     id,
+    clinicId: (data.clinicId as string | null) ?? null,
     text: (data.text as string) ?? '',
     createdAt: toDate(data.createdAt) ?? updatedAt,
     updatedAt,
@@ -53,12 +66,14 @@ export function mapPrivateNote(id: string, data: DocumentData): PrivateNote {
 export async function addPrivateNote(args: {
   clientId: string;
   petId: string;
+  clinicId: string;
   text: string;
   vetId: string;
   kind?: NoteKind;
 }): Promise<void> {
   const now = Date.now();
   await addDoc(notesCol(args.clientId, args.petId, args.kind), {
+    clinicId: args.clinicId,
     text: args.text,
     createdAt: now,
     updatedAt: now,

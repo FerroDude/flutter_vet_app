@@ -73,7 +73,11 @@ export function AppointmentPage() {
     setBusy(true);
     try {
       await cancelAppointmentAsClient({ clientId: uid, eventId: appt.id, reason: trimmed });
-      const room = rooms[0];
+      // Message the room of that event's clinic — prefer the assigned vet's
+      // room, fall back to any room of the clinic, skip if none exists.
+      const clinicRooms = rooms.filter((r) => r.clinicId === appt.clinicId);
+      const room =
+        clinicRooms.find((r) => r.vetId === appt.vetId) ?? clinicRooms[0] ?? null;
       if (room) {
         try {
           await sendMessage({

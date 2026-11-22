@@ -1,11 +1,10 @@
 import { useLayoutEffect } from 'react';
-import logoWide from '@/assets/logo-wide.png';
-import logoMark from '@/assets/logo-mark.png';
 
 /**
  * Runtime clinic branding. VetTempo owns the shell and all neutrals; a clinic
  * brand may only recolor --primary/--ring/--primary-light/--primary-foreground
- * and --accent. Next phase replaces YOSHI_CLINIC with the clinic Firestore doc.
+ * and --accent. The brand comes from the active clinic's Firestore doc
+ * (clinic.brand matches this shape).
  */
 export interface Brand {
   /** '#RRGGBB' */
@@ -14,14 +13,6 @@ export interface Brand {
 }
 
 export const VETTEMPO_BRAND: Brand = { primary: '#0E7C72', accent: '#4FD1C1' };
-
-/** Temporary until clinics live in Firestore (next phase). */
-export const YOSHI_CLINIC = {
-  name: 'Yoshi Vet Care',
-  brand: { primary: '#FA5119', accent: '#EA9374' } as Brand,
-  logoWide,
-  logoMark,
-};
 
 const BRAND_VARS = ['--primary', '--ring', '--primary-light', '--primary-foreground', '--accent'];
 

@@ -1,13 +1,13 @@
 # Project notes
 
-Only app: `apps/web-react` (solo-vet model: one vet, her clients). Feature list: `apps/web-react/FEATURES.md`.
+Only app: `apps/web-react` (multi-clinic model: VetTempo platform, clinics with owner/vet members and linked clients; active clinic in `ClinicProvider` + localStorage `vettempo-clinic`). Feature list: `apps/web-react/FEATURES.md`.
 The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile-flutter` branch.
 
 ## Conventions
 - UI text goes through `t()` from `src/i18n` (pt + en dictionaries in `src/i18n/pt.ts` / `en.ts`; en is type-checked for missing keys). Language is per device (localStorage) and switching reloads.
 - Shared helpers: `lib/format.ts` (dates, labels, `errorMessage`), `components/ui/Confirm.tsx` (`useConfirm`),
   `components/ui/Menu.tsx`, `components/ui/MonthGrid.tsx`. Use them instead of `window.confirm` or new formatters.
-- Data hooks: `useClients`, `useRooms`, `useRequests`, `useVetAppointments`.
+- Data hooks: `useClinic`, `useClinicMembers`, `useClinicClients`, `useClinicRooms`, `useClinicRequests`, `useClients` (wrapper), `useRooms`, `useRequests`, `useVetAppointments` (clinic-scoped).
 
 ## Verification
 - Typecheck: `npm run typecheck --workspace @vetplus/web`
@@ -40,7 +40,9 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
 
 ## Accounts
 - No in-app sign-up. Rules forbid self-created profiles.
-- Vets: `GOOGLE_CLOUD_PROJECT=vetplus-digital npm run create-vet -- <email> "<name>"`. Uses the
-  gcloud Application Default Credentials (`gcloud auth application-default login` once, with the
-  project owner's Google account). No service-account key file needed.
-- Clients: added by the vet in the app (`clientService.addClientByEmail`).
+- Vets: `GOOGLE_CLOUD_PROJECT=vetplus-digital npm run create-vet -- <email> "<name>"` creates the
+  staff user but does NOT attach a clinic — membership is added by a clinic owner via the
+  `createClinicVet` callable. Uses the gcloud Application Default Credentials
+  (`gcloud auth application-default login` once, with the project owner's Google account).
+  No service-account key file needed.
+- Clients: added by clinic staff in the app (`clinicService.addClinicClient` callable).

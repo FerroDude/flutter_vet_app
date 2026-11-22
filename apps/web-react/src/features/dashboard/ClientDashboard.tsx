@@ -6,6 +6,7 @@ import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/s
 import { useFoundReports, resolveFoundReport, type FoundReport } from '@/lib/petTagService';
 import { PHONE_RE, EMAIL_RE } from '@/lib/contact';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useCollection } from '@/lib/useFirestore';
 import { petsQuery, mapPet, type Pet } from '@/lib/petService';
 import { eventsQuery, mapEvent, isCancelled, type CalendarEvent } from '@/lib/eventService';
@@ -38,7 +39,10 @@ export function ClientDashboard() {
     .filter((e) => e.type === EventType.appointment && !isCancelled(e) && e.dateTime.getTime() >= Date.now())
     .slice(0, 3);
 
-  const { rooms, unread } = useRooms('petOwnerId', uid);
+  const { clinicId } = useActiveClinic();
+  const { rooms: allRooms } = useRooms('petOwnerId', uid);
+  const rooms = allRooms.filter((r) => r.clinicId === clinicId);
+  const unread = rooms.reduce((n, r) => n + (r.unreadCounts[uid] ?? 0), 0);
   const { reports } = useFoundReports(uid);
   const unresolved = reports.filter((r) => !r.resolved);
   const meds = useAllMedications(uid);

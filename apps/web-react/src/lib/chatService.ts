@@ -64,6 +64,121 @@ export function useRooms(field: 'petOwnerId' | 'vetId', uid: string) {
   }, [data, loading, uid]);
 }
 
+/**
+ * Staff chat: the vet's own rooms plus the clinic pool (unassigned).
+ * unread = my counters + the number of pool rooms with unread pool messages.
+ */
+/** Staff unread total: my counters + pool rooms with unread pool messages. */
+export function clinicRoomsUnread(mine: ChatRoom[], pool: ChatRoom[], uid: string): number {
+  return (
+    mine.reduce((n, r) => n + (r.unreadCounts[uid] ?? 0), 0) +
+    pool.filter((r) => (r.unreadCounts.pool ?? 0) > 0).length
+  );
+}
+
+export function useClinicRooms(clinicId: string, uid: string) {
+  const mineQ = useMemo(
+    () =>
+      clinicId && uid
+        ? query(chatRoomsCol(), where('clinicId', '==', clinicId), where('vetId', '==', uid))
+        : null,
+    [clinicId, uid],
+  );
+  const poolQ = useMemo(
+    () =>
+      clinicId
+        ? query(chatRoomsCol(), where('clinicId', '==', clinicId), where('vetId', '==', null))
+        : null,
+    [clinicId],
+  );
+  const mine = useCollection(mineQ, mapRoom);
+  const pool = useCollection(poolQ, mapRoom);
+  return useMemo(() => {
+    const sort = (rs: ChatRoom[]) =>
+      rs.filter((r) => r.isActive).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const m = sort(mine.data);
+    const p = sort(pool.data);
+    const unread = clinicRoomsUnread(m, p, uid);
+    return { mine: m, pool: p, unread, loading: mine.loading || pool.loading };
+  }, [mine.data, mine.loading, pool.data, pool.loading, uid]);
+}
+
+/**
+ * Claim a pool room: assign it to me. Fails with 'chat.alreadyClaimed' if
+ * another vet got there first (transaction guards the vetId == null race).
+ */
+export async function claimRoom(roomId: string, uid: string, vetName: string): Promise<void> {
+  const ref = roomDoc(roomId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(t('chat.gone'));
+    const d = snap.data();
+    if (d.vetId) {
+      throw new Error(t('chat.alreadyClaimed', { name: (d.vetName as string) || t('common.vet') }));
+    }
+    tx.update(ref, {
+      vetId: uid,
+      vetName,
+      status: ChatRoomStatus.active,
+      claimedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  });
+  // The claim write may only touch assignment fields, so the pool's unread
+  // counter moves to me in a second write (I'm the assignee now).
+  const room = await getRoom(roomId);
+  const poolN = room?.unreadCounts.pool ?? 0;
+  if (poolN > 0) {
+    await updateDoc(ref, {
+      [`unreadCounts.${uid}`]: poolN,
+      'unreadCounts.pool': 0,
+    });
+  }
+}
+
+/** Give my room back to the clinic pool ("pass to clinic"). */
+export async function releaseRoom(roomId: string): Promise<void> {
+  await updateDoc(roomDoc(roomId), {
+    vetId: null,
+    vetName: null,
+    status: ChatRoomStatus.pending,
+    releasedAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Client starts a chat with the clinic pool ("any vet"). Rules require
+ * requestedVetId == vetId (both null) and status pending.
+ */
+export async function createPoolRoom(args: {
+  clinicId: string;
+  petOwnerId: string;
+  petOwnerName: string;
+}): Promise<string> {
+  const now = Date.now();
+  const r = await addDoc(chatRoomsCol(), {
+    clinicId: args.clinicId,
+    petOwnerId: args.petOwnerId,
+    petOwnerName: args.petOwnerName,
+    vetId: null,
+    vetName: null,
+    requestedVetId: null,
+    petIds: [],
+    lastMessage: null,
+    unreadCounts: {},
+    createdAt: now,
+    updatedAt: now,
+    isActive: true,
+    topic: null,
+    status: ChatRoomStatus.pending,
+    requestDescription: null,
+    initiatedBy: 'pet_owner',
+    staffRole: 'vet',
+  });
+  return r.id;
+}
+
 /** Newest `n` messages (desc); reverse in the UI for chronological display. */
 export function roomMessagesQuery(roomId: string, n = 100) {
   return query(messagesCol(roomId), orderBy('timestamp', 'desc'), qLimit(n));
@@ -105,8 +220,9 @@ export function mapRoom(id: string, d: DocumentData): ChatRoom {
     clinicId: (d.clinicId as string | null) ?? null,
     petOwnerId: (d.petOwnerId as string) ?? '',
     petOwnerName: (d.petOwnerName as string) ?? '',
-    vetId: (d.vetId as string) ?? '',
-    vetName: (d.vetName as string) ?? '',
+    vetId: (d.vetId as string | null) ?? null,
+    vetName: (d.vetName as string | null) ?? null,
+    requestedVetId: (d.requestedVetId as string | null) ?? null,
     petIds: Array.isArray(d.petIds) ? (d.petIds as string[]) : [],
     lastMessage: lm ? mapMessage((lm.id as string) ?? '', lm) : null,
     unreadCounts:
@@ -157,25 +273,36 @@ export async function getRoom(roomId: string): Promise<ChatRoom | null> {
   return snap.exists() ? mapRoom(snap.id, snap.data()) : null;
 }
 
-/** Find the client↔vet room or create it. */
+/**
+ * Find the client↔vet room in this clinic or create it. Staff-created rooms
+ * are directed to the caller (vetId = me), never pooled.
+ */
 export async function findOrCreateOneOnOneChat(args: {
+  clinicId: string;
   petOwnerId: string;
   petOwnerName: string;
   vetId: string;
   vetName: string;
 }): Promise<string> {
   const existing = await getDocs(
-    query(chatRoomsCol(), where('petOwnerId', '==', args.petOwnerId), where('vetId', '==', args.vetId)),
+    query(
+      chatRoomsCol(),
+      where('clinicId', '==', args.clinicId),
+      where('vetId', '==', args.vetId),
+      where('petOwnerId', '==', args.petOwnerId),
+    ),
   );
   const active = existing.docs.find((d) => d.data().isActive !== false);
   if (active) return active.id;
 
   const now = Date.now();
   const r = await addDoc(chatRoomsCol(), {
+    clinicId: args.clinicId,
     petOwnerId: args.petOwnerId,
     petOwnerName: args.petOwnerName,
     vetId: args.vetId,
     vetName: args.vetName,
+    requestedVetId: args.vetId,
     petIds: [],
     lastMessage: null,
     unreadCounts: {},
@@ -242,7 +369,9 @@ export async function sendMessage(i: SendMessageInput): Promise<void> {
 
   if (room) {
     const unread: Record<string, number> = { ...room.unreadCounts };
-    const otherId = i.senderId === room.petOwnerId ? room.vetId : room.petOwnerId;
+    // The receiver is the other participant; a vet-less room counts under 'pool'
+    // so every clinic vet sees the badge until someone claims it.
+    const otherId = i.senderId === room.petOwnerId ? (room.vetId ?? 'pool') : room.petOwnerId;
     if (otherId) unread[otherId] = (unread[otherId] ?? 0) + 1;
     batch.update(roomDoc(i.roomId), {
       lastMessage: json,

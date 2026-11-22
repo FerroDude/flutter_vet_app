@@ -66,14 +66,20 @@ export function VetTempoLogo({ variant = 'wide', tone = 'light', className }: Ve
 }
 
 interface ClinicLogoProps {
-  src: string;
-  /** Clinic name, used as the alt text. */
+  /** Wide logo URL; falsy falls back to the clinic name as text. */
+  src?: string | null;
+  /** Clinic name, used as the alt text and the no-logo fallback. */
   name: string;
   className?: string;
 }
 
 /** Clinic logo inside the signed-in app. Size with a height class (e.g. `h-7`). */
 export function ClinicLogo({ src, name, className }: ClinicLogoProps) {
+  if (!src) {
+    return (
+      <span className={cn('truncate font-semibold text-foreground', className)}>{name}</span>
+    );
+  }
   return (
     <img
       src={src}

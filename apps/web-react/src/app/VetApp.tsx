@@ -1,10 +1,12 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LayoutDashboard, CalendarDays, MessageCircle, Users, User, Landmark } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
-import { useVetPendingRequests } from '@/lib/appointmentRequestService';
-import { useRooms } from '@/lib/chatService';
+import { useClinicRequests } from '@/lib/appointmentRequestService';
+import { useClinicRooms } from '@/lib/chatService';
+import { AppointmentRequestStatus } from '@vetplus/shared';
 import { AppLayout, type ExternalNavLink, type NavItem } from './AppLayout';
-import { useBrand, YOSHI_CLINIC } from '@/lib/brand';
+import { ClinicSwitcher } from './ClinicSwitcher';
+import { useActiveClinic } from './ClinicProvider';
 import { t } from '@/i18n';
 import { VetDashboard } from '@/features/vet/VetDashboard';
 import { VetAgendaPage } from '@/features/vet/VetAgendaPage';
@@ -22,13 +24,16 @@ const PEMV_URL = 'https://pemv.dgav.pt/web/login?redirect=https%3A%2F%2Fpemv.dga
 
 export function VetApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
-  const pending = useVetPendingRequests(firebaseUser?.uid ?? '');
-  const { unread } = useRooms('vetId', firebaseUser?.uid ?? '');
-  useBrand(YOSHI_CLINIC.brand);
+  const { clinicId, clinic } = useActiveClinic();
+  const { mine, pool } = useClinicRequests(clinicId, firebaseUser?.uid ?? '');
+  const { unread } = useClinicRooms(clinicId, firebaseUser?.uid ?? '');
+  const pendingCount =
+    mine.filter((r) => r.status === AppointmentRequestStatus.pending).length +
+    pool.filter((r) => r.status === AppointmentRequestStatus.pending).length;
 
   const nav: NavItem[] = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
-    { to: '/agenda', label: t('nav.agenda'), icon: CalendarDays, badge: pending.length },
+    { to: '/agenda', label: t('nav.agenda'), icon: CalendarDays, badge: pendingCount },
     { to: '/clients', label: t('nav.clients'), icon: Users },
     { to: '/chat', label: t('nav.chat'), icon: MessageCircle, badge: unread },
     { to: '/profile', label: t('nav.profile'), icon: User },
@@ -40,7 +45,8 @@ export function VetApp() {
 
   return (
     <AppLayout
-      clinic={YOSHI_CLINIC}
+      clinic={{ name: clinic?.name ?? '', logoWideUrl: clinic?.brand?.logoWideUrl ?? null }}
+      clinicSwitcher={<ClinicSwitcher />}
       nav={nav}
       externalLinks={externalLinks}
       userName={profile?.displayName?.trim() || profile?.email || t('common.vet')}

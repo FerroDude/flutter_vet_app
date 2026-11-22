@@ -10,6 +10,8 @@ import {
   roomMessagesQuery,
   mapMessage,
   sendMessage,
+  claimRoom,
+  releaseRoom,
   markRoomRead,
   markIncomingRead,
   uploadChatMedia,
@@ -65,12 +67,14 @@ export function Conversation({ roomId }: { roomId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Mark read when opening / when new messages arrive.
+  // Mark read when opening / when new messages arrive. Skip on a pool room
+  // (rules: only the petOwner or the assigned vet may touch it).
+  const canMarkRead = Boolean(room && (uid === room.petOwnerId || uid === room.vetId));
   useEffect(() => {
-    if (!uid || !roomId) return;
+    if (!uid || !roomId || !canMarkRead) return;
     void markRoomRead(roomId, uid);
     void markIncomingRead(roomId, uid).catch(() => {});
-  }, [roomId, uid, messages.length]);
+  }, [roomId, uid, canMarkRead, messages.length]);
 
   useEffect(() => {
     setActiveChatRoom(roomId);
@@ -263,8 +267,36 @@ export function Conversation({ roomId }: { roomId: string }) {
     t.style.height = `${Math.min(t.scrollHeight, 128)}px`;
   }, [text]);
 
-  const iAmVet = Boolean(room && uid === room.vetId);
-  const otherName = iAmVet ? room?.petOwnerName?.trim() : room?.vetName?.trim();
+  // Staff viewing a pool room counts as vet-side for layout, but can't post.
+  const isStaff = role === 'vet';
+  const isPoolForStaff = Boolean(room && room.vetId === null && isStaff);
+  const iAmVet = Boolean(room && (uid === room.vetId || isPoolForStaff));
+  const otherName = iAmVet
+    ? room?.petOwnerName?.trim()
+    : (room?.vetName?.trim() || (room?.vetId === null ? t('chat.waitingVet') : ''));
+  const iAmAssignedVet = Boolean(room && uid === room.vetId);
+
+  const claim = async () => {
+    try {
+      await claimRoom(roomId, uid, senderName);
+    } catch (e) {
+      toast.error(errorMessage(e, t('chat.sendFailed')));
+    }
+  };
+
+  const passToClinic = async () => {
+    const ok = await confirm({
+      title: t('chat.passTitle'),
+      description: t('chat.passDesc'),
+      confirmLabel: t('chat.pass'),
+    });
+    if (!ok) return;
+    try {
+      await releaseRoom(roomId);
+    } catch (e) {
+      toast.error(errorMessage(e, t('chat.sendFailed')));
+    }
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -278,6 +310,15 @@ export function Conversation({ roomId }: { roomId: string }) {
             {iAmVet ? t('common.client') : t('chat.yourVet')}
           </p>
         </div>
+        {iAmAssignedVet && (
+          <button
+            type="button"
+            onClick={() => void passToClinic()}
+            className="ml-auto shrink-0 rounded-(--radius-md) px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            {t('chat.pass')}
+          </button>
+        )}
       </div>
 
       {/* Messages */}
@@ -374,7 +415,21 @@ export function Conversation({ roomId }: { roomId: string }) {
         </div>
       )}
 
-      {/* Composer */}
+      {/* Composer — staff must claim a pool room before posting */}
+      {isPoolForStaff ? (
+        <div className="flex items-center gap-3 border-t border-border bg-secondary/50 px-4 py-3">
+          <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+            {t('chat.poolBanner', { name: room?.petOwnerName || t('common.client') })}
+          </p>
+          <button
+            type="button"
+            onClick={() => void claim()}
+            className="shrink-0 rounded-(--radius-md) bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {t('chat.accept')}
+          </button>
+        </div>
+      ) : (
       <div className="flex items-end gap-2 border-t border-border px-4 py-3">
         <input
           ref={fileInputRef}
@@ -446,6 +501,7 @@ export function Conversation({ roomId }: { roomId: string }) {
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,8 @@ import { LayoutDashboard, PawPrint, CalendarDays, MessageCircle, User } from 'lu
 import { useAuth } from '@/auth/AuthProvider';
 import { useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
-import { useBrand, YOSHI_CLINIC } from '@/lib/brand';
+import { ClinicSwitcher } from './ClinicSwitcher';
+import { useActiveClinic } from './ClinicProvider';
 import { t } from '@/i18n';
 import { ClientDashboard } from '@/features/dashboard/ClientDashboard';
 import { PetsPage } from '@/features/pets/PetsPage';
@@ -22,20 +23,26 @@ import { NotificationPrompt } from '@/features/notifications/NotificationPrompt'
 
 export function ClientApp() {
   const { firebaseUser, profile, signOutUser } = useAuth();
-  const { unread } = useRooms('petOwnerId', firebaseUser?.uid ?? '');
-  useBrand(YOSHI_CLINIC.brand);
+  const { clinicId, clinic } = useActiveClinic();
+  const { rooms } = useRooms('petOwnerId', firebaseUser?.uid ?? '');
+  const unread = rooms
+    .filter((r) => r.clinicId === clinicId)
+    .reduce((n, r) => n + (r.unreadCounts[firebaseUser?.uid ?? ''] ?? 0), 0);
 
   const nav: NavItem[] = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
     { to: '/pets', label: t('nav.pets'), icon: PawPrint },
     { to: '/agenda', label: t('nav.agenda'), icon: CalendarDays },
-    { to: '/chat', label: t('nav.chat'), icon: MessageCircle, badge: unread },
+    ...(clinicId
+      ? [{ to: '/chat', label: t('nav.chat'), icon: MessageCircle, badge: unread }]
+      : []),
     { to: '/profile', label: t('nav.profile'), icon: User },
   ];
 
   return (
     <AppLayout
-      clinic={YOSHI_CLINIC}
+      clinic={{ name: clinic?.name ?? 'VetTempo', logoWideUrl: clinic?.brand?.logoWideUrl ?? null }}
+      clinicSwitcher={<ClinicSwitcher />}
       nav={nav}
       userName={profile?.displayName?.trim() || profile?.email || t('common.client')}
       userSubtitle={t('common.client')}
@@ -55,7 +62,7 @@ export function ClientApp() {
         <Route path="pets/:petId/edit" element={<PetForm />} />
         <Route path="agenda" element={<AgendaPage />} />
         <Route path="agenda/consultas/:eventId" element={<AppointmentPage />} />
-        <Route path="chat" element={<ChatPage />} />
+        {clinicId && <Route path="chat" element={<ChatPage />} />}
         <Route path="profile" element={<ProfileSettingsPage />} />
         {/* Old links */}
         <Route path="calendar" element={<Navigate to="/agenda" replace />} />

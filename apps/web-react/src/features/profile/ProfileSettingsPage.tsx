@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { CalendarCheck, LogOut, RefreshCw, Stethoscope, Unlink } from 'lucide-react';
-import { type UserProfile } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
-import { getUserProfile } from '@/lib/userService';
+import { useActiveClinic } from '@/app/ClinicProvider';
+import { ClinicSwitcher } from '@/app/ClinicSwitcher';
 import {
   connectGcal,
   disconnectGcal,
@@ -21,7 +21,7 @@ import {
   setAlertsMuted,
   setNotificationsMuted,
 } from '@/lib/notifications';
-import { errorMessage, fullAddress, longDateFmt } from '@/lib/format';
+import { errorMessage, longDateFmt } from '@/lib/format';
 import {
   ClientDetailsFields,
   detailsFromDraft,
@@ -47,7 +47,11 @@ export function ProfileSettingsPage() {
   const [postalCode, setPostalCode] = useState('');
   const [details, setDetails] = useState<ClientDetailsDraft>(() => draftFromProfile(null));
   const [saving, setSaving] = useState(false);
-  const [vet, setVet] = useState<UserProfile | null>(null);
+  const { clinic, clinicIds } = useActiveClinic();
+  const contact = clinic?.contact ?? null;
+  const hasClinicContact = Boolean(
+    isClient && clinic && (contact?.phone || contact?.address || contact?.postalCode),
+  );
   const [notifPerm, setNotifPerm] = useState(notificationPermission());
   const [notifMuted, setNotifMuted] = useState(notificationsMuted());
   const [inAppMuted, setInAppMuted] = useState(alertsMuted());
@@ -59,17 +63,6 @@ export function ProfileSettingsPage() {
     setPostalCode(profile?.postalCode ?? '');
     setDetails(draftFromProfile(profile));
   }, [profile]);
-
-  // Clients see their vet's contact details (address for home visits).
-  useEffect(() => {
-    const vetId = profile?.vetId;
-    if (!isClient || !vetId) return setVet(null);
-    let active = true;
-    void getUserProfile(vetId).then((v) => active && setVet(v));
-    return () => {
-      active = false;
-    };
-  }, [isClient, profile?.vetId]);
 
   const dirty =
     name.trim() !== (profile?.displayName ?? '') ||
@@ -116,6 +109,11 @@ export function ProfileSettingsPage() {
             <p className="truncate text-sm text-muted-foreground">
               {isClient ? t('common.client') : t('common.vet')} · {profile?.email}
             </p>
+            {clinicIds.length > 1 && (
+              <div className="mt-2 max-w-xs md:hidden">
+                <ClinicSwitcher />
+              </div>
+            )}
           </div>
         </CardBody>
       </Card>
@@ -313,22 +311,24 @@ export function ProfileSettingsPage() {
         </Section>
       )}
 
-      {isClient && (
-        <Section title={t('profile.yourVet')}>
+      {isClient && hasClinicContact && clinic && (
+        <Section title={t('profile.yourClinic')}>
           <Card>
             <CardBody className="flex items-start gap-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-(--radius-md) bg-primary-light text-primary">
                 <Stethoscope size={18} />
               </span>
               <div className="min-w-0 flex-1 space-y-1">
-                <p className="break-words font-medium text-foreground">{vet?.displayName || t('common.vet')}</p>
-                {vet?.phone && (
-                  <a href={`tel:${vet.phone}`} className="block text-sm text-muted-foreground hover:text-foreground">
-                    {vet.phone}
+                <p className="break-words font-medium text-foreground">{clinic.name}</p>
+                {contact?.phone && (
+                  <a href={`tel:${contact.phone}`} className="block text-sm text-muted-foreground hover:text-foreground">
+                    {contact.phone}
                   </a>
                 )}
-                {vet && fullAddress(vet) && (
-                  <p className="break-words text-sm text-muted-foreground">{fullAddress(vet)}</p>
+                {[contact?.address, contact?.postalCode].filter(Boolean).length > 0 && (
+                  <p className="break-words text-sm text-muted-foreground">
+                    {[contact?.address, contact?.postalCode].filter(Boolean).join(', ')}
+                  </p>
                 )}
               </div>
             </CardBody>

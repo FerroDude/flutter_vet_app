@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
 import { EventType } from '@vetplus/shared';
 import { useCollection } from './useFirestore';
-import { mapEvent, vetAppointmentsQuery, type AppointmentEvent } from './eventService';
+import { mapEvent, clinicAppointmentsQuery, type AppointmentEvent } from './eventService';
 
-/** Live list of a vet's booked appointments, oldest first. */
-export function useVetAppointments(vetId: string) {
-  const q = useMemo(() => (vetId ? vetAppointmentsQuery(vetId) : null), [vetId]);
+/** Live list of the clinic's booked appointments, oldest first. */
+export function useVetAppointments(clinicId: string) {
+  const q = useMemo(() => (clinicId ? clinicAppointmentsQuery(clinicId) : null), [clinicId]);
   const { data, loading, error } = useCollection(q, mapEvent);
   const appointments = useMemo(
     () =>

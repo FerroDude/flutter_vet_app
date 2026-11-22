@@ -34,17 +34,26 @@ export function PrivateNotesCard({
   clientId,
   petId,
   vetId = '',
+  clinicId = '',
   kind = 'private',
   readOnly = false,
+  clinicNames,
 }: {
   clientId: string;
   petId: string;
   vetId?: string;
+  /** Active clinic; notes are per clinic for staff, clinicId-less reads are the client's public view. */
+  clinicId?: string;
   kind?: NoteKind;
   /** Owner view: list only, and the whole card hides when there are no notes. */
   readOnly?: boolean;
+  /** Owner view with several clinics: clinicId → name, labels each note. */
+  clinicNames?: Record<string, string>;
 }) {
-  const q = useMemo(() => privateNotesQuery(clientId, petId, kind), [clientId, petId, kind]);
+  const q = useMemo(
+    () => privateNotesQuery(clientId, petId, kind, readOnly ? undefined : clinicId || undefined),
+    [clientId, petId, kind, clinicId, readOnly],
+  );
   const { data, loading } = useCollection<PrivateNote>(q, mapPrivateNote);
   const notes = useMemo(
     () =>
@@ -66,7 +75,7 @@ export function PrivateNotesCard({
     if (!text) return;
     setAdding(true);
     try {
-      await addPrivateNote({ clientId, petId, text, vetId, kind });
+      await addPrivateNote({ clientId, petId, clinicId, text, vetId, kind });
       setDraft('');
     } catch (e) {
       toast.error(errorText(e));
@@ -170,6 +179,9 @@ export function PrivateNotesCard({
                     <div className="min-w-0 flex-1">
                       <p className="whitespace-pre-wrap break-words text-sm text-foreground">{n.text}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
+                        {readOnly && n.clinicId && clinicNames?.[n.clinicId]
+                          ? `${clinicNames[n.clinicId]} · `
+                          : ''}
                         {n.createdAt ? noteFmt.format(n.createdAt) : ''}
                         {n.updatedAt &&
                         n.createdAt &&

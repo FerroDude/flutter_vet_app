@@ -9,7 +9,6 @@ import {
   addDoc,
   updateDoc,
   runTransaction,
-  writeBatch,
   query,
   where,
   type DocumentData,
@@ -33,8 +32,9 @@ const requestDoc = (id: string) => doc(db, 'appointmentRequests', id);
 export function mapAppointmentRequest(id: string, d: DocumentData): AppointmentRequest {
   return {
     id,
-    vetId: (d.vetId as string) ?? '',
+    vetId: (d.vetId as string | null) ?? null,
     clinicId: (d.clinicId as string | null) ?? null,
+    requestedVetId: (d.requestedVetId as string | null) ?? null,
     petOwnerId: (d.petOwnerId as string) ?? '',
     petOwnerName: (d.petOwnerName as string) ?? '',
     petId: (d.petId as string) ?? '',
@@ -58,8 +58,8 @@ export function mapAppointmentRequest(id: string, d: DocumentData): AppointmentR
   };
 }
 
-/** Requests by field (`petOwnerId` for a client, `vetId` for a vet), newest first. */
-export function useRequests(field: 'petOwnerId' | 'vetId', id: string) {
+/** Requests by field (`petOwnerId` for a client), newest first. */
+export function useRequests(field: 'petOwnerId', id: string) {
   const q = useMemo(() => (id ? query(requestsCol(), where(field, '==', id)) : null), [field, id]);
   const { data, loading } = useCollection(q, mapAppointmentRequest);
   const requests = useMemo(
@@ -69,17 +69,38 @@ export function useRequests(field: 'petOwnerId' | 'vetId', id: string) {
   return { requests, loading };
 }
 
-/** Pending requests for a vet, oldest first (the order she should handle them). */
-export function useVetPendingRequests(vetId: string): AppointmentRequest[] {
-  const { requests } = useRequests('vetId', vetId);
+/**
+ * Staff requests: mine (assigned to me) + the clinic pool (unassigned).
+ */
+export function useClinicRequests(clinicId: string, uid: string) {
+  const mineQ = useMemo(
+    () =>
+      clinicId && uid
+        ? query(requestsCol(), where('clinicId', '==', clinicId), where('vetId', '==', uid))
+        : null,
+    [clinicId, uid],
+  );
+  const poolQ = useMemo(
+    () =>
+      clinicId
+        ? query(requestsCol(), where('clinicId', '==', clinicId), where('vetId', '==', null))
+        : null,
+    [clinicId],
+  );
+  const mine = useCollection(mineQ, mapAppointmentRequest);
+  const pool = useCollection(poolQ, mapAppointmentRequest);
   return useMemo(
-    () => requests.filter((r) => r.status === AppointmentRequestStatus.pending).reverse(),
-    [requests],
+    () => ({
+      mine: [...mine.data].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+      pool: [...pool.data].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+      loading: mine.loading || pool.loading,
+    }),
+    [mine.data, mine.loading, pool.data, pool.loading],
   );
 }
 
 export interface NewAppointmentRequest {
-  vetId: string;
+  clinicId: string;
   petOwnerId: string;
   petOwnerName: string;
   petId: string;
@@ -96,6 +117,9 @@ export async function createRequest(r: NewAppointmentRequest): Promise<void> {
   const now = Date.now();
   await addDoc(requestsCol(), {
     ...r,
+    vetId: null,
+    requestedVetId: null,
+    vetName: null,
     petSpecies: r.petSpecies ?? null,
     preferredDateStart: r.preferredDateStart.getTime(),
     preferredDateEnd: r.preferredDateEnd.getTime(),
@@ -113,9 +137,24 @@ export async function createRequest(r: NewAppointmentRequest): Promise<void> {
   });
 }
 
-/** Vet confirms: books the visit in the client's calendar and marks the request, in one batch. */
+function alreadyHandled(d: DocumentData, uid: string): Error | null {
+  const name = (d.handledByName as string) || t('common.vet');
+  if ((d.status ?? 0) !== AppointmentRequestStatus.pending) {
+    return new Error(t('requests.alreadyHandled', { name }));
+  }
+  if (d.vetId && d.vetId !== uid) {
+    return new Error(t('requests.alreadyHandled', { name }));
+  }
+  return null;
+}
+
+/**
+ * Vet confirms: books the visit in the client's calendar and marks the
+ * request, in one transaction. Claiming from the pool also assigns vetId.
+ */
 export async function confirmRequest(args: {
   request: AppointmentRequest;
+  clinicId: string;
   vetId: string;
   vetName: string;
   dateTime: Date;
@@ -125,34 +164,44 @@ export async function confirmRequest(args: {
   // UI-only guard: confirmations stay inside the client's requested window.
   const windowError = requestWindowError(r, args.dateTime);
   if (windowError) throw new Error(windowError);
-  const event = vetAppointmentWrite({
-    id: r.calendarEventId,
-    clientId: r.petOwnerId,
-    clientName: r.petOwnerName,
-    petId: r.petId,
-    petName: r.petName,
-    vetId: args.vetId,
-    vetName: args.vetName,
-    title: appointmentTitle(r.petName),
-    description: r.reason,
-    location: null,
-    dateTime: args.dateTime,
-    appointmentRequestId: r.id,
-  });
   const now = Date.now();
-  const batch = writeBatch(db);
-  batch.set(event.ref, event.data, { merge: true });
-  batch.update(requestDoc(r.id), {
-    status: AppointmentRequestStatus.confirmed,
-    handledBy: args.vetId,
-    handledByName: args.vetName,
-    handledAt: now,
-    responseMessage: args.message ?? null,
-    calendarEventId: event.ref.id,
-    bookedDateTime: args.dateTime.getTime(),
-    updatedAt: now,
+  await runTransaction(db, async (tx) => {
+    const ref = requestDoc(r.id);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(t('requests.gone'));
+    const guard = alreadyHandled(snap.data(), args.vetId);
+    if (guard) throw guard;
+    const event = vetAppointmentWrite({
+      id: r.calendarEventId,
+      clientId: r.petOwnerId,
+      clientName: r.petOwnerName,
+      petId: r.petId,
+      petName: r.petName,
+      clinicId: args.clinicId,
+      vetId: args.vetId,
+      vetName: args.vetName,
+      bookedByVetId: args.vetId,
+      title: appointmentTitle(r.petName),
+      description: r.reason,
+      location: null,
+      dateTime: args.dateTime,
+      appointmentRequestId: r.id,
+    });
+    tx.set(event.ref, event.data, { merge: true });
+    tx.update(ref, {
+      status: AppointmentRequestStatus.confirmed,
+      vetId: args.vetId,
+      vetName: args.vetName,
+      claimedAt: now,
+      handledBy: args.vetId,
+      handledByName: args.vetName,
+      handledAt: now,
+      responseMessage: args.message ?? null,
+      calendarEventId: event.ref.id,
+      bookedDateTime: args.dateTime.getTime(),
+      updatedAt: now,
+    });
   });
-  await batch.commit();
 }
 
 export async function denyRequest(args: {
@@ -162,13 +211,32 @@ export async function denyRequest(args: {
   message: string;
 }): Promise<void> {
   const now = Date.now();
-  await updateDoc(requestDoc(args.requestId), {
-    status: AppointmentRequestStatus.denied,
-    handledBy: args.vetId,
-    handledByName: args.vetName,
-    handledAt: now,
-    responseMessage: args.message,
-    updatedAt: now,
+  await runTransaction(db, async (tx) => {
+    const ref = requestDoc(args.requestId);
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error(t('requests.gone'));
+    const guard = alreadyHandled(snap.data(), args.vetId);
+    if (guard) throw guard;
+    tx.update(ref, {
+      status: AppointmentRequestStatus.denied,
+      vetId: args.vetId,
+      vetName: args.vetName,
+      claimedAt: now,
+      handledBy: args.vetId,
+      handledByName: args.vetName,
+      handledAt: now,
+      responseMessage: args.message,
+      updatedAt: now,
+    });
+  });
+}
+
+/** Give my pending request back to the clinic pool ("pass to clinic"). */
+export async function releaseRequest(requestId: string): Promise<void> {
+  await updateDoc(requestDoc(requestId), {
+    vetId: null,
+    releasedAt: Date.now(),
+    updatedAt: Date.now(),
   });
 }
 

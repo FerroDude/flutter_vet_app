@@ -5,6 +5,7 @@ import { Activity, ArrowLeft, CalendarDays, PawPrint, Pencil, Pill, Plus, QrCode
 import { PetAvatar } from '@/components/ui/PetAvatar';
 import { EventType, type PetSymptom, type Medication } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useDoc, useCollection } from '@/lib/useFirestore';
 import { petDoc, mapPet, petAgeLabel, symptomsQuery, mapSymptom, deleteSymptom, type Pet } from '@/lib/petService';
 import {
@@ -47,6 +48,11 @@ export function PetDetailPage() {
   const confirm = useConfirm();
   const { firebaseUser, profile, role } = useAuth();
   const isVetView = role === 'vet' && Boolean(ownerId);
+  const { clinicId, clinics } = useActiveClinic();
+  const clinicNames = useMemo(
+    () => Object.fromEntries(clinics.map((c) => [c.id, c.name])),
+    [clinics],
+  );
   const uid = (isVetView ? ownerId : firebaseUser?.uid) ?? '';
   const back = isVetView ? `/clients/${ownerId}` : '/pets';
   const vetName = profile?.displayName?.trim() || t('common.vet');
@@ -134,11 +140,17 @@ export function PetDetailPage() {
 
       {isVetView ? (
         <>
-          <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />
-          <PrivateNotesCard kind="public" clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} />
+          <PrivateNotesCard clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} clinicId={clinicId} />
+          <PrivateNotesCard kind="public" clientId={uid} petId={petId} vetId={firebaseUser?.uid ?? ''} clinicId={clinicId} />
         </>
       ) : (
-        <PrivateNotesCard kind="public" clientId={uid} petId={petId} readOnly />
+        <PrivateNotesCard
+          kind="public"
+          clientId={uid}
+          petId={petId}
+          readOnly
+          clinicNames={clinics.length > 1 ? clinicNames : undefined}
+        />
       )}
       <PetTagDialog
         open={tagOpen}
@@ -210,7 +222,7 @@ export function PetDetailPage() {
       <Section
         title={t('pets.appointments')}
         action={
-          isVetView || profile?.vetId ? (
+          isVetView || clinicId ? (
             <Button
               variant="outline"
               onClick={() => {
@@ -328,6 +340,7 @@ export function PetDetailPage() {
           }}
           vetId={firebaseUser?.uid ?? ''}
           vetName={vetName}
+          clinicId={clinicId}
           defaultDay={new Date()}
           presetClientId={uid}
           presetPetId={pet.id}
@@ -346,11 +359,11 @@ export function PetDetailPage() {
           existing={editingEvent}
         />
       ) : (
-        profile?.vetId && (
+        clinicId && (
           <RequestFormDialog
             open={apptOpen}
             onClose={() => setApptOpen(false)}
-            vetId={profile.vetId}
+            clinicId={clinicId}
             petOwnerId={uid}
             petOwnerName={profile ? clientLabel(profile) : ''}
             pets={[pet]}

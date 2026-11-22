@@ -1,18 +1,10 @@
-import { useMemo } from 'react';
-import { UserType, type UserProfile } from '@vetplus/shared';
-import { useCollection } from './useFirestore';
-import { clientLabel, clientsQuery, mapClient } from './clientService';
+import { useClinicClients } from './clinicService';
 
-/** A vet's clients, sorted by name. */
-export function useClients(vetId: string) {
-  const q = useMemo(() => (vetId ? clientsQuery(vetId) : null), [vetId]);
-  const { data, loading, error } = useCollection<UserProfile>(q, mapClient);
-  const clients = useMemo(
-    () =>
-      data
-        .filter((c) => c.userType === UserType.petOwner)
-        .sort((a, b) => clientLabel(a).localeCompare(clientLabel(b))),
-    [data],
-  );
+/**
+ * Active clients of the clinic, sorted by name. Thin wrapper kept for the
+ * existing call sites — the pending links live in `useClinicClients` directly.
+ */
+export function useClients(clinicId: string) {
+  const { clients, loading, error } = useClinicClients(clinicId);
   return { clients, loading, error };
 }
