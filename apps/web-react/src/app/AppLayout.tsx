@@ -65,7 +65,7 @@ export function AppLayout({
         {t('nav.skip')}
       </a>
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 py-6 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 pt-6 pb-4 lg:flex">
         <div className="px-2">
           <ClinicLogo src={clinic.logoWide} name={clinic.name} className="h-7" />
         </div>
@@ -94,7 +94,7 @@ export function AppLayout({
           </div>
         )}
         <UserCard name={userName} subtitle={userSubtitle} onSignOut={onSignOut} />
-        <div className="mt-4 flex items-center gap-2 border-t border-border px-3 pt-3">
+        <div className="mt-4 flex items-center gap-2 px-3">
           <span className="text-[11px] text-muted-foreground">{t('nav.poweredBy')}</span>
           <VetTempoLogo className="text-sm" />
         </div>
