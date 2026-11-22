@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useCollection } from '@/lib/useFirestore';
 import { useActiveClinic } from '@/app/ClinicProvider';
@@ -73,6 +73,8 @@ export function VetAppointmentDialog({
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [assignedVet, setAssignedVet] = useState(vetId);
+  const [clientError, setClientError] = useState('');
+  const clientRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -125,7 +127,8 @@ export function VetAppointmentDialog({
 
   const submit = async () => {
     if (!clientId) {
-      toast.error(t('vetAppt.pickClient'));
+      setClientError(t('vetAppt.pickClient'));
+      clientRef.current?.focus();
       return;
     }
     if (!dateTime || Number.isNaN(dateTime.getTime())) {
@@ -180,12 +183,15 @@ export function VetAppointmentDialog({
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select
+            ref={clientRef}
             label={t('vetAppt.client')}
             value={clientId}
+            error={clientError}
             disabled={isEdit}
             onChange={(e) => {
               setClientId(e.target.value);
               setPetId('');
+              setClientError('');
             }}
           >
             <option value="">{t('vetAppt.choose')}</option>

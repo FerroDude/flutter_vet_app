@@ -635,6 +635,8 @@ export const en: Record<TKey, string> = {
   'clinic.pick.body': 'You belong to several clinics. Pick which one to work with.',
   'clinic.switch': 'Switch clinic',
 
+  'chat.new': 'New conversation',
+  'chat.who': 'Who do you want to talk to?',
   'chat.unassigned': 'Unassigned',
   'chat.anyVet': 'Any vet',
   'chat.waitingVet': 'Waiting for a vet',

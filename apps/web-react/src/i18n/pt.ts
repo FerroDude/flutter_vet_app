@@ -637,6 +637,8 @@ export const pt = {
   'clinic.pick.body': 'Pertence a várias clínicas. Escolha com qual quer trabalhar.',
   'clinic.switch': 'Mudar de clínica',
 
+  'chat.new': 'Nova conversa',
+  'chat.who': 'Com quem quer falar?',
   'chat.unassigned': 'Por atribuir',
   'chat.anyVet': 'Qualquer veterinário',
   'chat.waitingVet': 'À espera de um veterinário',

@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn';
 import { Spinner } from '@/components/Spinner';
 
 type Variant = 'primary' | 'outline' | 'ghost' | 'destructive';
-type Size = 'md' | 'lg';
+type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -29,6 +29,7 @@ const variants: Record<Variant, string> = {
 };
 
 const sizes: Record<Size, string> = {
+  sm: 'h-8 px-3 text-xs',
   md: 'h-11 px-5 text-sm',
   lg: 'h-12 px-6 text-base',
 };

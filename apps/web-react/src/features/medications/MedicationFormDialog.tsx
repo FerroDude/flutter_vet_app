@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   type Medication,
@@ -73,6 +73,8 @@ interface Props {
 export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Props) {
   const isEdit = Boolean(existing);
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
+  const nameRef = useRef<HTMLInputElement>(null);
   const [dosage, setDosage] = useState('');
   const [frequency, setFrequency] = useState<MedicationFrequency>(MedicationFrequency.daily);
   const [times, setTimes] = useState<TimeOfDay[]>([{ hour: 8, minute: 0 }]);
@@ -146,7 +148,8 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
 
   const submit = async () => {
     if (!name.trim()) {
-      toast.error(t('meds.nameRequired'));
+      setNameError(t('meds.nameRequired'));
+      nameRef.current?.focus();
       return;
     }
     const [y, mo, d] = startDate.split('-').map(Number);
@@ -199,7 +202,16 @@ export function MedicationFormDialog({ open, onClose, uid, petId, existing }: Pr
       }
     >
       <div className="space-y-4">
-        <TextField label={t('common.name')} value={name} onChange={(e) => setName(e.target.value)} />
+        <TextField
+          ref={nameRef}
+          label={t('common.name')}
+          value={name}
+          error={nameError}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameError('');
+          }}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             label={t('meds.dose')}

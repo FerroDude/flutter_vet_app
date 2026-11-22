@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EventType } from '@vetplus/shared';
 import { createEvent, updateEvent, type CalendarEvent, type NewEvent } from '@/lib/eventService';
@@ -45,6 +45,8 @@ export function EventFormDialog({
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
+  const [titleError, setTitleError] = useState('');
+  const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +61,8 @@ export function EventFormDialog({
 
   const submit = async () => {
     if (!title.trim()) {
-      toast.error(t('event.titleRequired'));
+      setTitleError(t('event.titleRequired'));
+      titleRef.current?.focus();
       return;
     }
     const now = new Date();
@@ -114,9 +117,14 @@ export function EventFormDialog({
     >
       <div className="space-y-4">
         <TextField
+          ref={titleRef}
           label={t('event.title')}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          error={titleError}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setTitleError('');
+          }}
           placeholder={t('event.titlePlaceholder')}
         />
         <div className="grid gap-4 sm:grid-cols-2">

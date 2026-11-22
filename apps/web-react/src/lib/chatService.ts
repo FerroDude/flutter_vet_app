@@ -156,14 +156,35 @@ export async function createPoolRoom(args: {
   petOwnerId: string;
   petOwnerName: string;
 }): Promise<string> {
+  return createClientRoom({ ...args, vetId: null, vetName: null });
+}
+
+/** Client starts a chat with a specific vet of the clinic. */
+export async function createDirectedRoom(args: {
+  clinicId: string;
+  petOwnerId: string;
+  petOwnerName: string;
+  vetId: string;
+  vetName: string;
+}): Promise<string> {
+  return createClientRoom(args);
+}
+
+async function createClientRoom(args: {
+  clinicId: string;
+  petOwnerId: string;
+  petOwnerName: string;
+  vetId: string | null;
+  vetName: string | null;
+}): Promise<string> {
   const now = Date.now();
   const r = await addDoc(chatRoomsCol(), {
     clinicId: args.clinicId,
     petOwnerId: args.petOwnerId,
     petOwnerName: args.petOwnerName,
-    vetId: null,
-    vetName: null,
-    requestedVetId: null,
+    vetId: args.vetId,
+    vetName: args.vetName,
+    requestedVetId: args.vetId,
     petIds: [],
     lastMessage: null,
     unreadCounts: {},
@@ -171,7 +192,7 @@ export async function createPoolRoom(args: {
     updatedAt: now,
     isActive: true,
     topic: null,
-    status: ChatRoomStatus.pending,
+    status: args.vetId ? ChatRoomStatus.active : ChatRoomStatus.pending,
     requestDescription: null,
     initiatedBy: 'pet_owner',
     staffRole: 'vet',

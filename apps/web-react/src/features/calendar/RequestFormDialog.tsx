@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { TimePreference } from '@vetplus/shared';
 import { type Pet } from '@/lib/petService';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { createRequest } from '@/lib/appointmentRequestService';
 import { timePreferenceText } from '@/lib/format';
 import { Dialog } from '@/components/ui/Dialog';
@@ -51,10 +52,20 @@ export function RequestFormDialog({
   const [start, setStart] = useState(() => toDateInput(addDays(1)));
   const [end, setEnd] = useState(() => toDateInput(addDays(7)));
   const [timePref, setTimePref] = useState<TimePreference>(TimePreference.anyTime);
+  const [vetPick, setVetPick] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<{ pet?: string; reason?: string }>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const petRef = useRef<HTMLSelectElement>(null);
+  const reasonRef = useRef<HTMLInputElement>(null);
+
+  const { members } = useActiveClinic();
+  const vets = useMemo(
+    () => [...members].filter((m) => m.active).sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    [members],
+  );
 
   useEffect(() => {
     if (open) {
@@ -62,22 +73,26 @@ export function RequestFormDialog({
       setStart(toDateInput(addDays(1)));
       setEnd(toDateInput(addDays(7)));
       setTimePref(TimePreference.anyTime);
+      setVetPick('');
       setReason('');
       setNotes('');
+      setErrors({});
       setError(null);
     }
   }, [open, pets]);
 
   const submit = async () => {
     const pet = pets.find((p) => p.id === petId);
-    if (!pet) {
-      setError(t('requests.pickPet'));
+    const next = {
+      pet: !pet ? t('requests.pickPet') : undefined,
+      reason: !reason.trim() ? t('requests.reasonRequired') : undefined,
+    };
+    setErrors(next);
+    if (next.pet || next.reason) {
+      (next.pet ? petRef : reasonRef).current?.focus();
       return;
     }
-    if (!reason.trim()) {
-      setError(t('requests.reasonRequired'));
-      return;
-    }
+    if (!pet) return;
     const startDate = start ? new Date(`${start}T00:00:00`) : addDays(1);
     let endDate = end ? new Date(`${end}T00:00:00`) : startDate;
     if (endDate < startDate) endDate = startDate;
@@ -85,8 +100,11 @@ export function RequestFormDialog({
     setSaving(true);
     setError(null);
     try {
+      const chosenVet = vets.find((m) => m.uid === vetPick) ?? null;
       await createRequest({
         clinicId,
+        vetId: chosenVet?.uid ?? null,
+        vetName: chosenVet?.displayName ?? null,
         petOwnerId,
         petOwnerName,
         petId: pet.id,
@@ -101,7 +119,9 @@ export function RequestFormDialog({
       toast.success(t('requests.sent'));
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('requests.sendFailed'));
+      const msg = e instanceof Error ? e.message : t('requests.sendFailed');
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -127,10 +147,30 @@ export function RequestFormDialog({
         {pets.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('requests.noPets')}</p>
         ) : (
-          <Select label={t('common.pet')} value={petId} onChange={(e) => setPetId(e.target.value)}>
+          <Select
+            ref={petRef}
+            label={t('common.pet')}
+            value={petId}
+            error={errors.pet}
+            onChange={(e) => {
+              setPetId(e.target.value);
+              setErrors((x) => ({ ...x, pet: undefined }));
+            }}
+          >
             {pets.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.species ? `${p.name} (${p.species})` : p.name}
+              </option>
+            ))}
+          </Select>
+        )}
+
+        {vets.length > 1 && (
+          <Select label={t('vetAppt.vet')} value={vetPick} onChange={(e) => setVetPick(e.target.value)}>
+            <option value="">{t('requests.anyVet')}</option>
+            {vets.map((m) => (
+              <option key={m.uid} value={m.uid}>
+                {m.displayName}
               </option>
             ))}
           </Select>
@@ -165,9 +205,14 @@ export function RequestFormDialog({
         </Select>
 
         <TextField
+          ref={reasonRef}
           label={t('requests.reason')}
           value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          error={errors.reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+            setErrors((x) => ({ ...x, reason: undefined }));
+          }}
           placeholder={t('requests.reasonPlaceholder')}
         />
 

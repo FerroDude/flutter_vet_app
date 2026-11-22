@@ -101,6 +101,9 @@ export function useClinicRequests(clinicId: string, uid: string) {
 
 export interface NewAppointmentRequest {
   clinicId: string;
+  /** Chosen vet (directed request) or null for the pool ("any vet"). */
+  vetId: string | null;
+  vetName: string | null;
   petOwnerId: string;
   petOwnerName: string;
   petId: string;
@@ -117,9 +120,7 @@ export async function createRequest(r: NewAppointmentRequest): Promise<void> {
   const now = Date.now();
   await addDoc(requestsCol(), {
     ...r,
-    vetId: null,
-    requestedVetId: null,
-    vetName: null,
+    requestedVetId: r.vetId,
     petSpecies: r.petSpecies ?? null,
     preferredDateStart: r.preferredDateStart.getTime(),
     preferredDateEnd: r.preferredDateEnd.getTime(),
