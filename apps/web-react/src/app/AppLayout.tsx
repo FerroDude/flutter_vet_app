@@ -88,7 +88,7 @@ export function AppLayout({
               >
                 <link.icon size={18} />
                 {link.label}
-                <ExternalLink size={14} className="ml-auto" aria-hidden />
+                <ExternalLink size={13} className="-ml-1.5 opacity-70" aria-hidden />
               </a>
             ))}
           </div>
