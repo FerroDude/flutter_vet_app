@@ -111,6 +111,6 @@ All cold-start free (`minInstances: 0`); Google calls go through plain `fetch` R
 - **Clinic settings (owners)** — `/clinic` (owner-only nav + route): team management
   (add vet/owner via `createClinicVet` + invite email, promote/demote, deactivate — pending
   chats/requests return to the pool, reactivate, resend invite, sole-owner guard), brand
-  (primary/accent colours with live preview + contrast warning, wide logo and mark uploads
-  to `clinics/{id}/branding/`, reset to VetTempo colours), and clinic details (name + public
+  (main colour with live preview + contrast warning, wide logo and mark uploads
+  to `clinics/{id}/branding/`), and clinic details (name + public
   contact shown to clients).

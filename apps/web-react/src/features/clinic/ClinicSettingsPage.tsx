@@ -352,7 +352,6 @@ function BrandSection({
   onError: (e: unknown) => void;
 }) {
   const [primary, setPrimary] = useState(clinic.brand.primary || VETTEMPO_BRAND.primary);
-  const [accent, setAccent] = useState(clinic.brand.accent ?? '');
   const [logoWideUrl, setLogoWideUrl] = useState(clinic.brand.logoWideUrl ?? null);
   const [logoMarkUrl, setLogoMarkUrl] = useState(clinic.brand.logoMarkUrl ?? null);
   const [primaryError, setPrimaryError] = useState('');
@@ -361,17 +360,16 @@ function BrandSection({
   const draft: ClinicBrand = useMemo(
     () => ({
       primary: isHexColor(primary) ? primary : clinic.brand.primary || VETTEMPO_BRAND.primary,
-      accent: isHexColor(accent) ? accent : null,
+      accent: clinic.brand.accent ?? null,
       logoWideUrl,
       logoMarkUrl,
     }),
-    [primary, accent, logoWideUrl, logoMarkUrl, clinic.brand.primary],
+    [primary, logoWideUrl, logoMarkUrl, clinic.brand.primary, clinic.brand.accent],
   );
 
   const saved = clinic.brand;
   const dirty =
     draft.primary !== (saved.primary || '') ||
-    (draft.accent ?? null) !== (saved.accent ?? null) ||
     (logoWideUrl ?? null) !== (saved.logoWideUrl ?? null) ||
     (logoMarkUrl ?? null) !== (saved.logoMarkUrl ?? null);
 
@@ -400,7 +398,7 @@ function BrandSection({
     <Section title={t('clinicSettings.brand')}>
       <Card>
         <CardBody className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:max-w-sm">
             <ColorField
               label={t('clinicSettings.primary')}
               value={primary}
@@ -409,12 +407,6 @@ function BrandSection({
                 setPrimary(v);
                 setPrimaryError('');
               }}
-            />
-            <ColorField
-              label={t('clinicSettings.accent')}
-              value={accent}
-              hint={t('clinicSettings.accentHint')}
-              onChange={setAccent}
             />
           </div>
           {isHexColor(primary) && brandReadabilityWarning(primary) && (
@@ -443,17 +435,7 @@ function BrandSection({
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-            <button
-              type="button"
-              onClick={() => {
-                setPrimary(VETTEMPO_BRAND.primary);
-                setAccent(VETTEMPO_BRAND.accent ?? '');
-              }}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground hover:underline"
-            >
-              {t('clinicSettings.resetColors')}
-            </button>
+          <div className="flex justify-end border-t border-border pt-4">
             <Button loading={saving} disabled={!dirty} onClick={() => void save()}>
               {t('common.save')}
             </Button>
@@ -470,13 +452,11 @@ function ColorField({
   value,
   onChange,
   error,
-  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   error?: string;
-  hint?: string;
 }) {
   return (
     <div>
@@ -502,13 +482,11 @@ function ColorField({
               error ? 'border-destructive' : 'border-input',
             )}
           />
-          {error ? (
+          {error && (
             <p aria-live="polite" className="mt-1.5 text-xs font-medium text-destructive">
               {error}
             </p>
-          ) : hint ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
-          ) : null}
+          )}
         </div>
       </div>
     </div>
