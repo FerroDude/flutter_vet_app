@@ -645,6 +645,13 @@ export const pt = {
   'clinic.myClinics': 'As minhas clínicas',
   'clinic.current': 'atual',
   'clinic.switchTo': 'Mudar para esta',
+  'clinic.leave': 'Sair',
+  'clinicLeave.title': 'Sair de {name}?',
+  'clinicLeave.desc':
+    '{name} deixa de ver os seus animais. As conversas com a clínica são fechadas, os pedidos pendentes cancelados e as consultas futuras desmarcadas. A clínica pode voltar a convidá-lo.',
+  'clinicLeave.confirm': 'Sair da clínica',
+  'clinicLeave.done': 'Saiu de {name}',
+  'clinicLeave.doneMoved': 'Saiu de {name}. Está agora em {other}.',
   'clinicLink.title': '{name} quer adicioná-lo como cliente',
   'clinicLink.shared':
     'Se aceitar, a equipa da clínica vê os seus animais, medicações e sintomas, pode falar consigo e marcar consultas. Nada é partilhado enquanto não aceitar.',

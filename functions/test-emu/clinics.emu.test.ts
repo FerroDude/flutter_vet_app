@@ -71,6 +71,9 @@ async function wipe() {
     for (const m of await c.ref.collection('members').get().then((s) => s.docs)) batch.delete(m.ref);
     for (const l of await c.ref.collection('clients').get().then((s) => s.docs)) batch.delete(l.ref);
   }
+  for (const u of await db.collection('users').get().then((s) => s.docs)) {
+    for (const e of await u.ref.collection('events').get().then((s) => s.docs)) batch.delete(e.ref);
+  }
   for (const d of all) batch.delete(d.ref);
   await batch.commit();
 }
@@ -265,6 +268,81 @@ describe('updateClinicMember', () => {
     await clinics.updateClinicMember('ownerA', { clinicId: A, uid: 'vetA', active: true }, db);
     expect((await db.doc('users/vetA').get()).data()?.memberOf).toEqual([A]);
     expect((await db.doc(`clinics/${A}/members/vetA`).get()).data()?.active).toBe(true);
+  });
+});
+
+/* -------------------------------- leaveClinic ------------------------------ */
+
+describe('leaveClinic', () => {
+  const day = 24 * 60 * 60 * 1000;
+  const link = (status: string) => ({
+    clientId: 'cli',
+    clientName: 'Cliente',
+    clinicName: 'Clinic A',
+    status,
+    addedBy: 'ownerA',
+    addedByName: 'Owner',
+    addedAt: 1,
+  });
+
+  it('leaves: link left, clientOf removed, room closed, request + future appointment cancelled', async () => {
+    await db.doc('users/cli').set(clientProfile([A, B]));
+    await db.doc(`clinics/${A}/clients/cli`).set(link('active'));
+    await db.doc(`clinics/${B}/clients/cli`).set(link('active'));
+    const now = Date.now();
+    await db.doc('chatRooms/rA').set({ clinicId: A, petOwnerId: 'cli', isActive: true, status: 1 });
+    await db.doc('chatRooms/rB').set({ clinicId: B, petOwnerId: 'cli', isActive: true, status: 1 });
+    await db.doc('appointmentRequests/pA').set({ clinicId: A, petOwnerId: 'cli', status: 0 });
+    await db.doc('appointmentRequests/doneA').set({ clinicId: A, petOwnerId: 'cli', status: 1 });
+    await db.doc('users/cli/events/future').set({ clinicId: A, type: 0, dateTime: now + day });
+    await db.doc('users/cli/events/past').set({ clinicId: A, type: 0, dateTime: now - day });
+    await db.doc('users/cli/events/med').set({ clinicId: A, type: 1, dateTime: now + day });
+    await db.doc('users/cli/events/other').set({ clinicId: B, type: 0, dateTime: now + day });
+
+    const r = await clinics.leaveClinic('cli', { clinicId: A }, db);
+    expect(r).toMatchObject({ ok: true, closedRooms: 1, cancelledRequests: 1, cancelledAppointments: 1 });
+
+    expect((await db.doc(`clinics/${A}/clients/cli`).get()).data()?.status).toBe('left');
+    expect((await db.doc('users/cli').get()).data()?.clientOf).toEqual([B]);
+    expect((await db.doc('chatRooms/rA').get()).data()).toMatchObject({ isActive: false, status: 2 });
+    expect((await db.doc('chatRooms/rB').get()).data()).toMatchObject({ isActive: true, status: 1 });
+    expect((await db.doc('appointmentRequests/pA').get()).data()?.status).toBe(3);
+    expect((await db.doc('appointmentRequests/doneA').get()).data()?.status).toBe(1);
+    expect((await db.doc('users/cli/events/future').get()).data()).toMatchObject({
+      cancelledBy: 'cli',
+      cancelReason: 'O cliente deixou a clínica.',
+    });
+    expect((await db.doc('users/cli/events/past').get()).data()?.cancelledAt ?? null).toBeNull();
+    expect((await db.doc('users/cli/events/med').get()).data()?.cancelledAt ?? null).toBeNull();
+    expect((await db.doc('users/cli/events/other').get()).data()?.cancelledAt ?? null).toBeNull();
+  });
+
+  it('fails when not linked or not a client', async () => {
+    await db.doc('users/cli').set(clientProfile([]));
+    await expect(
+      clinics.leaveClinic('cli', { clinicId: A }, db),
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    await db.doc(`clinics/${A}/clients/cli`).set(link('pending'));
+    await expect(
+      clinics.leaveClinic('cli', { clinicId: A }, db),
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    await expect(
+      clinics.leaveClinic('vetA', { clinicId: A }, db),
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('a clinic can re-invite after the client left', async () => {
+    const u = await auth.createUser({ email: 'volta@x.pt' });
+    await db.doc(`users/${u.uid}`).set(clientProfile([]));
+    await db.doc(`clinics/${A}/clients/${u.uid}`).set({ ...link('left'), clientId: u.uid });
+    const r = await clinics.addClinicClient(
+      'ownerA',
+      { clinicId: A, name: 'Cliente', email: 'volta@x.pt' },
+      db,
+      auth,
+    );
+    expect(r).toMatchObject({ status: 'pending' });
+    expect((await db.doc(`clinics/${A}/clients/${u.uid}`).get()).data()?.status).toBe('pending');
   });
 });
 

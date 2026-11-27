@@ -14,6 +14,7 @@ import {
 import { dateTimeFmt } from '@/lib/format';
 import { useMyClinicLinks } from '@/lib/clinicService';
 import { useAnswerClinicLink } from '@/features/clinic/useAnswerClinicLink';
+import { useLeaveClinic } from '@/features/clinic/useLeaveClinic';
 import { useConfirm } from '@/components/ui/Confirm';
 import {
   alertsMuted,
@@ -52,6 +53,7 @@ export function ProfileSettingsPage() {
   const { clinic, clinics, clinicId, setClinicId } = useActiveClinic();
   const { pending: pendingLinks } = useMyClinicLinks(isClient ? (firebaseUser?.uid ?? '') : '');
   const { answer: answerLink, busy: linkBusy, answered: answeredLinks } = useAnswerClinicLink();
+  const { leave: leaveClinic, busy: leaveBusy } = useLeaveClinic();
   const visibleLinks = pendingLinks.filter((l) => !answeredLinks.has(l.clinicId));
   const contact = clinic?.contact ?? null;
   const hasClinicContact = Boolean(
@@ -135,16 +137,28 @@ export function ProfileSettingsPage() {
                       )}
                     </span>
                   </span>
-                  {c.id !== clinicId && (
+                  <span className="ml-auto flex shrink-0 gap-2">
+                    {c.id !== clinicId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={leaveBusy !== null}
+                        onClick={() => setClinicId(c.id)}
+                      >
+                        {t('clinic.switchTo')}
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      className="ml-auto shrink-0"
-                      onClick={() => setClinicId(c.id)}
+                      className="text-destructive hover:bg-destructive/10"
+                      disabled={leaveBusy !== null}
+                      loading={leaveBusy === c.id}
+                      onClick={() => void leaveClinic({ id: c.id, name: c.name })}
                     >
-                      {t('clinic.switchTo')}
+                      {t('clinic.leave')}
                     </Button>
-                  )}
+                  </span>
                 </li>
               ))}
               {visibleLinks.map((l) => (

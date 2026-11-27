@@ -119,7 +119,9 @@ export function clinicClientLinkFromFirestore(data: Data): ClinicClientLink {
     clientName: (data.clientName as string) ?? '',
     clinicName: (data.clinicName as string) ?? '',
     status:
-      data.status === 'active' || data.status === 'declined' ? data.status : 'pending',
+      data.status === 'active' || data.status === 'declined' || data.status === 'left'
+        ? data.status
+        : 'pending',
     addedBy: (data.addedBy as string) ?? '',
     addedByName: (data.addedByName as string) ?? '',
     addedAt: parseDate(data.addedAt),

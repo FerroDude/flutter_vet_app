@@ -341,3 +341,16 @@ export async function respondClinicLink(args: {
   >(functions, 'respondClinicLink');
   return (await call(args)).data.status;
 }
+
+/** Client leaves a clinic they belong to (callable). */
+export async function leaveClinic(clinicId: string): Promise<{
+  closedRooms: number;
+  cancelledRequests: number;
+  cancelledAppointments: number;
+}> {
+  const call = httpsCallable<
+    { clinicId: string },
+    { ok: true; closedRooms: number; cancelledRequests: number; cancelledAppointments: number }
+  >(functions, 'leaveClinic');
+  return (await call({ clinicId })).data;
+}

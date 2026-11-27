@@ -251,6 +251,100 @@ export async function respondClinicLink(
   return { status: 'active' };
 }
 
+/**
+ * leaveClinic({ clinicId }) — the CLIENT leaves a clinic they belong to.
+ * Link → 'left' + clientOf -= clinicId (one transaction), then in chunked
+ * batches: their rooms with that clinic are closed (messages kept), their
+ * still-pending requests cancelled, and their future vet-booked appointments
+ * cancelled with the same fields the in-app client cancel writes (so the
+ * cancelled toast + gcal sync handle them). Past events and notes stay —
+ * the clinic loses access through clientOf, a re-link restores it.
+ * Queries use only equality filters covered by single-field indexes; extra
+ * conditions (type, future, not-cancelled, room still open) are filtered
+ * in code.
+ */
+export async function leaveClinic(
+  caller: string,
+  data: unknown,
+  db: Firestore,
+): Promise<{ ok: true; closedRooms: number; cancelledRequests: number; cancelledAppointments: number }> {
+  const d = arg(data);
+  const clinicId = requireString(d.clinicId, 'Falta a clínica.');
+
+  const userRef = db.doc(`users/${caller}`);
+  const profile = (await userRef.get()).data();
+  if (!profile || profile.userType !== 0) {
+    throw new HttpsError('permission-denied', 'Só um cliente pode sair de uma clínica.');
+  }
+  const linkRef = db.doc(`clinics/${clinicId}/clients/${caller}`);
+  const link = (await linkRef.get()).data();
+  if (!link || link.status !== 'active') {
+    throw new HttpsError('failed-precondition', 'Não está ligado a esta clínica.');
+  }
+
+  const now = Date.now();
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(linkRef);
+    if (snap.data()?.status !== 'active') {
+      throw new HttpsError('failed-precondition', 'Não está ligado a esta clínica.');
+    }
+    tx.update(linkRef, { status: 'left', respondedAt: now });
+    tx.update(userRef, { clientOf: FieldValue.arrayRemove(clinicId), updatedAt: now });
+  });
+
+  const [rooms, requests, events] = await Promise.all([
+    db
+      .collection('chatRooms')
+      .where('clinicId', '==', clinicId)
+      .where('petOwnerId', '==', caller)
+      .get(),
+    db
+      .collection('appointmentRequests')
+      .where('clinicId', '==', clinicId)
+      .where('petOwnerId', '==', caller)
+      .where('status', '==', 0)
+      .get(),
+    db.collection(`users/${caller}/events`).where('clinicId', '==', clinicId).get(),
+  ]);
+
+  const openRooms = rooms.docs.filter((d) => d.data().isActive !== false);
+  const futureAppointments = events.docs.filter((d) => {
+    const e = d.data();
+    return e.type === 0 && (e.dateTime as number) > now && e.cancelledAt == null;
+  });
+  const writes: { ref: DocumentReference; data: UpdateData<DocumentData> }[] = [
+    ...openRooms.map((d) => ({
+      ref: d.ref,
+      data: { isActive: false, status: 2, updatedAt: now },
+    })),
+    ...requests.docs.map((d) => ({
+      ref: d.ref,
+      data: { status: 3, updatedAt: now },
+    })),
+    ...futureAppointments.map((d) => ({
+      ref: d.ref,
+      data: {
+        cancelledAt: now,
+        cancelledBy: caller,
+        cancelReason: 'O cliente deixou a clínica.',
+        updatedAt: now,
+      },
+    })),
+  ];
+  for (let i = 0; i < writes.length; i += MAX_BATCH_WRITES) {
+    const chunk = db.batch();
+    for (const w of writes.slice(i, i + MAX_BATCH_WRITES)) chunk.update(w.ref, w.data);
+    await chunk.commit();
+  }
+
+  return {
+    ok: true,
+    closedRooms: openRooms.length,
+    cancelledRequests: requests.size,
+    cancelledAppointments: futureAppointments.length,
+  };
+}
+
 function memberDoc(role: string, name: string, email: string): Data {
   return { role, displayName: name, email, active: true, joinedAt: Date.now() };
 }

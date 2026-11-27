@@ -42,7 +42,7 @@ export interface ClinicMember {
   joinedAt: Date;
 }
 
-export type ClinicClientLinkStatus = 'pending' | 'active' | 'declined';
+export type ClinicClientLinkStatus = 'pending' | 'active' | 'declined' | 'left';
 
 /** clinics/{c}/clients/{uid} — the link between a client and a clinic.
  *  'pending' links share nothing until the client accepts. */

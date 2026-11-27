@@ -643,6 +643,13 @@ export const en: Record<TKey, string> = {
   'clinic.myClinics': 'My clinics',
   'clinic.current': 'current',
   'clinic.switchTo': 'Switch to this one',
+  'clinic.leave': 'Leave',
+  'clinicLeave.title': 'Leave {name}?',
+  'clinicLeave.desc':
+    '{name} will no longer see your pets. Your chats with the clinic are closed, pending requests cancelled and future appointments called off. The clinic can invite you again.',
+  'clinicLeave.confirm': 'Leave clinic',
+  'clinicLeave.done': 'You left {name}',
+  'clinicLeave.doneMoved': 'You left {name}. You are now in {other}.',
   'clinicLink.title': '{name} wants to add you as a client',
   'clinicLink.shared':
     'If you accept, the clinic team can see all your pets, their medications and symptoms, message you and book appointments. Nothing is shared until you accept.',

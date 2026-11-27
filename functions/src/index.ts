@@ -23,6 +23,7 @@ import { createClientLogin as createClientLoginFor } from './clients.js';
 import {
   addClinicClient as addClinicClientFor,
   createClinicVet as createClinicVetFor,
+  leaveClinic as leaveClinicFor,
   respondClinicLink as respondClinicLinkFor,
   updateClinicMember as updateClinicMemberFor,
 } from './clinics.js';
@@ -223,6 +224,12 @@ export const addClinicClient = onCall({ maxInstances: 1 }, async (request) => {
 export const respondClinicLink = onCall({ maxInstances: 1 }, async (request) => {
   const uid = requireAuth(request);
   return respondClinicLinkFor(uid, request.data, db());
+});
+
+/** The client leaves a clinic they belong to. */
+export const leaveClinic = onCall({ maxInstances: 1 }, async (request) => {
+  const uid = requireAuth(request);
+  return leaveClinicFor(uid, request.data, db());
 });
 
 /** An owner adds a vet/owner to the clinic. */
