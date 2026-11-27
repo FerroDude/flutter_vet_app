@@ -302,6 +302,7 @@ export const pt = {
   'meds.pastAll': 'Todas dadas',
   'meds.pastNone': 'Nenhuma',
   'meds.pastPick': 'Escolher',
+  'common.ok': 'OK',
   'common.yes': 'Sim',
   'common.no': 'Não',
   'common.date': 'Data',
@@ -648,8 +649,9 @@ export const pt = {
   'clinicLink.decline': 'Recusar',
   'clinicLink.declineTitle': 'Recusar o pedido?',
   'clinicLink.declineDesc': '{name} fica a saber que recusou e não terá acesso aos seus animais.',
+  'clinicLink.hint': '{name} foi adicionada. Pode mudar de clínica aqui.',
+  'clinicLink.switchNow': 'Mudar agora',
   'clinicLink.accepted': 'Bem-vindo a {name}',
-  'clinicLink.acceptedOther': '{name} adicionada — pode mudar de clínica quando quiser',
   'clinicLink.declined': 'Pedido de {name} recusado',
 
   'chat.new': 'Nova conversa',

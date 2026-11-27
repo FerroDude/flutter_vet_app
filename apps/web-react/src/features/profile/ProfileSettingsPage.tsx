@@ -12,7 +12,8 @@ import {
   useGcalStatus,
 } from '@/lib/gcalService';
 import { dateTimeFmt } from '@/lib/format';
-import { respondClinicLink, useMyClinicLinks } from '@/lib/clinicService';
+import { useMyClinicLinks } from '@/lib/clinicService';
+import { useAnswerClinicLink } from '@/features/clinic/useAnswerClinicLink';
 import { useConfirm } from '@/components/ui/Confirm';
 import {
   alertsMuted,
@@ -36,7 +37,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 
 export function ProfileSettingsPage() {
-  const { profile, role, updateProfile, signOutUser, firebaseUser, refreshProfile } = useAuth();
+  const { profile, role, updateProfile, signOutUser, firebaseUser } = useAuth();
   const isClient = role === 'petOwner';
   const confirm = useConfirm();
   const { data: gcal } = useGcalStatus(role === 'vet' ? (firebaseUser?.uid ?? '') : '');
@@ -50,6 +51,8 @@ export function ProfileSettingsPage() {
   const [saving, setSaving] = useState(false);
   const { clinic, clinicIds, clinics, clinicId, setClinicId } = useActiveClinic();
   const { pending: pendingLinks } = useMyClinicLinks(isClient ? (firebaseUser?.uid ?? '') : '');
+  const { answer: answerLink, busy: linkBusy, answered: answeredLinks } = useAnswerClinicLink();
+  const visibleLinks = pendingLinks.filter((l) => !answeredLinks.has(l.clinicId));
   const contact = clinic?.contact ?? null;
   const hasClinicContact = Boolean(
     isClient && clinic && (contact?.phone || contact?.address || contact?.postalCode),
@@ -120,7 +123,7 @@ export function ProfileSettingsPage() {
         </CardBody>
       </Card>
 
-      {isClient && (clinics.length > 0 || pendingLinks.length > 0) && (
+      {isClient && (clinics.length > 0 || visibleLinks.length > 0) && (
         <Section title={t('clinic.myClinics')}>
           <Card>
             <ul className="divide-y divide-border">
@@ -149,13 +152,13 @@ export function ProfileSettingsPage() {
                   )}
                 </li>
               ))}
-              {pendingLinks.map((l) => (
+              {visibleLinks.map((l) => (
                 <PendingClinicLinkRow
                   key={l.clinicId}
                   clinicId={l.clinicId}
                   clinicName={l.clinicName}
-                  hadClinic={clinicIds.length > 0}
-                  refreshProfile={refreshProfile}
+                  busy={linkBusy}
+                  onAnswer={(accept) => void answerLink(l, accept)}
                 />
               ))}
             </ul>
@@ -401,43 +404,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function PendingClinicLinkRow({
   clinicId: cid,
   clinicName,
-  hadClinic,
-  refreshProfile,
+  busy,
+  onAnswer,
 }: {
   clinicId: string;
   clinicName: string;
-  hadClinic: boolean;
-  refreshProfile: () => Promise<void>;
+  busy: { clinicId: string; accept: boolean } | null;
+  onAnswer: (accept: boolean) => void;
 }) {
-  const confirm = useConfirm();
-  const [busy, setBusy] = useState(false);
-  const answer = async (accept: boolean) => {
-    if (!accept) {
-      const ok = await confirm({
-        title: t('clinicLink.declineTitle'),
-        description: t('clinicLink.declineDesc', { name: clinicName }),
-        confirmLabel: t('clinicLink.decline'),
-        danger: true,
-      });
-      if (!ok) return;
-    }
-    setBusy(true);
-    try {
-      await respondClinicLink({ clinicId: cid, accept });
-      await refreshProfile();
-      toast.success(
-        accept
-          ? hadClinic
-            ? t('clinicLink.acceptedOther', { name: clinicName })
-            : t('clinicLink.accepted', { name: clinicName })
-          : t('clinicLink.declined', { name: clinicName }),
-      );
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const mine = busy?.clinicId === cid;
   return (
     <li className="flex flex-wrap items-center gap-3 p-4">
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-light text-primary">
@@ -448,10 +423,16 @@ function PendingClinicLinkRow({
         <span className="block text-xs text-muted-foreground">{t('clinicLink.pendingHint')}</span>
       </span>
       <span className="ml-auto flex shrink-0 gap-2">
-        <Button variant="outline" size="sm" disabled={busy} onClick={() => void answer(false)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={mine}
+          loading={mine && !busy?.accept}
+          onClick={() => onAnswer(false)}
+        >
           {t('clinicLink.decline')}
         </Button>
-        <Button size="sm" loading={busy} onClick={() => void answer(true)}>
+        <Button size="sm" disabled={mine} loading={mine && busy?.accept} onClick={() => onAnswer(true)}>
           <Check size={14} /> {t('clinicLink.accept')}
         </Button>
       </span>

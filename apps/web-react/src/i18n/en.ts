@@ -303,6 +303,7 @@ export const en: Record<TKey, string> = {
   'meds.pastAll': 'All given',
   'meds.pastNone': 'None',
   'meds.pastPick': 'Choose',
+  'common.ok': 'OK',
   'common.yes': 'Yes',
   'common.no': 'No',
   'common.date': 'Date',
@@ -646,8 +647,9 @@ export const en: Record<TKey, string> = {
   'clinicLink.decline': 'Decline',
   'clinicLink.declineTitle': 'Decline the request?',
   'clinicLink.declineDesc': '{name} will know you declined and will not get access to your pets.',
+  'clinicLink.hint': '{name} was added. You can switch clinics here.',
+  'clinicLink.switchNow': 'Switch now',
   'clinicLink.accepted': 'Welcome to {name}',
-  'clinicLink.acceptedOther': '{name} added — you can switch clinics anytime',
   'clinicLink.declined': 'Request from {name} declined',
 
   'chat.new': 'New conversation',

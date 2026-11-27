@@ -4,8 +4,8 @@ import { toast } from 'sonner';
 import { Building2, CalendarDays, Check, ChevronRight, MessageCircle, PawPrint } from 'lucide-react';
 import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/shared';
 import { useFoundReports, resolveFoundReport, type FoundReport } from '@/lib/petTagService';
-import { respondClinicLink, useMyClinicLinks } from '@/lib/clinicService';
-import { useConfirm } from '@/components/ui/Confirm';
+import { useMyClinicLinks } from '@/lib/clinicService';
+import { useAnswerClinicLink } from '@/features/clinic/useAnswerClinicLink';
 import { PHONE_RE, EMAIL_RE } from '@/lib/contact';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActiveClinic } from '@/app/ClinicProvider';
@@ -24,7 +24,7 @@ import { MedicationCard } from '@/features/medications/MedicationCard';
 import { t } from '@/i18n';
 
 export function ClientDashboard() {
-  const { firebaseUser, profile, refreshProfile } = useAuth();
+  const { firebaseUser, profile } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
 
@@ -41,9 +41,9 @@ export function ClientDashboard() {
     .filter((e) => e.type === EventType.appointment && !isCancelled(e) && e.dateTime.getTime() >= Date.now())
     .slice(0, 3);
 
-  const { clinicId, clinicIds, setClinicId } = useActiveClinic();
+  const { clinicId } = useActiveClinic();
   const { pending: pendingLinks } = useMyClinicLinks(uid);
-  const confirm = useConfirm();
+  const { answer: answerLink, busy: linkBusy, answered: answeredLinks } = useAnswerClinicLink();
   const { rooms: allRooms } = useRooms('petOwnerId', uid);
   const rooms = allRooms.filter((r) => r.clinicId === clinicId);
   const unread = rooms.reduce((n, r) => n + (r.unreadCounts[uid] ?? 0), 0);
@@ -70,41 +70,16 @@ export function ClientDashboard() {
         title={firstName ? `${greeting()}, ${firstName}` : greeting()}
       />
 
-      {pendingLinks.map((l) => (
-        <ClinicLinkAlert
-          key={l.clinicId}
-          link={l}
-          onAnswer={(accept) =>
-            void (async () => {
-              if (!accept) {
-                const ok = await confirm({
-                  title: t('clinicLink.declineTitle'),
-                  description: t('clinicLink.declineDesc', { name: l.clinicName }),
-                  confirmLabel: t('clinicLink.decline'),
-                  danger: true,
-                });
-                if (!ok) return;
-              }
-              try {
-                await respondClinicLink({ clinicId: l.clinicId, accept });
-                await refreshProfile();
-                if (accept) {
-                  if (clinicIds.length === 0) setClinicId(l.clinicId);
-                  toast.success(
-                    clinicIds.length === 0
-                      ? t('clinicLink.accepted', { name: l.clinicName })
-                      : t('clinicLink.acceptedOther', { name: l.clinicName }),
-                  );
-                } else {
-                  toast.success(t('clinicLink.declined', { name: l.clinicName }));
-                }
-              } catch (e) {
-                toast.error(errorMessage(e));
-              }
-            })()
-          }
-        />
-      ))}
+      {pendingLinks
+        .filter((l) => !answeredLinks.has(l.clinicId))
+        .map((l) => (
+          <ClinicLinkAlert
+            key={l.clinicId}
+            link={l}
+            busy={linkBusy}
+            onAnswer={(accept) => void answerLink(l, accept)}
+          />
+        ))}
 
       {unresolved.map((r) => (
         <FoundAlert key={r.id} report={r} onResolve={() => void run(resolveFoundReport(r.petId, r.id))} />
@@ -294,11 +269,14 @@ function Banner({
 /** Pending clinic link invite: "{clinic} quer adicioná-lo como cliente". */
 function ClinicLinkAlert({
   link: l,
+  busy,
   onAnswer,
 }: {
   link: { clinicId: string; clinicName: string; addedByName: string };
+  busy: { clinicId: string; accept: boolean } | null;
   onAnswer: (accept: boolean) => void;
 }) {
+  const mine = busy?.clinicId === l.clinicId;
   return (
     <Card className="border-primary/30 bg-primary-light/40 p-4">
       <div className="flex flex-wrap items-start gap-3">
@@ -313,10 +291,21 @@ function ClinicLinkAlert({
         </div>
       </div>
       <div className="mt-3 flex flex-wrap justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={() => onAnswer(false)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={mine}
+          loading={mine && !busy?.accept}
+          onClick={() => onAnswer(false)}
+        >
           {t('clinicLink.decline')}
         </Button>
-        <Button size="sm" onClick={() => onAnswer(true)}>
+        <Button
+          size="sm"
+          disabled={mine}
+          loading={mine && busy?.accept}
+          onClick={() => onAnswer(true)}
+        >
           {t('clinicLink.accept')}
         </Button>
       </div>

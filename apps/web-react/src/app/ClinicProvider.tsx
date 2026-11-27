@@ -6,6 +6,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -20,7 +21,6 @@ import { Card } from '@/components/ui/Card';
 import { PageSpinner } from '@/components/Spinner';
 import { t } from '@/i18n';
 
-const KEY = 'vettempo-clinic';
 
 export interface ActiveClinic {
   /** '' when the user has no usable clinic (clients only — staff get gated). */
@@ -33,22 +33,39 @@ export interface ActiveClinic {
   isOwner: boolean;
   clinicIds: string[];
   setClinicId: (id: string) => void;
+  /** Clinic id of a just-accepted link — anchors the "new clinic" hint. */
+  newClinicHint: string | null;
+  announceNewClinic: (id: string) => void;
+  dismissClinicHint: () => void;
 }
 
 const Ctx = createContext<ActiveClinic | undefined>(undefined);
+export { Ctx as ActiveClinicContext };
+
+const KEY = 'vettempo-clinic';
+const HINT_KEY = 'vettempo-clinic-hint';
+
+function readStored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(key: string, value: string | null) {
+  try {
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function useActiveClinic(): ActiveClinic {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error('useActiveClinic must be used within <ClinicProvider>');
   return ctx;
-}
-
-function remembered(): string | null {
-  try {
-    return localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -67,7 +84,8 @@ export function ClinicProvider({
 }) {
   const { firebaseUser, signOutUser } = useAuth();
   const uid = firebaseUser?.uid ?? '';
-  const [chosen, setChosen] = useState<string | null>(remembered);
+  const [chosen, setChosen] = useState<string | null>(() => readStored(KEY));
+  const [hint, setHint] = useState<string | null>(() => readStored(HINT_KEY));
 
   const clinicId = useMemo(() => {
     if (chosen && clinicIds.includes(chosen)) return chosen;
@@ -76,11 +94,30 @@ export function ClinicProvider({
 
   const setClinicId = useCallback((id: string) => {
     setChosen(id);
-    try {
-      localStorage.setItem(KEY, id);
-    } catch {
-      /* ignore */
+    writeStored(KEY, id);
+    // Switching clinics consumes the hint.
+    setHint(null);
+    writeStored(HINT_KEY, null);
+  }, []);
+
+  // Persist the resolved clinic so a growing clientOf/memberOf list doesn't
+  // yank the user into the picker — an implicit single-clinic resolution is
+  // still "their" clinic.
+  useEffect(() => {
+    if (clinicId && clinicId !== chosen) {
+      setChosen(clinicId);
+      writeStored(KEY, clinicId);
     }
+  }, [clinicId, chosen]);
+
+  const announceNewClinic = useCallback((id: string) => {
+    setHint(id);
+    writeStored(HINT_KEY, id);
+  }, []);
+
+  const dismissClinicHint = useCallback(() => {
+    setHint(null);
+    writeStored(HINT_KEY, null);
   }, []);
 
   const { clinic, loading: clinicLoading } = useClinic(clinicId);
@@ -100,8 +137,22 @@ export function ClinicProvider({
       isOwner: myMember?.role === 'owner' && myMember.active !== false,
       clinicIds,
       setClinicId,
+      newClinicHint: hint,
+      announceNewClinic,
+      dismissClinicHint,
     }),
-    [clinicId, clinic, clinics, members, myMember, clinicIds, setClinicId],
+    [
+      clinicId,
+      clinic,
+      clinics,
+      members,
+      myMember,
+      clinicIds,
+      setClinicId,
+      hint,
+      announceNewClinic,
+      dismissClinicHint,
+    ],
   );
 
   // Staff with no clinic at all gets a blocking message.
