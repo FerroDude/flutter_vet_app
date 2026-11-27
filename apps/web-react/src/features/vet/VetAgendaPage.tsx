@@ -382,7 +382,7 @@ function RequestCard({ request: r, children }: { request: AppointmentRequest; ch
   );
 }
 
-function AppointmentRow({
+export function AppointmentRow({
   a,
   showVet = false,
   gcalConnected,
@@ -416,8 +416,12 @@ function AppointmentRow({
             {eventTitle(a.title)}
           </p>
           <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-            <button type="button" onClick={onClient} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
-              <User size={12} /> {a.clientName || t('common.client')}
+            <button
+              type="button"
+              onClick={onClient}
+              className="inline-flex items-center gap-1 text-left hover:text-foreground hover:underline"
+            >
+              <User size={12} className="shrink-0" /> {a.clientName || t('common.client')}
             </button>
             {a.petName &&
               (a.petId ? (
@@ -440,6 +444,42 @@ function AppointmentRow({
             {showVet && a.vetName && (
               <span className="inline-flex items-center gap-1">{a.vetName}</span>
             )}
+            {!cancelled &&
+              (gcalConnected ? (
+                a.gcal?.status === 'error' ? (
+                  <button
+                    type="button"
+                    disabled={retrying}
+                    onClick={() => {
+                      setRetrying(true);
+                      void syncGcal({ clientId: a.userId, eventId: a.id })
+                        .catch((e) => toast.error(errorMessage(e, t('gcal.failed'))))
+                        .finally(() => setRetrying(false));
+                    }}
+                    aria-label={t('gcal.retry')}
+                    title={a.gcal.error ?? t('gcal.error')}
+                    className="inline-flex items-center gap-1 font-medium text-destructive hover:underline"
+                  >
+                    <AlertTriangle size={13} /> {t('gcal.error')}
+                  </button>
+                ) : gcalSynced ? (
+                  <span className="inline-flex items-center gap-1 font-medium text-primary">
+                    <CalendarCheck size={13} /> {t('gcal.synced')}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1">{t('gcal.syncing')}</span>
+                )
+              ) : (
+                <AddToCalendar
+                  item={{
+                    id: a.id,
+                    title: `${eventTitle(a.title)} · ${a.clientName || t('common.client')}${a.petName ? ` (${a.petName})` : ''}`,
+                    start: a.dateTime,
+                    details: a.description,
+                    location: a.location ?? undefined,
+                  }}
+                />
+              ))}
           </p>
           {cancelled && (
             <p className="mt-1 text-xs text-destructive">
@@ -453,50 +493,12 @@ function AppointmentRow({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {!cancelled &&
-            (gcalConnected ? (
-              a.gcal?.status === 'error' ? (
-                <button
-                  type="button"
-                  disabled={retrying}
-                  onClick={() => {
-                    setRetrying(true);
-                    void syncGcal({ clientId: a.userId, eventId: a.id })
-                      .catch((e) => toast.error(errorMessage(e, t('gcal.failed'))))
-                      .finally(() => setRetrying(false));
-                  }}
-                  aria-label={t('gcal.retry')}
-                  title={a.gcal.error ?? t('gcal.error')}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-destructive hover:bg-secondary"
-                >
-                  <AlertTriangle size={13} /> {t('gcal.error')}
-                </button>
-              ) : gcalSynced ? (
-                <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-primary">
-                  <CalendarCheck size={13} /> {t('gcal.synced')}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs text-muted-foreground">
-                  {t('gcal.syncing')}
-                </span>
-              )
-            ) : (
-              <AddToCalendar
-                item={{
-                  id: a.id,
-                  title: `${eventTitle(a.title)} · ${a.clientName || t('common.client')}${a.petName ? ` (${a.petName})` : ''}`,
-                  start: a.dateTime,
-                  details: a.description,
-                  location: a.location ?? undefined,
-                }}
-              />
-            ))}
           {!cancelled && (
             <button
               type="button"
               onClick={onEdit}
               aria-label={t('vetAgenda.editAppt')}
-              className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius-sm) text-muted-foreground hover:bg-secondary"
             >
               <Pencil size={15} />
             </button>
@@ -505,7 +507,7 @@ function AppointmentRow({
             type="button"
             onClick={onCancel}
             aria-label={cancelled ? t('common.remove') : t('vetAgenda.cancelAppt')}
-            className="rounded-(--radius-sm) p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius-sm) text-muted-foreground hover:bg-secondary hover:text-destructive"
           >
             <Trash2 size={15} />
           </button>

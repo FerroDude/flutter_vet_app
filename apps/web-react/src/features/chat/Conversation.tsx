@@ -301,8 +301,8 @@ export function Conversation({ roomId }: { roomId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border px-5 py-3">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+        <div className="min-w-0 flex-1 basis-48">
           <p className="truncate font-display text-lg font-bold text-foreground">
             {otherName || room?.topic || t('chat.conversation')}
           </p>

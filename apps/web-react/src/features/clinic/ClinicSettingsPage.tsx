@@ -156,7 +156,7 @@ function TeamSection({
                   {(m.displayName || m.email || '?').charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-medium text-foreground">
                       {m.displayName || m.email}
                     </span>
@@ -703,7 +703,7 @@ function Section({
 }) {
   return (
     <section className="mb-8">
-      <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="flex items-center gap-2 font-display text-xl font-bold text-foreground">
           {title}
         </h2>

@@ -461,7 +461,7 @@ function EventRow({
   );
 }
 
-function Row({
+export function Row({
   color,
   title,
   meta,
@@ -478,16 +478,18 @@ function Row({
 }) {
   return (
     <Card className="p-3">
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <span className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', color)} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-48">
           <p className={cn('break-words text-sm font-medium text-foreground', strike && 'line-through opacity-60')}>
             {title}
           </p>
           {meta && <p className="break-words text-xs text-muted-foreground">{meta}</p>}
           {extra && <p className="mt-0.5 text-xs text-muted-foreground">{extra}</p>}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
+        {actions && (
+          <div className="ml-auto flex shrink-0 items-center gap-1">{actions}</div>
+        )}
       </div>
     </Card>
   );

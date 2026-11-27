@@ -386,7 +386,7 @@ function Section({ title, action, children }: { title: string; action?: ReactNod
   );
 }
 
-function ListRow({
+export function ListRow({
   dot,
   title,
   meta,
@@ -406,7 +406,7 @@ function ListRow({
   const content = (
     <>
       <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', dot)} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-48">
         <p className={cn('break-words text-sm font-medium text-foreground', strike && 'line-through opacity-60')}>
           {title}
         </p>
@@ -416,15 +416,17 @@ function ListRow({
     </>
   );
   return (
-    <li className="flex items-start gap-3 p-4">
+    <li className="flex flex-wrap items-start gap-3 p-4">
       {to ? (
-        <Link to={to} className="flex min-w-0 flex-1 items-start gap-3">
+        <Link to={to} className="flex min-w-0 flex-1 basis-48 items-start gap-3">
           {content}
         </Link>
       ) : (
         content
       )}
-      {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
+      {actions && (
+        <div className="ml-auto flex shrink-0 items-center gap-1">{actions}</div>
+      )}
     </li>
   );
 }

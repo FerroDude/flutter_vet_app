@@ -183,7 +183,7 @@ export function ClientDetailPage() {
                   {(owner.displayName || owner.email || '?').charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 font-display text-2xl font-bold text-foreground">
+                  <p className="flex flex-wrap items-center gap-2 font-display text-2xl font-bold text-foreground">
                     <span className="truncate">{owner.displayName || t('vet.noName')}</span>
                     {(owner.invitePending || !owner.email) && (
                       <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">

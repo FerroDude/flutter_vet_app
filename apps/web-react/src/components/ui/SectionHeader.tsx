@@ -32,7 +32,7 @@ export function SectionHeader({
 }: SectionHeaderProps) {
   const Heading = as;
   return (
-    <div className={cn('flex items-end justify-between gap-4', className)}>
+    <div className={cn('flex flex-wrap items-end justify-between gap-x-4 gap-y-2', className)}>
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}
         <Heading

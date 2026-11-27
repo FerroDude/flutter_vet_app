@@ -191,11 +191,11 @@ function FoundAlert({ report: r, onResolve }: { report: FoundReport; onResolve: 
   const href = contactLink(r.finderContact);
   return (
     <Card className="border-warning/40 bg-warning/15 p-4">
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-warning/20 text-warning">
           <PawPrint size={18} />
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-48">
           <p className="font-medium text-foreground">{t('tag.foundToast', { name: r.petName })}</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {r.finderName || t('tag.someone')}
@@ -214,7 +214,7 @@ function FoundAlert({ report: r, onResolve }: { report: FoundReport; onResolve: 
             )}
           </p>
         </div>
-        <Button variant="outline" size="md" className="shrink-0" onClick={onResolve}>
+        <Button variant="outline" size="md" className="ml-auto shrink-0" onClick={onResolve}>
           <Check size={15} /> {t('tag.resolve')}
         </Button>
       </div>

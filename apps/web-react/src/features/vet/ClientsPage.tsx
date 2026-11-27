@@ -194,7 +194,7 @@ export function ClientsPage() {
                   {clientLabel(c).charAt(0).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-medium text-foreground">{clientLabel(c)}</span>
                     {(c.invitePending || !c.email) && (
                       <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
