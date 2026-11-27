@@ -21,6 +21,10 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
   `firebase functions:secrets:set GOOGLE_OAUTH_CLIENT_SECRET` and
   `GOOGLE_OAUTH_CLIENT_ID` in `functions/.env.vetplus-digital`.
 - `npm run lint` is broken (eslint not installed).
+- Storage rules call `firestore.get()` (clinic branding uploads). That needs the Storage service agent
+  `service-997739068545@gcp-sa-firebasestorage.iam.gserviceaccount.com` to have
+  `roles/firebaserules.firestoreServiceAgent` (granted 2026-11-27); without it uploads fail with
+  `storage/unauthorized`.
 
 ## Workflow preference
 - Commit messages: no "Generated with Devin" line and no "Co-Authored-By: Devin" trailer.
