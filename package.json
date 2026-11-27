@@ -13,6 +13,7 @@
     "test": "npm run test --workspaces --if-present",
     "test:rules": "npm run test:rules --workspace @vetplus/web",
     "create-vet": "node scripts/create-vet.mjs",
+    "create-clinic": "node scripts/create-clinic.mjs",
     "deploy": "npm run deploy --workspace @vetplus/web"
   },
   "devDependencies": {

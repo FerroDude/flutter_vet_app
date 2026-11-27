@@ -6,11 +6,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
   onSnapshot,
   query,
   updateDoc,
+  where,
   type DocumentData,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -284,4 +286,58 @@ export async function deleteClinicLogoFile(clinicId: string, url: string | null)
   } catch {
     /* already gone / foreign */
   }
+}
+
+/* ------------------------- client: my clinic links ------------------------ */
+
+/**
+ * The signed-in client's links across ALL clinics (collection group).
+ * `pending` = invites awaiting the client's answer; `active` = accepted.
+ */
+export function useMyClinicLinks(uid: string): {
+  pending: (ClinicClientLink & { clinicId: string })[];
+  active: (ClinicClientLink & { clinicId: string })[];
+  loading: boolean;
+} {
+  const [state, setState] = useState<{
+    pending: (ClinicClientLink & { clinicId: string })[];
+    active: (ClinicClientLink & { clinicId: string })[];
+    loading: boolean;
+  }>({ pending: [], active: [], loading: true });
+
+  useEffect(() => {
+    if (!uid) {
+      setState({ pending: [], active: [], loading: false });
+      return;
+    }
+    return onSnapshot(
+      query(collectionGroup(db, 'clients'), where('clientId', '==', uid)),
+      (snap) => {
+        const all = snap.docs.map((d) => ({
+          ...clinicClientLinkFromFirestore(d.data() as DocumentData),
+          clinicId: d.ref.parent.parent?.id ?? '',
+        }));
+        setState({
+          pending: all.filter((l) => l.status === 'pending'),
+          active: all.filter((l) => l.status === 'active'),
+          loading: false,
+        });
+      },
+      () => setState({ pending: [], active: [], loading: false }),
+    );
+  }, [uid]);
+
+  return state;
+}
+
+/** Client answers a clinic link request (callable). */
+export async function respondClinicLink(args: {
+  clinicId: string;
+  accept: boolean;
+}): Promise<'active' | 'declined'> {
+  const call = httpsCallable<
+    { clinicId: string; accept: boolean },
+    { status: 'active' | 'declined' }
+  >(functions, 'respondClinicLink');
+  return (await call(args)).data.status;
 }

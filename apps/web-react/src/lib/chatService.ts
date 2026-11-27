@@ -597,3 +597,16 @@ export function mediaPlaceholder(type: MessageType, fileName: string): string {
       return t('chat.type.file', { name: fileName });
   }
 }
+
+/** Client's unread chat counts grouped by clinic (for the switcher labels). */
+export function roomsUnreadByClinic(
+  rooms: { clinicId?: string | null; unreadCounts: Record<string, number> }[],
+  uid: string,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of rooms) {
+    if (!r.clinicId) continue;
+    out[r.clinicId] = (out[r.clinicId] ?? 0) + (r.unreadCounts[uid] ?? 0);
+  }
+  return out;
+}

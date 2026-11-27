@@ -73,7 +73,10 @@ export function AgendaPage() {
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
   const confirm = useConfirm();
-  const { clinicId } = useActiveClinic();
+  const { clinicId, clinics } = useActiveClinic();
+  const multiClinic = clinics.length > 1;
+  const clinicName = (id: string | null | undefined) =>
+    multiClinic ? (clinics.find((c) => c.id === id)?.name ?? null) : null;
 
   const eq = useMemo(() => (uid ? eventsQuery(uid) : null), [uid]);
   const { data: allEvents } = useCollection<CalendarEvent>(eq, mapEvent);
@@ -87,10 +90,9 @@ export function AgendaPage() {
   const activeMeds = useAllMedications(uid).filter(isActive);
   const symptoms = useAllSymptoms(uid);
   const { requests: allRequests } = useRequests('petOwnerId', uid);
-  const requests = useMemo(
-    () => allRequests.filter((r) => r.clinicId === clinicId),
-    [allRequests, clinicId],
-  );
+  // Requests from ALL the client's clinics — the agenda is merged; each card
+  // gets a clinic chip when the client belongs to more than one clinic.
+  const requests = allRequests;
 
   const today = startOfDay(new Date());
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -198,7 +200,12 @@ export function AgendaPage() {
           </h2>
           <div className="space-y-2">
             {recentRequests.map((r) => (
-              <RequestRow key={r.id} request={r} onCancel={() => void cancel(r)} />
+              <RequestRow
+                key={r.id}
+                request={r}
+                clinicName={clinicName(r.clinicId)}
+                onCancel={() => void cancel(r)}
+              />
             ))}
           </div>
         </section>
@@ -235,6 +242,7 @@ export function AgendaPage() {
                     key={e.id}
                     event={e}
                     petName={e.petId ? petName.get(e.petId) : undefined}
+                    clinicName={e.type === EventType.appointment ? clinicName(e.clinicId) : null}
                     onOpen={
                       e.type === EventType.appointment
                         ? () => navigate(`/agenda/consultas/${e.id}`)
@@ -327,7 +335,15 @@ export function AgendaPage() {
 
 /* ------------------------------- pieces ------------------------------- */
 
-function RequestRow({ request: r, onCancel }: { request: AppointmentRequest; onCancel: () => void }) {
+function RequestRow({
+  request: r,
+  clinicName,
+  onCancel,
+}: {
+  request: AppointmentRequest;
+  clinicName?: string | null;
+  onCancel: () => void;
+}) {
   const status = REQUEST_STATUS[r.status];
   return (
     <Card className="p-3">
@@ -335,6 +351,11 @@ function RequestRow({ request: r, onCancel }: { request: AppointmentRequest; onC
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
             <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', status.classes)}>{status.label}</span>
+            {clinicName && (
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {clinicName}
+              </span>
+            )}
             {r.petName}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -385,6 +406,7 @@ function MedRow({ med, day, petName, onLog }: { med: Medication; day: Date; petN
 function EventRow({
   event: e,
   petName,
+  clinicName,
   onOpen,
   onEdit,
   onDelete,
@@ -392,6 +414,8 @@ function EventRow({
 }: {
   event: CalendarEvent;
   petName?: string;
+  /** Resolved clinic name, only when the client has ≥2 clinics. */
+  clinicName?: string | null;
   onOpen?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -405,7 +429,12 @@ function EventRow({
       color={appt ? 'bg-event-appointment' : 'bg-accent'}
       title={eventTitle(e.title)}
       strike={completed || cancelled}
-      meta={[timeFmt.format(e.dateTime), petName, appt?.bookedByVetId && (appt.vetName || t('common.vet'))]
+      meta={[
+        timeFmt.format(e.dateTime),
+        petName,
+        appt?.bookedByVetId && (appt.vetName || t('common.vet')),
+        appt?.bookedByVetId && clinicName,
+      ]
         .filter(Boolean)
         .join(' · ')}
       extra={

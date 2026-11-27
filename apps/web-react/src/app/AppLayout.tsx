@@ -41,6 +41,8 @@ interface AppLayoutProps {
   clinic: { name: string; logoWideUrl?: string | null };
   /** Clinic switcher, rendered under the logo (desktop only). */
   clinicSwitcher?: ReactNode;
+  /** Mobile top-bar switcher — replaces the plain logo when provided. */
+  mobileClinicSwitcher?: ReactNode;
   nav: NavItem[];
   externalLinks?: ExternalNavLink[];
   userName: string;
@@ -52,6 +54,7 @@ interface AppLayoutProps {
 export function AppLayout({
   clinic,
   clinicSwitcher,
+  mobileClinicSwitcher,
   nav,
   externalLinks = [],
   userName,
@@ -114,11 +117,13 @@ export function AppLayout({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur lg:hidden">
-        <ClinicLogo
-          src={clinic.logoWideUrl}
-          name={clinic.name}
-          className="h-auto max-h-9 min-w-0 max-w-[55vw] object-contain object-left"
-        />
+        {mobileClinicSwitcher ?? (
+          <ClinicLogo
+            src={clinic.logoWideUrl}
+            name={clinic.name}
+            className="h-auto max-h-9 min-w-0 max-w-[55vw] object-contain object-left"
+          />
+        )}
         <div className="flex items-center gap-1">
           {externalLinks.map((link) => (
             <a

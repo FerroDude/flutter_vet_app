@@ -64,9 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Prevent overlapping/duplicate profile loads (e.g. StrictMode double-invoke).
   const loadSeq = useRef(0);
 
-  const loadProfileFor = useCallback(async (user: User) => {
+  const loadProfileFor = useCallback(async (user: User, silent = false) => {
     const seq = ++loadSeq.current;
-    setProfileLoading(true);
+    if (!silent) setProfileLoading(true);
     setError(null);
     try {
       const found = await getUserProfile(user.uid);
@@ -82,12 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }).catch(() => {});
       }
     } catch (e) {
-      if (seq === loadSeq.current) {
+      if (seq === loadSeq.current && !silent) {
         setError(e instanceof Error ? e.message : t('errors.generic'));
         setProfile(null);
       }
     } finally {
-      if (seq === loadSeq.current) setProfileLoading(false);
+      if (seq === loadSeq.current && !silent) setProfileLoading(false);
     }
   }, []);
 
@@ -106,8 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadProfileFor],
   );
 
+  // Silent by design: a refresh after an in-app change (e.g. accepting a clinic
+  // link) must not flip profileLoading and unmount the app behind a spinner.
   const refreshProfile = useCallback(async () => {
-    if (auth.currentUser) await loadProfileFor(auth.currentUser);
+    if (auth.currentUser) await loadProfileFor(auth.currentUser, true);
   }, [loadProfileFor]);
 
   const signOutUser = useCallback(async () => {

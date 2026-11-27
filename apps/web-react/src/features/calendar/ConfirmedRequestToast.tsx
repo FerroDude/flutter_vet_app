@@ -15,9 +15,10 @@ export function ConfirmedRequestToast() {
   const { firebaseUser } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
-  const { clinicId } = useActiveClinic();
-  const { requests: all, loading } = useRequests('petOwnerId', uid);
-  const requests = all.filter((r) => r.clinicId === clinicId);
+  const { clinics } = useActiveClinic();
+  const { requests, loading } = useRequests('petOwnerId', uid);
+  const clinicName = (id: string | null | undefined) =>
+    clinics.length > 1 ? (clinics.find((c) => c.id === id)?.name ?? null) : null;
   const seen = useRef<Set<string> | null>(null);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export function ConfirmedRequestToast() {
       if (seen.current.has(r.id)) continue;
       seen.current.add(r.id);
       const description =
-        [r.petName, r.bookedDateTime ? dateTimeFmt.format(r.bookedDateTime) : '']
+        [clinicName(r.clinicId), r.petName, r.bookedDateTime ? dateTimeFmt.format(r.bookedDateTime) : '']
           .filter(Boolean)
           .join(' · ') + (r.responseMessage ? ` — ${r.responseMessage}` : '');
       const open = () =>
@@ -43,7 +44,7 @@ export function ConfirmedRequestToast() {
         open,
       });
     }
-  }, [requests, loading, uid, navigate]);
+  }, [requests, loading, uid, navigate, clinics]);
 
   return null;
 }

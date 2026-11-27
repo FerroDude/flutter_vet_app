@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { TimePreference } from '@vetplus/shared';
 import { type Pet } from '@/lib/petService';
 import { useActiveClinic } from '@/app/ClinicProvider';
+import { useClinicMembers } from '@/lib/clinicService';
 import { createRequest } from '@/lib/appointmentRequestService';
 import { timePreferenceText } from '@/lib/format';
 import { Dialog } from '@/components/ui/Dialog';
@@ -52,6 +53,7 @@ export function RequestFormDialog({
   const [start, setStart] = useState(() => toDateInput(addDays(1)));
   const [end, setEnd] = useState(() => toDateInput(addDays(7)));
   const [timePref, setTimePref] = useState<TimePreference>(TimePreference.anyTime);
+  const [pickedClinic, setPickedClinic] = useState(clinicId);
   const [vetPick, setVetPick] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
@@ -61,7 +63,9 @@ export function RequestFormDialog({
   const petRef = useRef<HTMLSelectElement>(null);
   const reasonRef = useRef<HTMLInputElement>(null);
 
-  const { members } = useActiveClinic();
+  const { clinics, clinicIds } = useActiveClinic();
+  const multiClinic = clinicIds.length > 1;
+  const { members } = useClinicMembers(pickedClinic);
   const vets = useMemo(
     () => [...members].filter((m) => m.active).sort((a, b) => a.displayName.localeCompare(b.displayName)),
     [members],
@@ -69,6 +73,7 @@ export function RequestFormDialog({
 
   useEffect(() => {
     if (open) {
+      setPickedClinic(clinicId);
       setPetId(pets[0]?.id ?? '');
       setStart(toDateInput(addDays(1)));
       setEnd(toDateInput(addDays(7)));
@@ -102,7 +107,7 @@ export function RequestFormDialog({
     try {
       const chosenVet = vets.find((m) => m.uid === vetPick) ?? null;
       await createRequest({
-        clinicId,
+        clinicId: pickedClinic,
         vetId: chosenVet?.uid ?? null,
         vetName: chosenVet?.displayName ?? null,
         petOwnerId,
@@ -144,6 +149,22 @@ export function RequestFormDialog({
       }
     >
       <div className="space-y-4">
+        {multiClinic && (
+          <Select
+            label={t('nav.clinic')}
+            value={pickedClinic}
+            onChange={(e) => {
+              setPickedClinic(e.target.value);
+              setVetPick('');
+            }}
+          >
+            {clinics.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
         {pets.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('requests.noPets')}</p>
         ) : (

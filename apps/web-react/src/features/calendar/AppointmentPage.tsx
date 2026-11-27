@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { ArrowLeft } from 'lucide-react';
 import { EventType, MessageType } from '@vetplus/shared';
 import { useAuth } from '@/auth/AuthProvider';
+import { useActiveClinic } from '@/app/ClinicProvider';
 import { useCollection, useDoc } from '@/lib/useFirestore';
 import {
   cancelAppointmentAsClient,
@@ -40,6 +41,9 @@ export function AppointmentPage() {
   const petName = useMemo(() => new Map(pets.map((p) => [p.id, p.name])), [pets]);
 
   const { rooms } = useRooms('petOwnerId', uid);
+  const { clinics } = useActiveClinic();
+  const clinicName =
+    clinics.length > 1 ? (clinics.find((c) => c.id === (event?.type === EventType.appointment ? event.clinicId : null))?.name ?? null) : null;
 
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -121,6 +125,11 @@ export function AppointmentPage() {
         <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold', status.classes)}>
           {status.label}
         </span>
+        {clinicName && (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            {clinicName}
+          </span>
+        )}
       </div>
 
       <Card>

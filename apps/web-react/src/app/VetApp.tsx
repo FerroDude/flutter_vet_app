@@ -49,6 +49,7 @@ export function VetApp() {
     <AppLayout
       clinic={{ name: clinic?.name ?? '', logoWideUrl: clinic?.brand?.logoWideUrl ?? null }}
       clinicSwitcher={<ClinicSwitcher />}
+      mobileClinicSwitcher={<ClinicSwitcher variant="header" />}
       nav={nav}
       externalLinks={externalLinks}
       userName={profile?.displayName?.trim() || profile?.email || t('common.vet')}

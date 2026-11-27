@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { CalendarCheck, LogOut, RefreshCw, Stethoscope, Unlink } from 'lucide-react';
+import { Building2, CalendarCheck, Check, LogOut, RefreshCw, Stethoscope, Unlink } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActiveClinic } from '@/app/ClinicProvider';
 import { ClinicSwitcher } from '@/app/ClinicSwitcher';
@@ -12,6 +12,7 @@ import {
   useGcalStatus,
 } from '@/lib/gcalService';
 import { dateTimeFmt } from '@/lib/format';
+import { respondClinicLink, useMyClinicLinks } from '@/lib/clinicService';
 import { useConfirm } from '@/components/ui/Confirm';
 import {
   alertsMuted,
@@ -35,7 +36,7 @@ import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 
 export function ProfileSettingsPage() {
-  const { profile, role, updateProfile, signOutUser, firebaseUser } = useAuth();
+  const { profile, role, updateProfile, signOutUser, firebaseUser, refreshProfile } = useAuth();
   const isClient = role === 'petOwner';
   const confirm = useConfirm();
   const { data: gcal } = useGcalStatus(role === 'vet' ? (firebaseUser?.uid ?? '') : '');
@@ -47,7 +48,8 @@ export function ProfileSettingsPage() {
   const [postalCode, setPostalCode] = useState('');
   const [details, setDetails] = useState<ClientDetailsDraft>(() => draftFromProfile(null));
   const [saving, setSaving] = useState(false);
-  const { clinic, clinicIds } = useActiveClinic();
+  const { clinic, clinicIds, clinics, clinicId, setClinicId } = useActiveClinic();
+  const { pending: pendingLinks } = useMyClinicLinks(isClient ? (firebaseUser?.uid ?? '') : '');
   const contact = clinic?.contact ?? null;
   const hasClinicContact = Boolean(
     isClient && clinic && (contact?.phone || contact?.address || contact?.postalCode),
@@ -109,7 +111,7 @@ export function ProfileSettingsPage() {
             <p className="truncate text-sm text-muted-foreground">
               {isClient ? t('common.client') : t('common.vet')} · {profile?.email}
             </p>
-            {clinicIds.length > 1 && (
+            {!isClient && clinicIds.length > 1 && (
               <div className="mt-2 max-w-xs md:hidden">
                 <ClinicSwitcher />
               </div>
@@ -117,6 +119,49 @@ export function ProfileSettingsPage() {
           </div>
         </CardBody>
       </Card>
+
+      {isClient && (clinics.length > 0 || pendingLinks.length > 0) && (
+        <Section title={t('clinic.myClinics')}>
+          <Card>
+            <ul className="divide-y divide-border">
+              {clinics.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <Building2 size={18} className="shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 basis-48">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="truncate font-medium text-foreground">{c.name}</span>
+                      {c.id === clinicId && (
+                        <span className="rounded-full bg-primary-light px-2 py-0.5 text-xs font-medium text-primary">
+                          {t('clinic.current')}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  {c.id !== clinicId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-auto shrink-0"
+                      onClick={() => setClinicId(c.id)}
+                    >
+                      {t('clinic.switchTo')}
+                    </Button>
+                  )}
+                </li>
+              ))}
+              {pendingLinks.map((l) => (
+                <PendingClinicLinkRow
+                  key={l.clinicId}
+                  clinicId={l.clinicId}
+                  clinicName={l.clinicName}
+                  hadClinic={clinicIds.length > 0}
+                  refreshProfile={refreshProfile}
+                />
+              ))}
+            </ul>
+          </Card>
+        </Section>
+      )}
 
       <Section title={t('profile.data')}>
         <Card>
@@ -349,5 +394,67 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
       {children}
     </section>
+  );
+}
+
+/** A pending clinic invite row in "As minhas clínicas" (clients). */
+function PendingClinicLinkRow({
+  clinicId: cid,
+  clinicName,
+  hadClinic,
+  refreshProfile,
+}: {
+  clinicId: string;
+  clinicName: string;
+  hadClinic: boolean;
+  refreshProfile: () => Promise<void>;
+}) {
+  const confirm = useConfirm();
+  const [busy, setBusy] = useState(false);
+  const answer = async (accept: boolean) => {
+    if (!accept) {
+      const ok = await confirm({
+        title: t('clinicLink.declineTitle'),
+        description: t('clinicLink.declineDesc', { name: clinicName }),
+        confirmLabel: t('clinicLink.decline'),
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    try {
+      await respondClinicLink({ clinicId: cid, accept });
+      await refreshProfile();
+      toast.success(
+        accept
+          ? hadClinic
+            ? t('clinicLink.acceptedOther', { name: clinicName })
+            : t('clinicLink.accepted', { name: clinicName })
+          : t('clinicLink.declined', { name: clinicName }),
+      );
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <li className="flex flex-wrap items-center gap-3 p-4">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-light text-primary">
+        <Building2 size={15} />
+      </span>
+      <span className="min-w-0 flex-1 basis-48">
+        <span className="truncate font-medium text-foreground">{clinicName}</span>
+        <span className="block text-xs text-muted-foreground">{t('clinicLink.pendingHint')}</span>
+      </span>
+      <span className="ml-auto flex shrink-0 gap-2">
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => void answer(false)}>
+          {t('clinicLink.decline')}
+        </Button>
+        <Button size="sm" loading={busy} onClick={() => void answer(true)}>
+          <Check size={14} /> {t('clinicLink.accept')}
+        </Button>
+      </span>
+    </li>
   );
 }

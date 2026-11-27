@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LayoutDashboard, PawPrint, CalendarDays, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '@/auth/AuthProvider';
-import { useRooms } from '@/lib/chatService';
+import { roomsUnreadByClinic, useRooms } from '@/lib/chatService';
 import { AppLayout, type NavItem } from './AppLayout';
 import { ClinicSwitcher } from './ClinicSwitcher';
 import { useActiveClinic } from './ClinicProvider';
@@ -43,6 +43,12 @@ export function ClientApp() {
     <AppLayout
       clinic={{ name: clinic?.name ?? 'VetTempo', logoWideUrl: clinic?.brand?.logoWideUrl ?? null }}
       clinicSwitcher={<ClinicSwitcher />}
+      mobileClinicSwitcher={
+        <ClinicSwitcher
+          variant="header"
+          unreadByClinic={roomsUnreadByClinic(rooms, firebaseUser?.uid ?? '')}
+        />
+      }
       nav={nav}
       userName={profile?.displayName?.trim() || profile?.email || t('common.client')}
       userSubtitle={t('common.client')}

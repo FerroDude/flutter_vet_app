@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarDays, Check, ChevronRight, MessageCircle, PawPrint } from 'lucide-react';
+import { Building2, CalendarDays, Check, ChevronRight, MessageCircle, PawPrint } from 'lucide-react';
 import { EventType, isActive, nextDose, type MedicationStatus } from '@vetplus/shared';
 import { useFoundReports, resolveFoundReport, type FoundReport } from '@/lib/petTagService';
+import { respondClinicLink, useMyClinicLinks } from '@/lib/clinicService';
+import { useConfirm } from '@/components/ui/Confirm';
 import { PHONE_RE, EMAIL_RE } from '@/lib/contact';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActiveClinic } from '@/app/ClinicProvider';
@@ -22,7 +24,7 @@ import { MedicationCard } from '@/features/medications/MedicationCard';
 import { t } from '@/i18n';
 
 export function ClientDashboard() {
-  const { firebaseUser, profile } = useAuth();
+  const { firebaseUser, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const uid = firebaseUser?.uid ?? '';
 
@@ -39,7 +41,9 @@ export function ClientDashboard() {
     .filter((e) => e.type === EventType.appointment && !isCancelled(e) && e.dateTime.getTime() >= Date.now())
     .slice(0, 3);
 
-  const { clinicId } = useActiveClinic();
+  const { clinicId, clinicIds, setClinicId } = useActiveClinic();
+  const { pending: pendingLinks } = useMyClinicLinks(uid);
+  const confirm = useConfirm();
   const { rooms: allRooms } = useRooms('petOwnerId', uid);
   const rooms = allRooms.filter((r) => r.clinicId === clinicId);
   const unread = rooms.reduce((n, r) => n + (r.unreadCounts[uid] ?? 0), 0);
@@ -65,6 +69,42 @@ export function ClientDashboard() {
         eyebrow={dayHeadFmt.format(new Date())}
         title={firstName ? `${greeting()}, ${firstName}` : greeting()}
       />
+
+      {pendingLinks.map((l) => (
+        <ClinicLinkAlert
+          key={l.clinicId}
+          link={l}
+          onAnswer={(accept) =>
+            void (async () => {
+              if (!accept) {
+                const ok = await confirm({
+                  title: t('clinicLink.declineTitle'),
+                  description: t('clinicLink.declineDesc', { name: l.clinicName }),
+                  confirmLabel: t('clinicLink.decline'),
+                  danger: true,
+                });
+                if (!ok) return;
+              }
+              try {
+                await respondClinicLink({ clinicId: l.clinicId, accept });
+                await refreshProfile();
+                if (accept) {
+                  if (clinicIds.length === 0) setClinicId(l.clinicId);
+                  toast.success(
+                    clinicIds.length === 0
+                      ? t('clinicLink.accepted', { name: l.clinicName })
+                      : t('clinicLink.acceptedOther', { name: l.clinicName }),
+                  );
+                } else {
+                  toast.success(t('clinicLink.declined', { name: l.clinicName }));
+                }
+              } catch (e) {
+                toast.error(errorMessage(e));
+              }
+            })()
+          }
+        />
+      ))}
 
       {unresolved.map((r) => (
         <FoundAlert key={r.id} report={r} onResolve={() => void run(resolveFoundReport(r.petId, r.id))} />
@@ -248,5 +288,38 @@ function Banner({
       </span>
       <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
     </button>
+  );
+}
+
+/** Pending clinic link invite: "{clinic} quer adicioná-lo como cliente". */
+function ClinicLinkAlert({
+  link: l,
+  onAnswer,
+}: {
+  link: { clinicId: string; clinicName: string; addedByName: string };
+  onAnswer: (accept: boolean) => void;
+}) {
+  return (
+    <Card className="border-primary/30 bg-primary-light/40 p-4">
+      <div className="flex flex-wrap items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+          <Building2 size={18} />
+        </span>
+        <div className="min-w-0 flex-1 basis-48">
+          <p className="font-medium text-foreground">
+            {t('clinicLink.title', { name: l.clinicName })}
+          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{t('clinicLink.shared')}</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={() => onAnswer(false)}>
+          {t('clinicLink.decline')}
+        </Button>
+        <Button size="sm" onClick={() => onAnswer(true)}>
+          {t('clinicLink.accept')}
+        </Button>
+      </div>
+    </Card>
   );
 }
