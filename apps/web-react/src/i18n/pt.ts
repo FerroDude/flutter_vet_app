@@ -638,6 +638,10 @@ export const pt = {
   'clinic.pick.title': 'Escolha a clínica',
   'clinic.pick.body': 'Pertence a várias clínicas. Escolha com qual quer trabalhar.',
   'clinic.switch': 'Mudar de clínica',
+  'clinic.switchLabel': 'Mudar de clínica',
+  'clinic.new': 'Nova',
+  'clinic.unreadCount': '{count} mensagens por ler',
+
   'clinic.myClinics': 'As minhas clínicas',
   'clinic.current': 'atual',
   'clinic.switchTo': 'Mudar para esta',

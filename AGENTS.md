@@ -7,6 +7,8 @@ The old Flutter app (and its Cloud Functions) is archived on the `archive/mobile
 - UI text goes through `t()` from `src/i18n` (pt + en dictionaries in `src/i18n/pt.ts` / `en.ts`; en is type-checked for missing keys). Language is per device (localStorage) and switching reloads.
 - Shared helpers: `lib/format.ts` (dates, labels, `errorMessage`), `components/ui/Confirm.tsx` (`useConfirm`),
   `components/ui/Menu.tsx`, `components/ui/MonthGrid.tsx`. Use them instead of `window.confirm` or new formatters.
+- Any UI/UX change: follow `apps/web-react/DESIGN.md` plus the `frontend-design` and `interface-kit`
+  skills (`~/.agents/skills/`).
 - UX rules for every action: async buttons show `loading`, disable their siblings, and guard
   re-entry (one click = one call = one toast). Never switch context (active clinic, page, tab)
   as a side effect of an action; add the result and point to it with an anchored hint

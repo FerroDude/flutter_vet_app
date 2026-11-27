@@ -39,7 +39,8 @@ function Badge({ n, className }: { n?: number; className?: string }) {
 interface AppLayoutProps {
   /** Active clinic whose brand fills the shell (logo + primary colour). */
   clinic: { name: string; logoWideUrl?: string | null };
-  /** Clinic switcher, rendered under the logo (desktop only). */
+  /** Sidebar clinic identity slot — when provided it IS the logo block
+      (switcher trigger); otherwise the plain logo is rendered. */
   clinicSwitcher?: ReactNode;
   /** Mobile top-bar switcher — replaces the plain logo when provided. */
   mobileClinicSwitcher?: ReactNode;
@@ -72,14 +73,15 @@ export function AppLayout({
       </a>
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 pt-6 pb-4 lg:flex">
-        <div className="px-2">
-          <ClinicLogo
-            src={clinic.logoWideUrl}
-            name={clinic.name}
-            className="h-auto max-h-14 object-contain object-left"
-          />
-          {clinicSwitcher}
-        </div>
+        {clinicSwitcher ?? (
+          <div className="px-2">
+            <ClinicLogo
+              src={clinic.logoWideUrl}
+              name={clinic.name}
+              className="h-auto max-h-14 object-contain object-left"
+            />
+          </div>
+        )}
         <nav aria-label={t('nav.main')} className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map((item) => (
             <NavItemLink key={item.to} item={item} />

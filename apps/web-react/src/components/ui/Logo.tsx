@@ -1,3 +1,4 @@
+import { contrastRatio, VETTEMPO_BRAND } from '@/lib/brand';
 import { cn } from '@/lib/cn';
 
 /* VetTempo mark geometry (measured from the brand icon, viewBox 0 0 100 100):
@@ -87,5 +88,65 @@ export function ClinicLogo({ src, name, className }: ClinicLogoProps) {
       className={cn('block w-auto max-w-full select-none', className)}
       draggable={false}
     />
+  );
+}
+
+/* ---------------------------- Clinic mark ---------------------------- */
+
+/** First letters of the first two words ("Clínica Teste" → "CT"). */
+function clinicInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (parts[0]?.charAt(0) ?? '') + (parts[1]?.charAt(0) ?? parts[0]?.charAt(1) ?? '');
+}
+
+export interface ClinicMarkProps {
+  /** Clinic brand (logoMarkUrl preferred; monogram on brand.primary otherwise). */
+  brand?: { primary: string; logoMarkUrl?: string | null } | null;
+  name: string;
+  /** Square edge in px (default 28). */
+  size?: number;
+  className?: string;
+}
+
+/**
+ * Small square clinic mark used in pickers: the clinic's own logoMarkUrl, or a
+ * monogram on its own brand.primary (each clinic keeps its identity regardless
+ * of the active theme). Text is white or ink by the same ≥3 contrast rule as
+ * brandVars.
+ */
+export function ClinicMark({ brand, name, size = 28, className }: ClinicMarkProps) {
+  const style: React.CSSProperties = {
+    width: size,
+    height: size,
+    boxShadow: 'inset 0 0 0 1px rgb(0 0 0 / 0.06)',
+  };
+  const cls = cn('grid shrink-0 place-items-center overflow-hidden rounded-(--radius-sm)', className);
+  if (brand?.logoMarkUrl) {
+    return (
+      <span style={style} className={cls}>
+        <img
+          src={brand.logoMarkUrl}
+          alt=""
+          draggable={false}
+          className="h-full w-full object-contain p-0.5"
+        />
+      </span>
+    );
+  }
+  const bg = brand?.primary || VETTEMPO_BRAND.primary;
+  let fg = '#FFFFFF';
+  try {
+    fg = contrastRatio('#FFFFFF', bg) >= 3 ? '#FFFFFF' : 'hsl(195 55% 13%)';
+  } catch {
+    /* keep white */
+  }
+  return (
+    <span
+      style={{ ...style, backgroundColor: bg, color: fg, fontSize: size * 0.38 }}
+      aria-hidden
+      className={cn(cls, 'font-semibold tracking-wide uppercase select-none')}
+    >
+      {clinicInitials(name)}
+    </span>
   );
 }

@@ -42,7 +42,9 @@ export function ClientApp() {
   return (
     <AppLayout
       clinic={{ name: clinic?.name ?? 'VetTempo', logoWideUrl: clinic?.brand?.logoWideUrl ?? null }}
-      clinicSwitcher={<ClinicSwitcher />}
+      clinicSwitcher={
+        <ClinicSwitcher unreadByClinic={roomsUnreadByClinic(rooms, firebaseUser?.uid ?? '')} />
+      }
       mobileClinicSwitcher={
         <ClinicSwitcher
           variant="header"

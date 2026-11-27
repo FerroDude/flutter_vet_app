@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Building2, CalendarCheck, Check, LogOut, RefreshCw, Stethoscope, Unlink } from 'lucide-react';
+import { ClinicMark } from '@/components/ui/Logo';
 import { useAuth } from '@/auth/AuthProvider';
 import { useActiveClinic } from '@/app/ClinicProvider';
-import { ClinicSwitcher } from '@/app/ClinicSwitcher';
 import {
   connectGcal,
   disconnectGcal,
@@ -49,7 +49,7 @@ export function ProfileSettingsPage() {
   const [postalCode, setPostalCode] = useState('');
   const [details, setDetails] = useState<ClientDetailsDraft>(() => draftFromProfile(null));
   const [saving, setSaving] = useState(false);
-  const { clinic, clinicIds, clinics, clinicId, setClinicId } = useActiveClinic();
+  const { clinic, clinics, clinicId, setClinicId } = useActiveClinic();
   const { pending: pendingLinks } = useMyClinicLinks(isClient ? (firebaseUser?.uid ?? '') : '');
   const { answer: answerLink, busy: linkBusy, answered: answeredLinks } = useAnswerClinicLink();
   const visibleLinks = pendingLinks.filter((l) => !answeredLinks.has(l.clinicId));
@@ -114,11 +114,6 @@ export function ProfileSettingsPage() {
             <p className="truncate text-sm text-muted-foreground">
               {isClient ? t('common.client') : t('common.vet')} · {profile?.email}
             </p>
-            {!isClient && clinicIds.length > 1 && (
-              <div className="mt-2 max-w-xs md:hidden">
-                <ClinicSwitcher />
-              </div>
-            )}
           </div>
         </CardBody>
       </Card>
@@ -129,7 +124,7 @@ export function ProfileSettingsPage() {
             <ul className="divide-y divide-border">
               {clinics.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-3 p-4">
-                  <Building2 size={18} className="shrink-0 text-primary" />
+                  <ClinicMark brand={c.brand} name={c.name} size={28} />
                   <span className="min-w-0 flex-1 basis-48">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-medium text-foreground">{c.name}</span>

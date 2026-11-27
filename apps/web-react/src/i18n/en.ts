@@ -636,6 +636,10 @@ export const en: Record<TKey, string> = {
   'clinic.pick.title': 'Pick a clinic',
   'clinic.pick.body': 'You belong to several clinics. Pick which one to work with.',
   'clinic.switch': 'Switch clinic',
+  'clinic.switchLabel': 'Switch clinic',
+  'clinic.new': 'New',
+  'clinic.unreadCount': '{count} unread messages',
+
   'clinic.myClinics': 'My clinics',
   'clinic.current': 'current',
   'clinic.switchTo': 'Switch to this one',
