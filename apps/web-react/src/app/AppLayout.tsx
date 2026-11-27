@@ -70,7 +70,11 @@ export function AppLayout({
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-card/60 px-4 pt-6 pb-4 lg:flex">
         <div className="px-2">
-          <ClinicLogo src={clinic.logoWideUrl} name={clinic.name} className="h-7" />
+          <ClinicLogo
+            src={clinic.logoWideUrl}
+            name={clinic.name}
+            className="h-auto max-h-14 object-contain object-left"
+          />
           {clinicSwitcher}
         </div>
         <nav aria-label={t('nav.main')} className="mt-8 flex flex-1 flex-col gap-1">
@@ -110,7 +114,11 @@ export function AppLayout({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur lg:hidden">
-        <ClinicLogo src={clinic.logoWideUrl} name={clinic.name} className="h-6 min-w-0" />
+        <ClinicLogo
+          src={clinic.logoWideUrl}
+          name={clinic.name}
+          className="h-auto max-h-9 min-w-0 max-w-[55vw] object-contain object-left"
+        />
         <div className="flex items-center gap-1">
           {externalLinks.map((link) => (
             <a
