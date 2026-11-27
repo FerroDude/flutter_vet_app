@@ -82,6 +82,23 @@ export function brandVars(brand: Brand): Record<string, string> {
   return vars;
 }
 
+/** '#RRGGBB' (or '#RGB'? no — full six digits only). */
+export function isHexColor(v: string): boolean {
+  return /^#[0-9a-f]{6}$/i.test(v.trim());
+}
+
+/**
+ * True when text/icons in `primary` would be hard to read on the light app
+ * background (#F6FAF9): WCAG wants 3:1 for large text/icons.
+ */
+export function brandReadabilityWarning(primary: string): boolean {
+  try {
+    return contrastRatio(primary, '#F6FAF9') < 3;
+  } catch {
+    return false;
+  }
+}
+
 /** Applies clinic brand vars on <html> + theme-color. null resets to VetTempo. */
 export function applyBrand(brand: Brand | null): void {
   const style = document.documentElement.style;

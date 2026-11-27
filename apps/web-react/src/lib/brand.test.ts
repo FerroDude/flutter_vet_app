@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBrand, brandVars, contrastRatio, hexToHslTriple } from './brand';
+import { applyBrand, brandReadabilityWarning, brandVars, contrastRatio, hexToHslTriple, isHexColor } from './brand';
 
 const YOSHI = { primary: '#FA5119', accent: '#EA9374' };
 
@@ -64,5 +64,27 @@ describe('applyBrand', () => {
     }
     expect(meta.getAttribute('content')).toBe('#0E7C72');
     document.head.removeChild(meta);
+  });
+});
+
+describe('isHexColor', () => {
+  it('accepts full hex and rejects junk', () => {
+    expect(isHexColor('#FA5119')).toBe(true);
+    expect(isHexColor('#fa5119')).toBe(true);
+    expect(isHexColor(' #FA5119 ')).toBe(true);
+    expect(isHexColor('#FA5')).toBe(false);
+    expect(isHexColor('FA5119')).toBe(false);
+    expect(isHexColor('#GG5119')).toBe(false);
+    expect(isHexColor('')).toBe(false);
+  });
+});
+
+describe('brandReadabilityWarning', () => {
+  it('warns on too-light primaries and not on dark ones', () => {
+    expect(brandReadabilityWarning('#FA5119')).toBe(false);
+    expect(brandReadabilityWarning('#0E7C72')).toBe(false);
+    expect(brandReadabilityWarning('#FFFFFF')).toBe(true);
+    expect(brandReadabilityWarning('#F6FAF9')).toBe(true);
+    expect(brandReadabilityWarning('not-a-color')).toBe(false);
   });
 });

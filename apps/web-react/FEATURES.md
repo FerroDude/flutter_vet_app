@@ -108,3 +108,9 @@ All cold-start free (`minInstances: 0`); Google calls go through plain `fetch` R
 
 - Push notifications: removed until server-side senders exist. The old Cloud Functions were clinic-based and live on the `archive/mobile-flutter` branch. In-app toasts for new chat messages still work, and users can grant browser-notification permission (Perfil → Notificações, or a one-time prompt) to get OS notifications while the app is open in a tab.
 - Account deletion: not offered; the vet manages client accounts.
+- **Clinic settings (owners)** — `/clinic` (owner-only nav + route): team management
+  (add vet/owner via `createClinicVet` + invite email, promote/demote, deactivate — pending
+  chats/requests return to the pool, reactivate, resend invite, sole-owner guard), brand
+  (primary/accent colours with live preview + contrast warning, wide logo and mark uploads
+  to `clinics/{id}/branding/`, reset to VetTempo colours), and clinic details (name + public
+  contact shown to clients).

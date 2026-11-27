@@ -4,19 +4,33 @@
 // clinics/{clinicId}/clients — client links: pending | active | declined (server-written)
 
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, getDoc, onSnapshot, query, type DocumentData } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  updateDoc,
+  type DocumentData,
+} from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
   clinicClientLinkFromFirestore,
   clinicFromFirestore,
   clinicMemberFromFirestore,
   userProfileFromFirestore,
   type Clinic,
+  type ClinicBrand,
   type ClinicClientLink,
+  type ClinicContact,
   type ClinicMember,
+  type ClinicMemberRole,
   type UserProfile,
 } from '@vetplus/shared';
-import { db, functions } from './firebase';
+import { auth, db, functions, storage } from './firebase';
+import { appLoginUrl } from './authLinks';
 import { useCollection, useDoc } from './useFirestore';
 import { clientLabel } from './clientService';
 
@@ -172,4 +186,102 @@ export async function addClinicClient(args: {
   const email = args.email?.trim().toLowerCase();
   const res = await call({ clinicId: args.clinicId, name: args.name.trim(), email: email || undefined });
   return res.data;
+}
+
+/* ---------------------------- owner: settings ----------------------------- */
+
+/** Owner adds a staff member (vet or owner) to the clinic (callable). */
+export async function createClinicVet(args: {
+  clinicId: string;
+  name: string;
+  email: string;
+  role: ClinicMemberRole;
+}): Promise<{ uid: string; created: boolean }> {
+  const call = httpsCallable<
+    { clinicId: string; name: string; email: string; role: ClinicMemberRole },
+    { uid: string; created: boolean }
+  >(functions, 'createClinicVet');
+  const res = await call({
+    clinicId: args.clinicId,
+    name: args.name.trim(),
+    email: args.email.trim().toLowerCase(),
+    role: args.role,
+  });
+  return res.data;
+}
+
+/** Owner changes a member's role or active flag (callable). */
+export async function updateClinicMember(args: {
+  clinicId: string;
+  uid: string;
+  role?: ClinicMemberRole;
+  active?: boolean;
+}): Promise<void> {
+  const call = httpsCallable<
+    { clinicId: string; uid: string; role?: ClinicMemberRole; active?: boolean },
+    { ok: true }
+  >(functions, 'updateClinicMember');
+  await call(args);
+}
+
+/** Sends the set-password email to a new staff account (same as client invites). */
+export async function sendStaffInvite(email: string): Promise<void> {
+  await sendPasswordResetEmail(auth, email, { url: appLoginUrl(email) });
+}
+
+/** Owner saves the clinic brand (rules: onlyChanges name/brand/contact/updatedAt). */
+export async function updateClinicBrand(clinicId: string, brand: ClinicBrand): Promise<void> {
+  await updateDoc(clinicDoc(clinicId), {
+    brand: {
+      primary: brand.primary,
+      accent: brand.accent ?? null,
+      logoWideUrl: brand.logoWideUrl ?? null,
+      logoMarkUrl: brand.logoMarkUrl ?? null,
+    },
+    updatedAt: Date.now(),
+  });
+}
+
+/** Owner saves the clinic name + public contact block. */
+export async function updateClinicDetails(
+  clinicId: string,
+  args: { name: string; contact: ClinicContact },
+): Promise<void> {
+  await updateDoc(clinicDoc(clinicId), {
+    name: args.name.trim(),
+    contact: {
+      phone: args.contact.phone?.trim() || null,
+      address: args.contact.address?.trim() || null,
+      postalCode: args.contact.postalCode?.trim() || null,
+    },
+    updatedAt: Date.now(),
+  });
+}
+
+export type ClinicLogoKind = 'wide' | 'mark';
+
+/** Uploads a clinic logo to clinics/{id}/branding/; returns the download URL. */
+export async function uploadClinicLogo(
+  clinicId: string,
+  kind: ClinicLogoKind,
+  file: File,
+): Promise<string> {
+  const ext = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : 'png';
+  const path = `clinics/${clinicId}/branding/logo-${kind}-${Date.now()}.${ext}`;
+  const r = ref(storage, path);
+  await uploadBytes(r, file, { contentType: file.type || undefined });
+  return getDownloadURL(r);
+}
+
+/**
+ * Best-effort delete of the previous logo file — only when its download URL
+ * points into this clinic's branding folder. Errors are ignored on purpose.
+ */
+export async function deleteClinicLogoFile(clinicId: string, url: string | null): Promise<void> {
+  if (!url || !url.includes(`clinics%2F${clinicId}%2Fbranding`)) return;
+  try {
+    await deleteObject(ref(storage, url));
+  } catch {
+    /* already gone / foreign */
+  }
 }
